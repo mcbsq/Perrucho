@@ -2,7 +2,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import './App.css'; 
-
 import { AuthProvider } from './contexts/AuthContext'; 
 import { DataProvider } from './contexts/DataContext'; 
 import Navbar from './components/Navbar/Navbar'; 
