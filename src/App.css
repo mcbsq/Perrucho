@@ -1,0 +1,37 @@
+/* src/App.css */
+
+/* -----------------------------------------------------------------
+ * REGLAS GLOBALES PARA LA APLICACIÓN DE MASCOTAS
+ * ----------------------------------------------------------------- */
+
+/* 1. Reset Básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* 2. Configuración del Fondo (CRUCIAL para ver las partículas) */
+/* Aseguramos que el fondo de los elementos principales sea transparente */
+body, #root, .app-container {
+    background-color: transparent; 
+    min-height: 100vh;
+    font-family: 'Roboto', sans-serif; /* Usamos una fuente moderna (asume que la importaste) */
+}
+
+/* 3. Contenedor Principal de la Aplicación */
+.app-container {
+    /* El contenido se apilará verticalmente */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* 4. Contenedor Principal de la Página (donde van las Rutas) */
+.main-content {
+    
+    flex-grow: 1; 
+    padding-top: 0;
+    background-color: none; 
+}
+

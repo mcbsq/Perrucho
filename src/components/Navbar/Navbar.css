@@ -1,0 +1,164 @@
+/* --- Variables y Reset Básico para Material Design Smooth --- */
+:root {
+    --primary-color: #3f51b5; /* Un azul Material Design */
+    --secondary-color: #ff4081; /* Un color de acento vibrante */
+    --text-color: #333;
+    --white: #fff;
+    --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.15); /* Sombra elegante */
+    --transition-duration: 0.3s;
+}
+
+/* Base de la Barra de Navegación */
+.navbar-container {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    transition: background-color var(--transition-duration) ease, 
+                box-shadow var(--transition-duration) ease, 
+                padding var(--transition-duration) ease,
+                border-radius var(--transition-duration) ease;
+}
+
+/* Estilo por Defecto: Transparente en el Top */
+.top-transparent {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 20px 0; /* Más espacio en el top */
+}
+
+/* Estilo Scrolled: La Cápsula Flotante (Material Design) */
+.scrolled-capsule {
+    background-color: rgba(255, 255, 255, 0.95); /* Fondo blanco semi-transparente */
+    box-shadow: var(--shadow-light);
+    backdrop-filter: blur(5px); /* Efecto cristalino */
+    padding: 10px 0; /* Más compacto */
+    
+    /* Efecto "Cápsula Flotante" */
+    width: 90%; /* Ancho reducido */
+    max-width: 1200px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 50px; /* Bordes redondeados de cápsula */
+    top: 10px; /* Separado del borde superior */
+}
+
+/* Contenido Interno */
+.navbar-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 60px; /* Altura constante para el contenido */
+}
+
+/* Logo */
+.navbar-logo {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color var(--transition-duration);
+}
+
+/* Links de Navegación (Desktop) */
+.nav-links-desktop {
+    display: flex;
+    gap: 30px;
+}
+
+.nav-item {
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 5px 10px;
+    position: relative;
+    transition: color var(--transition-duration);
+}
+
+.nav-item:hover {
+    color: var(--primary-color);
+}
+
+/* Íconos de Acción */
+.navbar-actions {
+    display: flex;
+    align-items: center;
+}
+
+.nav-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-color);
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color var(--transition-duration), color var(--transition-duration);
+}
+
+.nav-icon:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--primary-color);
+}
+
+/* --- Estilos para Móviles (Responsivo) --- */
+.mobile-menu-toggle {
+    display: none; /* Oculto por defecto en desktop */
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 8px;
+    margin-left: 10px;
+}
+
+/* Menú Desplegable Móvil */
+.nav-links-mobile {
+    display: none; /* Oculto por defecto */
+    flex-direction: column;
+    width: 100%;
+    background-color: var(--white);
+    box-shadow: var(--shadow-light);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.4s ease-in-out; /* Animación smooth */
+}
+
+.nav-links-mobile.open {
+    display: flex;
+    max-height: 300px; /* Suficiente altura para mostrar los links */
+    padding: 10px 0;
+}
+
+.nav-links-mobile .nav-item {
+    padding: 10px 20px;
+    border-bottom: 1px solid #eee;
+    width: 100%;
+    text-align: left;
+}
+
+.nav-links-mobile .nav-item:last-child {
+    border-bottom: none;
+}
+
+/* Media Query para Móviles */
+@media (max-width: 768px) {
+    .nav-links-desktop {
+        display: none; /* Ocultar links en desktop */
+    }
+
+    .mobile-menu-toggle {
+        display: block; /* Mostrar botón de menú */
+    }
+    
+    .scrolled-capsule {
+        /* Ajuste para que la cápsula flote mejor en móviles */
+        width: 95%;
+    }
+    
+    .navbar-actions {
+        /* Mostrar el ícono de perfil y el botón de menú */
+        order: 3;
+    }
+}

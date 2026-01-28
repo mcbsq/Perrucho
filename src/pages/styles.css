@@ -1,0 +1,220 @@
+/* src/pages/styles.css */
+:root {
+    --primary-color: #3f51b5;
+    --secondary-color: #00bcd4; /* Color secundario para detalles */
+    --shadow-heavy: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* -----------------------------------
+ * ESTILOS DEL BANNER CAPSULA FLOTANTE
+ * ----------------------------------- */
+.capsule-banner {
+    /* Propiedades de Layout */
+    max-width: 95%; 
+    width: 100%; 
+    height: 80vh; 
+    margin: 100px auto 100px auto; 
+    padding: 30px;
+    
+    /* Propiedades de Estilo */
+    border-radius: 50px; 
+    box-shadow: var(--shadow-heavy);
+    transition: transform 0.5s ease;
+
+    /* Estilos de la imagen original */
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+    color: white; 
+
+    /* === EFECTO PARALLAX (Clave) === */
+    background-attachment: fixed; 
+    /* ============================== */
+    
+   
+    /* backdrop-filter se mantiene */
+    backdrop-filter: blur(8px); 
+
+    /* PROPIEDADES CLAVE PARA CENTRADO */
+    display: flex;
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    text-align: center; 
+}
+
+/* Títulos y texto dentro del banner */
+.capsule-banner h2 {
+    color: white; 
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7); 
+    margin-bottom: 10px;
+    font-size: 2.5rem; 
+}
+
+.capsule-banner p {
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+    margin-bottom: 20px;
+}
+
+
+/* Botón de Reserva (Estilo Material Design) */
+.reserve-button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+    
+    margin-top: 25px; 
+    
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+.reserve-button:hover {
+    background-color: #30409a;
+    transform: translateY(-1px);
+}
+
+/* -----------------------------------
+ * ESTILOS DE SECCIONES DE CONTENIDO
+ * ----------------------------------- */
+.content-section {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 50px 20px;
+    background: white;
+    border-radius: 12px;
+}
+
+/* -------------------------------------
+ * ESTILOS DE LAS TARJETAS DE SERVICIO (Añadidos)
+ * ------------------------------------- */
+
+.service-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 30px;
+    margin-top: 40px;
+}
+
+.service-card {
+    background-color: #f9f9f9;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); 
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-8px); 
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+}
+
+.service-icon {
+    font-size: 3em;
+    margin-bottom: 15px;
+}
+
+.service-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.service-card p {
+    color: #666;
+    margin-bottom: 25px;
+    font-size: 0.95rem;
+}
+
+.service-button {
+    margin-top: 0; 
+    padding: 10px 20px;
+}
+
+/* -------------------------------------
+ * ESTILOS ESPECÍFICOS DE PRODUCTOS
+ * ------------------------------------- */
+
+/* Botón "Comprar" dentro de la tarjeta de producto (usa el color secundario) */
+.buy-button {
+    background-color: var(--secondary-color); 
+}
+
+.buy-button:hover {
+    background-color: var(--primary-color); /* Tono más oscuro del secundario */
+    transform: translateY(-1px);
+}
+
+
+
+/* =========================================================
+ * RESPONSIVIDAD (MEDIA QUERIES)
+ * ========================================================= */
+
+/* Tablet y Móvil (Vista de hasta 768px) */
+@media (max-width: 900px) {
+     /* Dos columnas para tabletas */
+    .service-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+
+@media (max-width: 768px) {
+    
+    /* Ajuste de márgenes y tamaño de cápsula */
+    .capsule-banner {
+        margin: 80px auto 80px auto; 
+        padding: 20px;
+        border-radius: 30px; 
+    }
+
+    /* Reducción del tamaño del título */
+    .capsule-banner h2 {
+        font-size: 1.8rem;
+    }
+
+    /* Reducción del tamaño del botón */
+    .reserve-button {
+        padding: 10px 25px;
+        font-size: 0.9rem;
+    }
+    
+    /* Reducción de padding en secciones de contenido */
+    .content-section {
+        padding: 30px 15px;
+        margin: 30px auto;
+    }
+}
+
+/* Móvil Pequeño (Vista de hasta 600px) */
+@media (max-width: 600px) {
+    
+    .capsule-banner {
+        height: 70vh; 
+        margin: 70px auto 70px auto;
+        border-radius: 20px; 
+        width: 85%;
+    }
+
+    .capsule-banner h2 {
+        font-size: 1.5rem;
+    }
+    
+    .capsule-banner p {
+        font-size: 0.9rem;
+    }
+    
+    /* Una columna para móviles */
+    .service-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
