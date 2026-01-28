@@ -1,0 +1,40 @@
+/* src/components/Footer/Footer.css */
+:root {
+    --primary-color: #3f51b5;
+    --text-color-light: #f4f4f4;
+    --bg-footer: #333; /* Fondo oscuro elegante */
+    --transition-duration: 0.3s;
+}
+
+.footer-container {
+    background-color: var(--bg-footer);
+    color: var(--text-color-light);
+    padding: 30px 20px;
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.footer-links {
+    margin-top: 15px;
+}
+
+.footer-link {
+    color: var(--text-color-light);
+    text-decoration: none;
+    margin: 0 10px;
+    transition: color var(--transition-duration);
+}
+
+.footer-link:hover {
+    color: var(--primary-color); /* Resalta con el color primario */
+}

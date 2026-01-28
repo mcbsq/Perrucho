@@ -1,0 +1,81 @@
+/* src/components/WhatsAppButton/WhatsAppButton.css */
+
+/* -------------------------------------
+ * ESTILO DEL BOTÓN (Contenedor del círculo verde)
+ * ------------------------------------- */
+.whatsapp-button {
+    /* Posición Fija en la esquina inferior derecha */
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    z-index: 1000; /* Asegura que esté por encima de todo */
+
+    /* Diseño del círculo (se mantiene el verde, asumiendo que el PNG es solo el teléfono) */
+    width: 60px;
+    height: 60px;
+    border-radius: 50%; /* Circular */
+    background-color: #25d366; /* Verde oficial de WhatsApp */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Sombra para resaltar */
+    
+    /* Centrado del ícono (se mantiene) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Animación */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    
+    /* Animación de flotación suave */
+    animation: float-whatsapp 4s ease-in-out infinite;
+}
+
+/* Efecto Hover */
+.whatsapp-button:hover {
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05);
+}
+
+/* -------------------------------------
+ * ESTILO DE LA IMAGEN PNG (whatsapp.png)
+ * ------------------------------------- */
+.whatsapp-icon-img {
+    /* Ajusta el tamaño de la imagen para que encaje dentro del círculo */
+    width: 100%; 
+    height: 100%;
+    /* Asegura que la imagen mantenga su proporción si tiene áreas transparentes */
+    object-fit: contain; 
+}
+
+
+/* -------------------------------------
+ * KEYFRAMES DE ANIMACIÓN
+ * ------------------------------------- */
+@keyframes float-whatsapp {
+    0% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px); /* Flota 5px hacia arriba */
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* -------------------------------------
+ * RESPONSIVIDAD (Móviles)
+ * ------------------------------------- */
+@media (max-width: 600px) {
+    .whatsapp-button {
+        width: 50px;
+        height: 50px;
+        bottom: 15px;
+        right: 15px;
+    }
+    /* Eliminamos la regla SVG y nos aseguramos de que la imagen se adapte si es necesario */
+    .whatsapp-icon-img {
+        width: 60%;
+        height: 60%;
+    }
+}
