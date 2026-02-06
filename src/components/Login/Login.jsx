@@ -1,4 +1,3 @@
-// src/components/Login/Login.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Login.css'; 
@@ -17,18 +16,23 @@ const Login = () => {
         setError('');
 
         try {
-            const user = login(email, password); 
+            // Obtenemos el usuario que retorna la función login
+            const loggedUser = login(email, password); 
 
-            if (user) {
-                // REDIRECCIÓN SEGÚN ROL
-                if (user.role === 'administrador') navigate('/admin-dashboard');
-                else if (user.role === 'empleado') navigate('/gestion-citas');
-                else navigate('/'); 
+            if (loggedUser) {
+                // Redirección basada estrictamente en el rol retornado
+                if (loggedUser.role === 'administrador') {
+                    navigate('/admin-dashboard');
+                } else if (loggedUser.role === 'empleado') {
+                    navigate('/employee-dashboard'); 
+                } else {
+                    navigate('/'); 
+                }
             } else {
-                setError('Credenciales incorrectas. (admin@mascotas.com / empleado@mascotas.com / test@mascotas.com)');
+                setError('Email o contraseña incorrectos.');
             }
         } catch (err) {
-            setError('Ocurrió un error durante el inicio de sesión.');
+            setError('Error al conectar con el servidor.');
         }
     };
 
@@ -37,19 +41,19 @@ const Login = () => {
             <div className="login-card">
                 <h2>Iniciar Sesión</h2>
                 <form onSubmit={handleSubmit}>
-                    {error && <p className="error-message">{error}</p>} 
+                    {error && <p className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</p>} 
                     <div className="input-group">
-                        <label htmlFor="email">Email</label>
-                        <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        <label>Email</label>
+                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
                     <div className="input-group">
-                        <label htmlFor="password">Contraseña</label>
-                        <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        <label>Contraseña</label>
+                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
                     <button type="submit" className="login-button">Entrar</button>
                 </form>
                 <div className="login-footer">
-                    <p>¿No tienes una cuenta? <Link to="/registro">Regístrate aquí</Link></p>
+                    <p>¿No tienes cuenta? <Link to="/registro">Regístrate</Link></p>
                 </div>
             </div>
         </div>

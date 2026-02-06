@@ -1,0 +1,402 @@
+/* src/pages/Services/Services.css */
+
+.services-page-container {
+    padding: 160px 5% 80px;
+    background: #f8fafc;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.services-header {
+    text-align: center;
+    margin-bottom: 60px;
+    max-width: 800px;
+}
+
+.services-header h1 {
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    color: var(--sidebar-bg);
+    font-weight: 900;
+    margin-bottom: 15px;
+}
+
+.services-header h1 span {
+    color: var(--accent-blue);
+}
+
+.services-subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+/* GRID MAESTRO */
+.services-grid-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 40px;
+    width: 100%;
+    max-width: 1400px;
+}
+
+/* CARD LUXURY CÁPSULA */
+.service-card-capsule {
+    background: white;
+    width: 380px; 
+    border-radius: 60px;
+    padding: 45px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.service-card-capsule:hover {
+    transform: translateY(-15px);
+    box-shadow: 0 30px 60px rgba(116, 185, 255, 0.2);
+    border-color: var(--accent-blue);
+}
+
+.icon-box {
+    font-size: 3.5rem;
+    background: #f1f5f9;
+    width: 110px;
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 35px;
+    margin-bottom: 20px;
+}
+
+.card-body h2 {
+    font-size: 1.8rem;
+    color: var(--sidebar-bg);
+    margin-bottom: 15px;
+    font-weight: 800;
+}
+
+.card-body p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    min-height: 4.8em; /* Mantiene alineación horizontal */
+}
+
+.tags-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 35px;
+}
+
+.info-tag {
+    background: #f1f5f9;
+    padding: 10px 20px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--sidebar-bg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-tag.price {
+    background: #e0f2fe;
+    color: var(--accent-blue);
+}
+
+.btn-reserve {
+    width: 100%;
+    padding: 22px;
+    border-radius: 35px;
+    border: none;
+    background: var(--sidebar-bg);
+    color: white;
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-reserve:hover {
+    background: var(--accent-blue);
+    transform: scale(1.05);
+    box-shadow: 0 10px 20px rgba(116, 185, 255, 0.3);
+}
+
+/* RESPONSIVIDAD SERVICIOS */
+@media (max-width: 1200px) {
+    .service-card-capsule { width: 45%; }
+}
+
+@media (max-width: 768px) {
+    .services-page-container { padding-top: 120px; }
+    .service-card-capsule { width: 95%; padding: 35px; }
+}
+
+/* src/components/ServiceModal/ServiceModal.css */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.7); /* Un poco más oscuro para resaltar el modal */
+    backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.modal-capsule {
+    background: white;
+    width: 95%;
+    max-width: 550px; /* Un poco más ancho para dar aire */
+    border-radius: 60px; /* Curva más pronunciada */
+    padding: 60px; /* Más espacio interno */
+    position: relative;
+    box-shadow: 0 50px 100px rgba(0,0,0,0.3);
+}
+
+.close-btn {
+    position: absolute;
+    top: 30px;
+    right: 35px;
+    font-size: 1.4rem;
+    background: #f1f5f9;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    transform: rotate(90deg);
+}
+
+/* PROGRESS BAR */
+.modal-progress-container {
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 20px;
+    margin: 10px 0 50px; /* Más espacio hacia abajo */
+    overflow: hidden;
+}
+
+.modal-progress-fill {
+    height: 100%;
+    background: var(--accent-blue);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-1 { width: 25%; }
+.step-2 { width: 50%; }
+.step-3 { width: 75%; }
+.step-4 { width: 100%; }
+
+/* STEP CONTENT */
+.modal-step-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.service-modal-icon {
+    font-size: 4.5rem;
+    margin-bottom: 30px; /* Más aire abajo del icono */
+    background: #f8fafc;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 40px;
+}
+
+.modal-service-description {
+    color: var(--text-muted);
+    line-height: 1.8;
+    margin-bottom: 40px; /* Más espacio antes de los botones */
+    font-size: 1.05rem;
+}
+
+/* FORMULARIOS */
+.modal-form-group {
+    width: 100%;
+    text-align: left;
+    margin-bottom: 35px; /* Más espacio entre inputs */
+}
+
+.modal-form-group label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    font-weight: 800;
+    color: var(--sidebar-bg);
+    font-size: 1.1rem;
+}
+
+.modal-form-group input, 
+.modal-form-group select {
+    width: 100%;
+    padding: 20px; /* Inputs más altos */
+    border-radius: 25px;
+    border: 2px solid #f1f5f9;
+    font-family: inherit;
+    font-size: 1.1rem;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.modal-form-group input:focus {
+    border-color: var(--accent-blue);
+    background: #fdfdfd;
+    box-shadow: 0 10px 20px rgba(116, 185, 255, 0.1);
+}
+
+/* PAYMENT GRID */
+.payment-selection-grid {
+    display: flex;
+    gap: 25px; /* Más espacio entre opciones de pago */
+    width: 100%;
+    margin-bottom: 40px;
+}
+
+.payment-card {
+    flex: 1;
+    padding: 30px;
+    border: 2px solid #f1f5f9;
+    border-radius: 30px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    font-weight: 700;
+    transition: all 0.3s ease;
+}
+
+.payment-card.active {
+    border-color: var(--accent-blue);
+    background: rgba(116, 185, 255, 0.05);
+    color: var(--accent-blue);
+    transform: translateY(-5px);
+}
+
+/* BOTONES MODAL */
+.btn-modal-primary, .btn-modal-confirm {
+    width: 100%;
+    padding: 22px;
+    border-radius: 30px;
+    border: none;
+    background: var(--sidebar-bg);
+    color: white;
+    font-weight: 800;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 10px;
+}
+
+.btn-modal-primary:hover {
+    background: var(--accent-blue);
+    box-shadow: 0 15px 30px rgba(116, 185, 255, 0.3);
+}
+
+.btn-modal-secondary {
+    padding: 22px 35px;
+    border-radius: 30px;
+    border: none;
+    background: #f1f5f9;
+    color: var(--text-muted);
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.modal-actions-dual {
+    display: flex;
+    gap: 20px; /* Más espacio entre botones duales */
+    width: 100%;
+    margin-top: 15px;
+}
+
+/* ÉXITO FINAL */
+.icon-success-final {
+    font-size: 7rem;
+    color: #00b894;
+    margin-bottom: 30px;
+    filter: drop-shadow(0 15px 30px rgba(0, 184, 148, 0.3));
+}
+
+.resumen-final-box {
+    background: #f8fafc;
+    padding: 30px;
+    border-radius: 35px;
+    width: 100%;
+    margin: 30px 0 40px;
+    border: 1px solid #edf2f7;
+}
+
+/* RESPONSIVIDAD */
+@media (max-width: 768px) {
+    .modal-capsule {
+        padding: 40px 25px;
+        border-radius: 40px;
+        width: 90%;
+    }
+
+    .payment-selection-grid {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .modal-actions-dual {
+        flex-direction: column-reverse;
+        gap: 12px;
+    }
+
+    .btn-modal-secondary {
+        width: 100%;
+    }
+
+    .close-btn {
+        top: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ANIMACIONES */
+.fade-in {
+    animation: fadeInModal 0.5s ease forwards;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}

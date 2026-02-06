@@ -1,11 +1,8 @@
-// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
-export const useAuth = () => {
-    return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(() => {
@@ -24,9 +21,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, [user]);
 
-    // Función de Login con Roles
     const login = (email, password) => {
-        // --- SIMULACIÓN DE CUENTAS MAESTRAS ---
         let role = 'cliente';
         if (email === "admin@mascotas.com") role = 'administrador';
         else if (email === "empleado@mascotas.com") role = 'empleado';
@@ -39,39 +34,24 @@ export const AuthProvider = ({ children }) => {
                 role: role 
             };
             setUser(userData);
-            return userData; // Retornamos el usuario para la redirección en el componente
+            return userData; 
         }
         return null;
     };
 
     const logout = () => {
         setUser(null);
+        localStorage.removeItem('currentUser'); // Forzar borrado
     };
 
     const register = (clientData, petData) => {
-        console.log("Registrando Cliente:", clientData);
-        console.log("Registrando Mascota:", petData);
-        
-        const newUser = { 
-            id: `u${Date.now()}`, 
-            ...clientData,
-            role: 'cliente' // Los registros web siempre son clientes
-        };
+        const newUser = { id: `u${Date.now()}`, ...clientData, role: 'cliente' };
         setUser(newUser); 
         return true;
     };
 
-    const value = {
-        user,
-        isLoggedIn: !!user,
-        login,
-        logout,
-        register,
-        loading
-    };
-
     return (
-        <AuthContext.Provider value={value}>
+        <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, logout, register, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

@@ -1,0 +1,384 @@
+/* src/pages/Home/Home.css */
+
+/* ==========================================================================
+   BODY / CONTENEDOR FLUIDO
+   ========================================================================== */
+.home-page-container {
+    width: 100%;
+    /* Gradiente de fondo que une todo el diseño sin cortes */
+    background: radial-gradient(circle at top right, #ffffff, #f0f4f8 40%, #eef2f7 100%);
+    overflow-x: hidden;
+}
+
+/* ==========================================================================
+   HERO: CÁPSULA FLOTANTE 3D
+   ========================================================================== */
+.capsule-banner {
+    height: 95vh;
+    width: 95%;
+    margin: 25px auto;
+    border-radius: 80px;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed; /* Efecto Parallax suave */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.2);
+    animation: heroReveal 1.2s var(--ease-medical);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes heroReveal {
+    from { opacity: 0; transform: scale(0.95) translateY(40px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.capsule-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(45, 52, 70, 0.4), rgba(0, 0, 0, 0.1));
+    border-radius: inherit;
+}
+
+.capsule-banner .reserve-button {
+    position: relative;
+    z-index: 2;
+    padding: 22px 60px;
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    color: var(--sidebar-bg);
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    font-weight: 800;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.capsule-banner .reserve-button:hover {
+    transform: scale(1.1) translateY(-10px);
+    background: var(--accent-blue);
+    color: white;
+    box-shadow: 0 25px 50px rgba(116, 185, 255, 0.4);
+}
+
+/* ==========================================================================
+   SECCIONES FLUIDAS (SIN CORTES)
+   ========================================================================== */
+.content-section {
+    padding: 100px 8%;
+    position: relative;
+}
+
+.content-section h3 {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--sidebar-bg);
+    margin-bottom: 60px;
+    text-align: center;
+    background: linear-gradient(135deg, var(--sidebar-bg), var(--accent-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: slideUp 0.8s ease-out;
+}
+
+/* Grid Dinámico */
+.service-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 40px;
+}
+
+/* ==========================================================================
+   TARJETAS: GLASS-PREMIUM
+   ========================================================================== */
+.service-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    padding: 50px 40px;
+    border-radius: 50px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.03);
+    transition: all 0.5s var(--ease-medical);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.service-card:hover {
+    transform: translateY(-20px) scale(1.02);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 40px 80px rgba(116, 185, 255, 0.15);
+    border-color: var(--accent-blue);
+}
+
+/* Iconos Flotantes */
+.service-icon {
+    font-size: 4rem;
+    width: 120px;
+    height: 120px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 40px;
+    margin-bottom: 25px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.05);
+    transition: all 0.5s var(--ease-medical);
+}
+
+.service-card:hover .service-icon {
+    transform: translateY(-10px) rotate(5deg);
+    background: var(--accent-blue);
+    color: white; /* Si usas SVGs, esto los pintará */
+}
+
+.service-card h3 {
+    background: none;
+    -webkit-text-fill-color: initial;
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+    color: var(--sidebar-bg);
+}
+
+.service-card p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1.8;
+    margin-bottom: 30px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   BOTONES DE ACCIÓN (ESTILO CÁPSULA)
+   ========================================================================== */
+.service-button, .buy-button {
+    width: 100%;
+    padding: 18px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+    text-align: center;
+    transition: all 0.4s;
+}
+
+.service-button {
+    background: #f0f4ff;
+    color: var(--accent-blue);
+    border: 2px solid var(--accent-blue);
+}
+
+.buy-button {
+    background: #e6fff9;
+    color: #00b894;
+    border: 2px solid #55efc4;
+}
+
+.service-button:hover, .buy-button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+}
+
+.service-button:hover { background: var(--accent-blue); color: white; }
+.buy-button:hover { background: #55efc4; color: white; }
+
+/* ==========================================================================
+   PRODUCT CARD VARIATION
+   ========================================================================== */
+.product-card {
+    border-radius: 40px 40px 80px 80px; /* Diseño asimétrico para productos */
+}
+
+.product-icon {
+    border-radius: 50%; /* Iconos circulares para productos para diferenciar */
+}
+
+/* ==========================================================================
+   ANIMACIONES DE SCROLL (REVEAL)
+   ========================================================================== */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(50px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Aplicar a las tarjetas una a una si quieres un efecto cascada */
+.service-card {
+    animation: slideUp 0.8s var(--ease-medical) both;
+}
+
+/* Estilo para los espacios en blanco decorativos */
+.spacer-gradient {
+    height: 200px;
+    background: linear-gradient(to bottom, transparent, rgba(162, 155, 254, 0.05));
+}
+
+/* ==========================================================================
+   RESPONSIVIDAD PRO
+   ========================================================================== */
+@media (max-width: 1024px) {
+    .capsule-banner { height: 60vh; width: 95%; border-radius: 50px; }
+    .content-section { padding: 60px 5%; }
+}
+
+@media (max-width: 480px) {
+    .content-section h3 { font-size: 2rem; }
+    .service-card { padding: 40px 20px; border-radius: 40px; }
+}
+
+/* ==========================================================================
+   NUEVOS ELEMENTOS DINÁMICOS (HOME + ADMIN CONNECT)
+   ========================================================================== */
+
+/* 1. Badge de Bienvenida en el Hero */
+.hero-welcome-badge {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 12px 30px;
+    border-radius: var(--radius-pill);
+    color: white;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    z-index: 3;
+    animation: fadeInDown 1s ease-out;
+}
+
+.hero-welcome-badge span {
+    font-weight: 800;
+    color: var(--accent-mint); /* Resaltamos tu nombre en verde menta */
+}
+
+/* 2. Etiqueta de Precio (Para Servicios) */
+.price-tag {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: red;
+    margin: 10px 0;
+    display: block;
+}
+
+.price-tag::before {
+    content: 'Desde ';
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+/* 3. Mensajes de Estado (Cargando / Lista Vacía) */
+.empty-msg {
+    grid-column: 1 / -1; /* Ocupa todo el ancho del grid */
+    text-align: center;
+    padding: 60px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-lg);
+    border: 2px dashed rgba(162, 155, 254, 0.2);
+    color: var(--text-muted);
+    font-family: 'Quicksand', sans-serif;
+    font-size: 1.2rem;
+    animation: pulseAlpha 2s infinite;
+}
+
+/* 4. Ajuste para descripciones largas del Admin */
+.service-card p {
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Corta el texto a 3 líneas máximo */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 4.5em; /* Mantiene la altura aunque el texto sea corto */
+}
+
+/* ==========================================================================
+   ANIMACIONES ADICIONALES
+   ========================================================================== */
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes pulseAlpha {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Ajuste de Glassmorphism para Tarjetas de Producto */
+.product-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(230, 255, 249, 0.6));
+    border-color: rgba(85, 239, 196, 0.3);
+}
+
+.product-card:hover {
+    border-color: var(--accent-mint);
+    box-shadow: 0 40px 80px rgba(85, 239, 196, 0.2);
+}
+
+/* ==========================================================================
+   CATEGORÍAS (PRODUCT BADGES)
+   ========================================================================== */
+
+/* Contenedor de la categoría */
+.service-card h3 + p { 
+    /* El p que sigue al h3 en el JSX */
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+
+/* Estilo de etiqueta (Badge) para categorías */
+.category-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 800;
+    margin-bottom: 15px;
+    background: #f1f5f9;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
+}
+
+/* Colores dinámicos por categoría (Opcional si quieres diferenciar) */
+.category-alimentos {
+    background: #fff4e6;
+    color: #d97706;
+}
+
+.category-higiene {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+.category-accesorios {
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+
+/* Ajuste en la tarjeta para que la categoría no flote */
+.product-card .service-icon {
+    margin-bottom: 5px; /* Reducimos espacio para que quepa el badge */
+}

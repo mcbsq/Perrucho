@@ -1,72 +1,66 @@
-// src/pages/Services.jsx
-import React, { useState } from 'react';
-import ServiceModal from '../components/ServiceModal/ServiceModal';
-import './styles.css'; // Estilos específicos de la página de Servicios
-
-// Datos de los servicios disponibles (simulados)
-const serviceData = [
-    {
-        id: 1,
-        title: "Día de Spa & Grooming",
-        description: "Incluye baño premium, corte de pelo (opcional), cepillado, limpieza de oídos y un masaje relajante. Ideal para consentir a tu mascota.",
-        duration: "1.5 horas",
-        price: 85,
-        icon: "🛁"
-    },
-    {
-        id: 2,
-        title: "Paseo de Mascotas (2h)",
-        description: "Paseo energizante de 2 horas en el parque, con enfoque en el ejercicio y la socialización. Incluye agua y snack saludable.",
-        duration: "2 horas",
-        price: 30,
-        icon: "🐕"
-    }
-];
+// src/pages/Services/Services.jsx
+import React, { useState, useEffect } from 'react';
+import ServiceModal from './ServiceModal';
+import './Services.css';
 
 const Services = () => {
-    // Estado para controlar qué servicio se va a reservar (o null si el modal está cerrado)
+    const [services, setServices] = useState([]);
     const [selectedService, setSelectedService] = useState(null);
 
-    // Abre el modal con la información del servicio
-    const openModal = (service) => {
-        setSelectedService(service);
-    };
+    // Cargamos los servicios que guardaste en el Admin
+    useEffect(() => {
+        const savedServices = JSON.parse(localStorage.getItem('services')) || [];
+        setServices(savedServices);
+    }, []);
 
-    // Cierra el modal
-    const closeModal = () => {
+    // Función para cerrar el modal y limpiar la selección
+    const handleCloseModal = () => {
         setSelectedService(null);
     };
 
     return (
         <div className="services-page-container">
-            <h1>Agenda tu Servicio</h1>
-            <p className="services-subtitle">Selecciona el tratamiento ideal para tu compañero peludo.</p>
+            <header className="services-header">
+                <div className="premium-badge">Nuestros Servicios</div>
+                <h1>Experiencias para tu <span>mascota</span></h1>
+                <p className="services-subtitle">
+                    Calidad médica y estética con la comodidad que ellos merecen.
+                </p>
+            </header>
 
-            <div className="services-grid">
-                {serviceData.map((service) => (
-                    <div key={service.id} className="service-item-card">
-                        <span className="service-icon">{service.icon}</span>
-                        <h2>{service.title}</h2>
-                        <p>{service.description}</p>
-                        <div className="service-details">
-                            <span className="detail-tag">Duración: {service.duration}</span>
-                            <span className="detail-tag">Precio: ${service.price}</span>
+            {/* GRID DE SERVICIOS - Se muestra siempre */}
+            <div className="services-grid-container">
+                {services.length > 0 ? (
+                    services.map((service) => (
+                        <div key={service.id} className="service-card-capsule">
+                            <div className="icon-box">{service.icon || '🐾'}</div>
+                            <div className="card-body">
+                                <h2>{service.title}</h2>
+                                <p>{service.description}</p>
+                                <div className="tags-row">
+                                    <span className="info-tag">🕒 {service.duration}</span>
+                                    <span className="info-tag price">💰 ${service.price}</span>
+                                </div>
+                            </div>
+                            {/* AL HACER CLIC AQUÍ, SE ACTIVA EL MODAL */}
+                            <button 
+                                className="btn-reserve" 
+                                onClick={() => setSelectedService(service)}
+                            >
+                                RESERVAR AHORA
+                            </button>
                         </div>
-                        <button 
-                            className="reserve-service-button"
-                            onClick={() => openModal(service)}
-                        >
-                            Reservar Ahora
-                        </button>
-                    </div>
-                ))}
+                    ))
+                ) : (
+                    <p className="no-services">No hay servicios disponibles por ahora.</p>
+                )}
             </div>
 
-            {/* Modal de Reserva: se muestra si selectedService no es null */}
+            {/* MODAL: Solo se renderiza si hay un servicio seleccionado */}
             {selectedService && (
                 <ServiceModal 
                     service={selectedService} 
-                    onClose={closeModal} 
+                    onClose={handleCloseModal} 
                 />
             )}
         </div>
