@@ -1,97 +1,99 @@
-// src/pages/Home.jsx (Actualizado)
-import React from 'react';
+// src/pages/Home.jsx (CONECTADO AL ADMIN)
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import './styles.css'; 
+import './Home.css'; 
 import bannerImage from '../assets/1.jpg'; 
-import { useAuth } from '../contexts/AuthContext'; // <-- ¡IMPORTAMOS EL HOOK!
+import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext'; // <-- CONEXIÓN AL ADMIN
 
-// --- COMPONENTE TARJETA DE SERVICIO ---
-const ServiceCard = ({ title, description, icon }) => {
-    // Usamos el hook para acceder al estado
-    const { isLoggedIn } = useAuth(); 
-    
-    // Lógica Condicional REAL
-    const linkPath = isLoggedIn ? "/servicios" : "/acceso";
-    
-    return (
-        <div className="service-card">
-            <div className="service-icon">{icon}</div>
-            <h3>{title}</h3>
-            <p>{description}</p>
-            <Link to={linkPath} className="reserve-button service-button">
-                Reservar
-            </Link>
-        </div>
-    );
-};
-
-// --- COMPONENTE TARJETA DE PRODUCTO ---
-const ProductCard = ({ title, description, icon }) => {
-    // Usamos el hook para acceder al estado
+// --- TARJETA DINÁMICA ---
+// Adaptamos la tarjeta para recibir los datos reales del objeto del Admin
+const DynamicCard = ({ item, type }) => {
     const { isLoggedIn } = useAuth();
     
-    // Lógica Condicional REAL
-    const linkPath = isLoggedIn ? "/tienda" : "/acceso";
+    // Si es servicio va a /servicios, si es producto a /tienda
+    const baseLink = type === 'service' ? "/servicios" : "/tienda";
+    const linkPath = isLoggedIn ? baseLink : "/acceso";
     
+    // Iconos por defecto según categoría o tipo
+    const icon = type === 'service' ? "✂️" : "🎁";
+
     return (
-        <div className="service-card product-card"> 
-            <div className="service-icon product-icon">{icon}</div>
-            <h3>{title}</h3>
-            <p>{description}</p>
-            <Link to={linkPath} className="reserve-button buy-button"> 
-                Comprar
+        <div className={`service-card ${type === 'product' ? 'product-card' : ''}`}>
+            <div className={`service-icon ${type === 'product' ? 'product-icon' : ''}`}>
+                {icon}
+            </div>
+            <h3>{item.title || item.name}</h3>
+            <p>{item.description || `Categoría: ${item.category}`}</p>
+            {type === 'service' && <span className="price-tag">${item.price}</span>}
+            
+            <Link to={linkPath} className={`reserve-button ${type === 'service' ? 'service-button' : 'buy-button'}`}>
+                {type === 'service' ? 'Reservar' : 'Comprar'}
             </Link>
         </div>
     );
 };
-// --------------------------------------------------------------------------
-
 
 const Home = () => {
-    // Usamos el hook en el componente principal
-    const { isLoggedIn } = useAuth();
-    
-    // Rutas condicionales para los botones principales
+    const { isLoggedIn, user } = useAuth();
+    const { services, products } = useData(); // <-- EXTRAEMOS DATOS REALES
+    const [userName, setUserName] = useState("");
+
+    useEffect(() => {
+        const savedUser = localStorage.getItem('user_data');
+        if (savedUser) {
+            const parsedUser = JSON.parse(savedUser);
+            setUserName(parsedUser.name || "Invitado");
+        } else if (user) {
+            setUserName(user.name);
+        }
+    }, [user]);
+
     const mainReservePath = isLoggedIn ? "/servicios" : "/acceso";
-    const shopLinkPath = isLoggedIn ? "/tienda" : "/acceso";
-    
+
     return (
-        <div className="home-page-container" style={{ minHeight: '200vh', paddingBottom: '100px' }}>
+        <div className="home-page-container">
             
-            {/* BANNER CAPSULA FLOTANTE */}
+            {/* BANNER */}
             <div 
                 className="capsule-banner" 
                 style={{ backgroundImage: `url(${bannerImage})` }}
             >
-                
+              
                 <Link to={mainReservePath} className="reserve-button">
                     Reservar Cita
                 </Link>
             </div>
 
-            {/* SECCIÓN SERVICIOS */}
+            {/* SECCIÓN SERVICIOS (DINÁMICOS) */}
             <section className="content-section">
                 <h3>Nuestros Servicios</h3>
                 <div className="service-cards-grid">
-                    <ServiceCard title="Grooming Premium" description="..." icon="✂️"/>
-                    <ServiceCard title="Spa & Relax" description="..." icon="🛁"/>
-                    <ServiceCard title="Chequeo Básico" description="..." icon="🩺"/>
+                    {services.length > 0 ? (
+                        services.slice(0, 3).map(s => (
+                            <DynamicCard key={s.id} item={s} type="service" />
+                        ))
+                    ) : (
+                        <p className="empty-msg">Cargando servicios profesionales...</p>
+                    )}
                 </div>
             </section>
 
-            {/* SECCIÓN PRODUCTOS EXCLUSIVOS */}
+            {/* SECCIÓN PRODUCTOS (DINÁMICOS) */}
             <section className="content-section">
-                <h3>Productos Exclusivos</h3>
+                <h3>Productos Destacados</h3>
                 <div className="service-cards-grid">
-                    <ProductCard title="Shampoo Hipoalergénico" description="..." icon="🧴"/>
-                    <ProductCard title="Juguete Interactivo" description="..." icon="🦴"/>
-                    <ProductCard title="Alimento Premium" description="..." icon="🥩"/>
+                    {products.length > 0 ? (
+                        products.slice(0, 3).map(p => (
+                            <DynamicCard key={p.id} item={p} type="product" />
+                        ))
+                    ) : (
+                        <p className="empty-msg">Cargando productos exclusivos...</p>
+                    )}
                 </div>
-                
-               
             </section>
 
-            <div style={{ height: '200px' }}></div> 
+            <div className="spacer-gradient"></div>
         </div>
     );
 };

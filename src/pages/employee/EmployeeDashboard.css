@@ -1,0 +1,266 @@
+/* ==========================================================================
+   TIPOGRAFÍAS Y VARIABLES (ESTILO STAFF/OPERATIVO)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Quicksand:wght@400;500;600;700&display=swap');
+
+:root {
+    --staff-primary: #a29bfe;       /* Lavanda Operativo */
+    --staff-secondary: #6c5ce7;     /* Violeta profundo */
+    --staff-mint: #55efc4;          /* Menta (Completado) */
+    --staff-bg: #f8faff;            /* Fondo más azulado/limpio */
+    --staff-text: #2d3436;
+    --staff-muted: #636e72;
+    
+    --radius-lg: 35px;
+    --radius-md: 20px;
+    --radius-pill: 50px;
+    --shadow-soft: 0 10px 30px rgba(162, 155, 254, 0.15);
+    --transition: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ==========================================================================
+   LAYOUT BASE
+   ========================================================================== */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--staff-bg);
+    font-family: 'Quicksand', sans-serif;
+}
+
+/* Reutilización de Sidebar y Topbar del Admin con toques Staff */
+.admin-sidebar {
+    background-color: #1e272e;
+    z-index: 1000;
+}
+
+.nav-capsule.active {
+    background: linear-gradient(135deg, var(--staff-primary), var(--staff-secondary));
+    box-shadow: 0 8px 20px rgba(108, 92, 231, 0.3);
+}
+
+.admin-main-panel {
+    flex-grow: 1;
+    padding: 40px;
+    margin-top: 75px;
+    transition: margin-left var(--transition);
+}
+
+/* ==========================================================================
+   MODAL DE EXPEDIENTE (POP-UP INTERNO)
+   ========================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(45, 52, 54, 0.6);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.modal-capsule {
+    background: white;
+    width: 100%;
+    max-width: 750px;
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    position: relative;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.2);
+    animation: modalSlideUp 0.5s var(--transition);
+}
+
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(40px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-form-group label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: var(--staff-secondary);
+}
+
+.btn-modal-primary {
+    background: linear-gradient(135deg, var(--staff-mint), #00b894);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    width: 100%;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    cursor: pointer;
+    margin-top: 25px;
+    transition: var(--transition);
+}
+
+.btn-modal-primary:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(85, 239, 196, 0.4);
+}
+
+/* ==========================================================================
+   AGENDA Y PACIENTES (DASHBOARD STAFF)
+   ========================================================================== */
+.pacientes-container-layout {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 30px;
+}
+
+.agenda-list-full {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Tarjeta de Cita Individual */
+.agenda-item-v2 {
+    background: white;
+    padding: 25px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: var(--transition);
+}
+
+.agenda-item-v2:hover {
+    transform: translateX(10px);
+    border-color: var(--staff-primary);
+}
+
+.agenda-item-v2.active {
+    background: #f0eeff;
+    border-color: var(--staff-secondary);
+}
+
+.agenda-item-v2.completed {
+    border-left: 10px solid var(--staff-mint);
+    background: #f6fffb;
+}
+
+.time-tag {
+    background: var(--staff-secondary);
+    color: white;
+    padding: 8px 15px;
+    border-radius: var(--radius-pill);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.status-pill {
+    padding: 6px 15px;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #dfe6e9;
+    margin-left: auto;
+}
+
+.status-pill.success {
+    background: var(--staff-mint);
+    color: white;
+}
+
+/* ==========================================================================
+   PANEL LATERAL (EXPEDIENTE RÁPIDO)
+   ========================================================================== */
+.pacientes-agenda-side {
+    position: sticky;
+    top: 110px;
+    height: fit-content;
+}
+
+.quick-file-v2 {
+    background: white;
+    padding: 30px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    border: 1px solid rgba(108, 92, 231, 0.1);
+}
+
+.file-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--staff-secondary);
+    margin-bottom: 25px;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.file-card-inner .pet-mini-info h4 {
+    font-size: 1.8rem;
+    margin: 0;
+    color: var(--staff-text);
+}
+
+.notes-preview {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    margin: 20px 0;
+    border-left: 5px solid var(--staff-primary);
+}
+
+/* ==========================================================================
+   ESTADÍSTICAS DE STAFF
+   ========================================================================== */
+.control-grid .stat-card {
+    border-top: 6px solid var(--staff-primary);
+    border-radius: var(--radius-lg);
+}
+
+.stat-card h3 {
+    color: var(--staff-secondary);
+}
+
+/* ==========================================================================
+   TABLAS Y FORMULARIOS
+   ========================================================================== */
+.dashboard-form {
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(162, 155, 254, 0.2);
+}
+
+table thead th {
+    background: #f0f3ff;
+    color: var(--staff-secondary);
+}
+
+.edit-btn {
+    background: #f0eeff;
+    color: var(--staff-secondary);
+}
+
+.edit-btn:hover {
+    background: var(--staff-secondary);
+    color: white;
+}
+
+/* ==========================================================================
+   RESPONSIVO
+   ========================================================================== */
+@media (max-width: 1100px) {
+    .pacientes-container-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .pacientes-agenda-side {
+        position: static;
+    }
+}

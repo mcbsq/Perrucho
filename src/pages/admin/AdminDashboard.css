@@ -1,76 +1,101 @@
 /* src/pages/AdminDashboard/AdminDashboard.css */
+
+/* ==========================================================================
+   TIPOGRAFÍAS Y VARIABLES: PALETA MEDICAL PASTEL
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Quicksand:wght@400;500;600;700&display=swap');
+
 :root {
-    --sidebar-bg: #0f172a; /* Slate 900 - Más profesional */
-    --accent-blue: #2563eb; /* Blue 600 - Color estándar SaaS */
-    --accent-red: #dc2626;
-    --capsule-hover: #1e293b;
-    --bg-main: #f1f5f9; /* Slate 100 - Fondo más suave */
-    --transition-speed: 0.3s;
-    --topbar-height: 65px;
-    --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    /* Colores Base Refinados */
+    --sidebar-bg: #1e272e;         /* Gris profundo para elegancia */
+    --accent-blue: #74b9ff;        /* Azul Cielo Pastel */
+    --accent-mint: #55efc4;        /* Menta Médico */
+    --accent-lavender: #a29bfe;    /* Lavanda (Agenda) */
+    --accent-red: #ff7675;         /* Coral (Alertas/Delete) */
+    --bg-main: #f0f4f8;            /* Fondo clínico suave */
+    --text-main: #2d3436;
+    --text-muted: #636e72;
+    
+    /* Variables de Estilo y Escala */
+    --transition-speed: 0.4s;
+    --ease-medical: cubic-bezier(0.25, 1, 0.5, 1);
+    --topbar-height: 75px;
+    --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    --glass-bg: rgba(255, 255, 255, 0.9);
+    --radius-lg: 28px;
+    --radius-md: 18px;
+    --radius-pill: 50px;
 }
 
-/* Layout General */
+/* ==========================================================================
+   LAYOUT GENERAL
+   ========================================================================== */
 .admin-layout {
     display: flex;
     min-height: 100vh;
     background-color: var(--bg-main);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Quicksand', system-ui, sans-serif;
+    color: var(--text-main);
+    -webkit-font-smoothing: antialiased;
 }
 
-/* --- BARRA SUPERIOR FIJA (TOPBAR) --- */
+h1, h2, h3, h4, h5, .sidebar-header h3, .form-header, strong {
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* --- TOPBAR (GLASSMORPHISM) --- */
 .admin-top-bar {
     position: fixed;
     top: 0;
     right: 0;
     left: 0;
     height: var(--topbar-height);
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(8px); /* Efecto moderno */
+    background: var(--glass-bg);
+    backdrop-filter: blur(15px);
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    padding: 0 30px;
+    padding: 0 40px;
     z-index: 101;
-    border-bottom: 1px solid #e2e8f0;
-    gap: 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    gap: 25px;
+    transition: all var(--transition-speed);
 }
 
 .admin-user-info {
     display: flex;
     align-items: center;
-    gap: 10px;
-    color: #64748b;
+    gap: 12px;
+    color: var(--text-muted);
     font-size: 0.95rem;
+    font-weight: 600;
 }
 
-.admin-user-info strong {
-    color: var(--sidebar-bg);
-}
-
-/* Botón de Cerrar Sesión estilo Cápsula */
 .logout-pill {
-    background: #fee2e2;
+    background: #fff0f0;
     color: var(--accent-red);
     border: none;
-    padding: 8px 22px;
-    border-radius: 50px;
+    padding: 10px 26px;
+    border-radius: var(--radius-pill);
     display: flex;
     align-items: center;
     gap: 10px;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s var(--ease-medical);
 }
 
 .logout-pill:hover {
     background: var(--accent-red);
     color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(255, 118, 117, 0.3);
 }
 
-/* --- SIDEBAR --- */
+/* ==========================================================================
+   SIDEBAR DINÁMICO
+   ========================================================================== */
 .admin-sidebar {
     background-color: var(--sidebar-bg);
     color: white;
@@ -79,505 +104,437 @@
     left: 0;
     top: 0;
     z-index: 150;
-    transition: width var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width var(--transition-speed) var(--ease-medical);
     display: flex;
     flex-direction: column;
-    padding: 20px 10px;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.15);
+    padding: 30px 15px;
+    box-shadow: 5px 0 25px rgba(0,0,0,0.1);
 }
 
-.sidebar-open .admin-sidebar { width: 260px; }
-.sidebar-closed .admin-sidebar { width: 85px; }
+.sidebar-open .admin-sidebar { width: 280px; }
+.sidebar-closed .admin-sidebar { width: 100px; }
 
-/* Botón para esconder/mostrar menú */
 .toggle-btn {
     position: absolute;
-    right: -15px;
-    top: calc(var(--topbar-height) / 2);
-    background: var(--accent-blue);
-    border: none;
-    color: white;
-    width: 32px;
-    height: 32px;
+    right: -18px;
+    top: 30px;
+    background: var(--accent-mint);
+    border: 4px solid var(--bg-main);
+    color: #1e272e;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     z-index: 200;
+    transition: transform 0.4s var(--ease-medical);
 }
+
+.toggle-btn:hover { transform: scale(1.1) rotate(180deg); }
 
 .sidebar-header {
     height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 40px;
 }
 
 .sidebar-header h3 {
-    font-size: 1.2rem;
-    font-weight: 800;
-    letter-spacing: 1px;
-    color: #60a5fa; /* Azul más vibrante sobre oscuro */
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    color: var(--accent-mint);
+    text-transform: uppercase;
 }
 
-/* --- CAPSULAS DEL MENU LATERAL --- */
-.sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 8px; /* Reducido para mayor limpieza */
-    padding-top: 20px;
-}
+.sidebar-nav { display: flex; flex-direction: column; gap: 10px; }
 
 .nav-capsule {
     background: transparent;
     border: none;
-    color: #94a3b8;
-    padding: 14px 20px;
-    border-radius: 12px; /* Cápsula suavizada */
+    color: #a4b0be;
+    padding: 16px 22px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 15px;
     font-size: 0.95rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    overflow: hidden;
+    font-weight: 600;
+    transition: all 0.3s var(--ease-medical);
     white-space: nowrap;
+    overflow: hidden;
 }
 
-.sidebar-closed .nav-capsule {
-    justify-content: center;
-    padding: 14px 0;
-}
+.sidebar-closed .nav-capsule { justify-content: center; padding: 16px 0; }
 
 .nav-capsule:hover {
-    background-color: var(--capsule-hover);
+    background-color: rgba(255, 255, 255, 0.05);
     color: white;
+    transform: translateX(8px);
 }
 
 .nav-capsule.active {
-    background-color: var(--accent-blue);
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-lavender));
     color: white;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 8px 20px rgba(116, 185, 255, 0.25);
 }
 
-/* --- MAIN CONTENT AREA --- */
+/* ==========================================================================
+   MAIN PANEL & CONTENT GRID
+   ========================================================================== */
 .admin-main-panel {
     flex-grow: 1;
-    padding: 40px;
+    padding: 50px;
     margin-top: var(--topbar-height);
-    transition: margin-left var(--transition-speed);
+    transition: margin-left var(--transition-speed) var(--ease-medical);
 }
 
-.sidebar-open .admin-main-panel { margin-left: 260px; }
-.sidebar-closed .admin-main-panel { margin-left: 85px; }
+.sidebar-open .admin-main-panel { margin-left: 280px; }
+.sidebar-closed .admin-main-panel { margin-left: 100px; }
 
 .content-header {
-    margin-bottom: 35px;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 20px;
+    margin-bottom: 45px;
+    border-bottom: 2px solid rgba(0,0,0,0.03);
+    padding-bottom: 25px;
 }
 
 .content-header h2 {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: #0f172a;
-    text-transform: capitalize;
-    letter-spacing: -0.02em;
+    font-size: 2.2rem;
+    color: var(--sidebar-bg);
+    letter-spacing: -0.04em;
 }
 
-/* --- FORMULARIOS --- */
+/* --- FORMULARIOS PRO --- */
 .dashboard-form {
     background: white;
-    padding: 30px;
-    border-radius: 16px;
+    padding: 40px;
+    border-radius: var(--radius-lg);
     box-shadow: var(--card-shadow);
-    max-width: 900px;
-    margin-bottom: 40px;
-    border: 1px solid #e2e8f0;
+    max-width: 1000px;
+    margin-bottom: 50px;
+    border: 1px solid rgba(116, 185, 255, 0.1);
 }
 
 .form-header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     color: var(--accent-blue);
-    margin-bottom: 25px;
-    font-weight: 700;
+    margin-bottom: 35px;
+    font-size: 1.15rem;
 }
 
 .input-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    gap: 25px;
 }
 
-.input-grid input, 
-.input-grid textarea,
-.input-grid select {
-    padding: 12px 16px;
-    border-radius: 10px;
-    border: 1px solid #cbd5e1;
-    background-color: white;
+.input-grid input, .input-grid textarea, .input-grid select {
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    border: 2px solid #f1f2f6;
+    background-color: #f8fafc;
     font-size: 0.95rem;
-    transition: all 0.2s ease;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 500;
+    transition: all 0.3s;
 }
 
-.input-grid input:focus, 
-.input-grid textarea:focus,
-.input-grid select:focus {
+.input-grid input:focus, .input-grid textarea:focus, .input-grid select:focus {
     outline: none;
     border-color: var(--accent-blue);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    background-color: white;
+    box-shadow: 0 0 0 5px rgba(116, 185, 255, 0.1);
 }
 
-.input-grid textarea {
-    grid-column: span 2;
-    min-height: 100px;
-}
+.input-grid textarea { grid-column: span 2; min-height: 140px; }
 
 .main-action-btn {
-    margin-top: 25px;
+    margin-top: 35px;
     width: 100%;
-    padding: 14px;
-    background: var(--accent-blue);
+    padding: 18px;
+    background: linear-gradient(135deg, var(--accent-mint), #00b894);
     color: white;
     border: none;
-    border-radius: 10px;
-    font-weight: 700;
+    border-radius: var(--radius-md);
+    font-weight: 800;
+    font-family: 'Montserrat', sans-serif;
     font-size: 1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s var(--ease-medical);
 }
 
 .main-action-btn:hover {
-    background: #1d4ed8;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(85, 239, 196, 0.3);
 }
 
-/* --- PACIENTES (CÁPSULAS) --- */
+/* ==========================================================================
+   PACIENTES & AGENDA (MIXED LAYOUT)
+   ========================================================================== */
+.pacientes-container-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 40px;
+    align-items: start;
+}
+
 .patient-gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 25px;
 }
 
 .pet-capsule-card {
     background: white;
-    padding: 16px 24px;
-    border-radius: 50px;
+    padding: 22px 35px;
+    border-radius: var(--radius-pill);
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Ajuste para que los botones CRUD entren */
-    gap: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid #f1f5f9;
-    transition: all 0.2s;
+    justify-content: space-between;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    border: 1.5px solid #f1f2f6;
+    transition: all 0.4s var(--ease-medical);
 }
 
 .pet-capsule-card:hover {
-    transform: translateY(-2px);
+    transform: scale(1.04) translateY(-5px);
     border-color: var(--accent-blue);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.07);
 }
 
-.pet-info h4 {
-    margin: 0;
-    color: #1e293b;
-    font-size: 1rem;
-    font-weight: 700;
-}
-
-.pet-info p {
-    margin: 0;
-    color: #64748b;
-    font-size: 0.8rem;
-}
-
-/* --- ESTILOS EXTRA PARA CONTROL Y TABLAS --- */
-.control-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 24px;
-    margin-bottom: 40px;
-}
-
-.stat-card {
-    background: white;
-    padding: 24px;
-    border-radius: 16px;
-    text-align: left; /* Más profesional alineado a la izq */
+/* ==========================================================================
+   AGENDA MÉDICA (SIDE PANEL)
+   ========================================================================== */
+.pacientes-agenda-side {
+    background: #ffffff;
+    border-radius: var(--radius-lg);
+    padding: 30px;
     box-shadow: var(--card-shadow);
-    border-left: 4px solid var(--accent-blue);
-}
-
-.stat-card.warning { border-left-color: var(--accent-red); }
-
-.stat-card h3 {
-    font-size: 1.8rem;
-    color: #1e293b;
-    margin: 5px 0;
-}
-
-.stat-card p {
-    color: #64748b;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-}
-
-/* Tablas profesionales */
-.full-width-table, .data-table-container {
-    background: white;
-    padding: 20px; /* Limpieza para que el header de tabla toque los bordes */
-    border-radius: 12px;
-    margin-top: 20px;
-    box-shadow: var(--card-shadow);
-    border: 1px solid #e2e8f0;
-    overflow: hidden;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-table th {
-    background: #f8fafc;
-    text-align: left;
-    padding: 16px;
-    border-bottom: 2px solid #f1f5f9;
-    color: #475569;
-    font-size: 0.85rem;
-    font-weight: 700;
-}
-
-table td {
-    padding: 16px;
-    border-bottom: 1px solid #f1f5f9;
-    font-size: 0.95rem;
-    color: #334155;
-}
-
-table tr:hover {
-    background-color: #f8fafc;
-}
-
-/* --- ESTILOS CRUD INTEGRADOS --- */
-.actions-cell {
+    border: 1px solid rgba(162, 155, 254, 0.1);
+    position: sticky;
+    top: 110px;
     display: flex;
-    gap: 8px;
-    justify-content: flex-end;
+    flex-direction: column;
+    gap: 20px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
 }
 
-.edit-btn, .delete-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
+.agenda-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f8fafc;
+}
+
+.agenda-header-text h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--sidebar-bg);
+}
+
+.add-appo-btn {
+    background: var(--accent-lavender);
+    color: white;
     border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s;
+}
+
+.add-appo-btn:hover {
+    transform: rotate(90deg) scale(1.1);
+    background: var(--accent-blue);
+}
+
+.agenda-item-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 22px;
+    background: #f9f9ff;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.3s var(--ease-medical);
+}
+
+.agenda-item-v2:hover {
+    background: white;
+    border-color: var(--accent-lavender);
+    transform: translateX(8px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+}
+
+.agenda-item-v2.active {
+    background: white;
+    border-color: var(--accent-blue);
+    box-shadow: 0 12px 25px rgba(116, 185, 255, 0.15);
+}
+
+.time-tag {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--accent-lavender);
+    background: #efeeff;
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    width: fit-content;
+}
+
+.quick-file-v2 {
+    margin-top: 10px;
+    padding: 24px;
+    background: linear-gradient(135deg, #fffaf0, #fff5e6);
+    border-radius: var(--radius-md);
+    border: 1px solid #feebc8;
+}
+
+/* ==========================================================================
+   ESTADÍSTICAS & TABLAS PRO
+   ========================================================================== */
+.control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 30px;
+    margin-bottom: 50px;
+}
+
+.stat-card {
+    background: white;
+    padding: 35px;
+    border-radius: var(--radius-lg);
+    border-top: 6px solid var(--accent-blue);
+    box-shadow: var(--card-shadow);
+    transition: all 0.4s;
+}
+
+.stat-card:hover { transform: translateY(-10px); }
+.stat-card.warning { border-top-color: var(--accent-red); }
+
+.stat-card h3 { font-size: 2.2rem; margin: 10px 0; color: var(--sidebar-bg); }
+.stat-card p { color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+
+/* Data Tables */
+.full-width-table, .data-table-container {
+    background: white;
+    border-radius: var(--radius-lg);
+    margin-top: 35px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid #f1f2f6;
+    overflow: hidden;
+}
+
+table { width: 100%; border-collapse: collapse; }
+table th {
+    background: #f8fafc;
+    padding: 22px;
+    text-align: left;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: 'Montserrat', sans-serif;
+    text-transform: uppercase;
+}
+
+table td { padding: 22px; border-bottom: 1px solid #f1f2f6; font-weight: 500; }
+table tr:hover { background-color: #f7f9fc; }
+
+.actions-cell { display: flex; gap: 12px; justify-content: flex-end; }
+.edit-btn, .delete-btn {
+    width: 40px; height: 40px; border-radius: 12px; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: all 0.2s;
 }
-
-.edit-btn { background: #eff6ff; color: var(--accent-blue); }
+.edit-btn { background: #eef2ff; color: var(--accent-blue); }
 .edit-btn:hover { background: var(--accent-blue); color: white; }
-
-.delete-btn { background: #fef2f2; color: var(--accent-red); }
+.delete-btn { background: #fff1f0; color: var(--accent-red); }
 .delete-btn:hover { background: var(--accent-red); color: white; }
 
-/* MODO EDICIÓN */
-.dashboard-form.edit-mode {
-    border: 2px solid var(--accent-blue);
-    background-color: #f0f7ff;
+/* ==========================================================================
+   RESPONSIVIDAD (MOBILE & TABLET)
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+    .pacientes-container-layout { grid-template-columns: 1fr; }
+    .pacientes-agenda-side { position: static; max-height: none; width: 100%; }
 }
 
-.btn-group {
-    display: flex;
-    gap: 12px;
-    margin-top: 25px;
-}
-
-.cancel-btn {
-    background: #e2e8f0;
-    color: #475569;
-    border: none;
-    padding: 14px 20px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    flex: 1;
-}
-
-.cancel-btn:hover { background: #cbd5e1; }
-
-.main-action-btn.edit { flex: 2; margin-top: 0; }
-
-/* --- ANIMACIONES --- */
-.fade-in {
-    animation: fadeIn 0.4s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Scrollbar */
-.admin-main-panel::-webkit-scrollbar { width: 6px; }
-.admin-main-panel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-/* =============================================
-   SECCIÓN: RESPONSIVIDAD (MEDIA QUERIES)
-   ============================================= */
-
-@media (max-width: 1024px) {
-    .sidebar-open .admin-sidebar { width: 85px; }
-    .sidebar-open .admin-main-panel { margin-left: 85px; }
-    .sidebar-open .nav-capsule span, 
-    .sidebar-open .sidebar-header h3 { display: none; }
-    .toggle-btn { display: none; }
-}
-
-@media (max-width: 768px) {
-    .admin-top-bar {
-        padding: 0 15px;
-        background: white;
-    }
+@media (max-width: 850px) {
+    .admin-top-bar { padding: 0 25px; }
     
-    .admin-user-info span { display: none; }
-
+    /* Sidebar Inferior Estilo App */
     .admin-sidebar {
         width: 100% !important;
-        height: 75px;
+        height: 85px;
         top: auto;
         bottom: 0;
         flex-direction: row;
         padding: 0 10px;
-        justify-content: space-around;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
-        border-top-left-radius: 15px;
-        border-top-right-radius: 15px;
+        border-radius: 30px 30px 0 0;
     }
 
-    .sidebar-header { display: none; }
+    .sidebar-header, .toggle-btn { display: none; }
+    .sidebar-nav { flex-direction: row; width: 100%; justify-content: space-around; }
     
-    .sidebar-nav {
-        flex-direction: row;
-        width: 100%;
-        justify-content: space-around;
-        padding-top: 0;
-        gap: 0;
-    }
-
     .nav-capsule {
         flex-direction: column;
-        gap: 4px;
-        font-size: 0.65rem;
+        gap: 5px;
+        font-size: 0.7rem;
         padding: 10px 5px;
-        border-radius: 10px;
         flex: 1;
         justify-content: center;
-        background: transparent !important;
     }
+    .nav-capsule svg { font-size: 1.6rem !important; }
 
-    .nav-capsule svg, 
-    .nav-capsule i {
-        font-size: 1.6rem !important; /* Iconos más grandes como pediste */
-        margin-bottom: 2px;
-    }
+    .admin-main-panel { margin-left: 0 !important; padding: 30px 20px 120px 20px; }
 
-    .nav-capsule span {
-        display: block !important;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .admin-main-panel {
-        margin-left: 0 !important;
-        padding: 20px 15px 100px 15px;
-    }
-
-    /* --- SOLUCIÓN TABLAS RESPONSIVAS (STACKING) --- */
-    .full-width-table, .data-table-container {
-        background: transparent;
-        padding: 0;
-        box-shadow: none;
-        border: none;
-        overflow: visible;
-    }
-
-    table, thead, tbody, th, td, tr {
-        display: block; /* Convertimos todo a bloques apilados */
-    }
-
-    thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px; /* Escondemos el header original */
-    }
-
+    /* Stacking de Tablas para Mobile */
+    .full-width-table { background: transparent; border: none; box-shadow: none; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; }
     tr {
         background: white;
-        margin-bottom: 15px;
-        border-radius: 16px;
-        padding: 10px;
+        margin-bottom: 25px;
+        border-radius: var(--radius-md);
+        padding: 20px;
         box-shadow: var(--card-shadow);
-        border: 1px solid #e2e8f0;
     }
-
     td {
         border: none;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid #f1f2f6;
         position: relative;
-        padding-left: 50% !important; /* Espacio para el label */
+        padding-left: 45% !important;
         text-align: right;
-        font-size: 0.9rem;
-        min-height: 45px;
+        min-height: 55px;
         display: flex;
         align-items: center;
         justify-content: flex-end;
     }
-
-    td:last-child {
-        border-bottom: 0;
-        justify-content: center;
-        padding-left: 16px !important;
-        background: #f8fafc;
-        margin-top: 10px;
-        border-radius: 10px;
-    }
-
-    /* Generamos etiquetas automáticas (labels) */
-    /* Nota: Esto asume el orden estándar de tus tablas. 
-       Para mayor precisión, se recomienda usar data-label en el HTML */
     td::before {
-        content: attr(data-label); /* Si usas <td data-label="Fecha"> */
+        content: attr(data-label);
         position: absolute;
-        left: 15px;
-        width: 45%;
-        padding-right: 10px;
-        white-space: nowrap;
-        text-align: left;
-        font-weight: 700;
-        color: #64748b;
-        font-size: 0.8rem;
+        left: 20px;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 800;
+        color: var(--accent-blue);
+        font-size: 0.75rem;
         text-transform: uppercase;
     }
-
-    .actions-cell {
-        justify-content: center;
-        width: 100%;
-        gap: 20px;
-    }
+    td:last-child { border: none; margin-top: 15px; background: #f8fafc; border-radius: 15px; justify-content: center; padding: 15px !important; }
 
     .input-grid { grid-template-columns: 1fr; }
     .control-grid { grid-template-columns: 1fr 1fr; }
@@ -585,13 +542,216 @@ table tr:hover {
 
 @media (max-width: 480px) {
     .control-grid { grid-template-columns: 1fr; }
+    .pet-capsule-card { flex-direction: column; border-radius: var(--radius-lg); text-align: center; padding: 30px; }
+}
 
-    .pet-capsule-card {
-        flex-direction: column;
-        border-radius: 20px;
-        text-align: center;
-        padding: 20px;
-    }
+/* --- ANIMACIONES & SCROLLBAR --- */
+.fade-in { animation: medicalFadeUp 0.6s var(--ease-medical) forwards; }
+@keyframes medicalFadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
-    .logout-pill span { display: none; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
+::-webkit-scrollbar-thumb { background: #dfe6e9; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-blue); }
+
+/* ==========================================================================
+   SECCIÓN: AGENDA MÉDICA (SIDE PANEL)
+   ========================================================================== */
+
+.pacientes-agenda-side {
+    background: #ffffff;
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(162, 155, 254, 0.1);
+    position: sticky;
+    top: 110px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+}
+
+/* Header de la Agenda */
+.agenda-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f8fafc;
+}
+
+.agenda-header-text h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--sidebar-bg);
+}
+
+.add-appo-btn {
+    background: var(--accent-lavender);
+    color: white;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s var(--ease-medical);
+    box-shadow: 0 4px 10px rgba(162, 155, 254, 0.3);
+}
+
+.add-appo-btn:hover {
+    transform: rotate(90deg) scale(1.1);
+    background: var(--accent-blue);
+}
+
+/* Formulario Rápido de Citas (Aparece al pulsar +) */
+.mini-appo-form {
+    background: #f8faff;
+    padding: 22px;
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border: 2px dashed var(--accent-lavender);
+    animation: medicalFadeUp 0.4s ease-out;
+}
+
+.mini-appo-form input, 
+.mini-appo-form select {
+    padding: 12px 15px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 0.9rem;
+    background: white;
+}
+
+/* Lista de Citas */
+.agenda-list-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.agenda-item-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 22px;
+    background: #f9f9ff;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.3s var(--ease-medical);
+}
+
+.agenda-item-v2:hover {
+    background: white;
+    border-color: var(--accent-lavender);
+    transform: translateX(10px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+}
+
+.agenda-item-v2.active {
+    background: white;
+    border-color: var(--accent-blue);
+    box-shadow: 0 12px 25px rgba(116, 185, 255, 0.15);
+}
+
+/* Tags de Tiempo y Cuerpo de Cita */
+.time-tag {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--accent-lavender);
+    background: #efeeff;
+    padding: 6px 16px;
+    border-radius: var(--radius-pill);
+    width: fit-content;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.appo-body strong {
+    display: block;
+    font-size: 1.05rem;
+    color: var(--sidebar-bg);
+    margin-bottom: 4px;
+}
+
+.appo-body span {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Botón Eliminar Cita (Contextual) */
+.del-appo {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #fff0f0;
+    color: var(--accent-red);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agenda-item-v2:hover .del-appo {
+    opacity: 1;
+}
+
+.del-appo:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
+/* Expediente Rápido (Quick View / Notas) */
+.quick-file-v2 {
+    margin-top: 15px;
+    padding: 25px;
+    background: linear-gradient(135deg, #fffaf0, #fff5e6);
+    border-radius: var(--radius-md);
+    border: 1px solid #feebc8;
+    animation: fadeIn 0.5s ease;
+}
+
+.quick-file-v2 h5 {
+    margin: 0 0 15px 0;
+    color: #744210;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notes-box {
+    background: white;
+    padding: 18px;
+    border-radius: 15px;
+    font-size: 0.9rem;
+    color: #4a5568;
+    border-left: 6px solid #f6ad55;
+    line-height: 1.6;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
 }
