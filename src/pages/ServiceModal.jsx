@@ -1,4 +1,3 @@
-// src/components/ServiceModal/ServiceModal.jsx
 import React, { useState } from 'react';
 import { 
     FaCalendarAlt, 
@@ -11,15 +10,16 @@ import {
 import './Services.css';
 
 const ServiceModal = ({ service, onClose }) => {
-    // Protección: Si no hay servicio, no renderizamos nada
-    if (!service) return null;
-
+    // HOOKS AL INICIO: El motor de React los necesita registrar siempre en el mismo orden
     const [step, setStep] = useState(1);
     const [bookingData, setBookingData] = useState({
         date: '',
         time: '',
         paymentMethod: '',
     });
+
+    // Validación de seguridad (Post-Hooks)
+    if (!service) return null;
 
     const nextStep = () => setStep(step + 1);
     const prevStep = () => setStep(step - 1);
