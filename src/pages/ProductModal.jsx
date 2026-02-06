@@ -1,15 +1,16 @@
-// src/components/ProductModal/ProductModal.jsx
 import React, { useState } from 'react';
 import { FaCreditCard, FaMoneyBillWave, FaCheckCircle, FaTimes, FaShippingFast } from 'react-icons/fa';
 import './Services.css'; // Reutilizamos los estilos base por eficiencia
 
 const ProductModal = ({ product, onClose }) => {
-    if (!product) return null;
-
+    // LOS HOOKS SIEMPRE VAN AL INICIO (Nivel superior)
     const [step, setStep] = useState(1);
     const [purchaseData, setPurchaseData] = useState({
         paymentMethod: '',
     });
+
+    // Si no hay producto, retornamos null después de declarar los hooks para no romper el orden
+    if (!product) return null;
 
     const nextStep = () => setStep(step + 1);
     const prevStep = () => setStep(step - 1);
