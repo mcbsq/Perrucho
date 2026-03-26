@@ -1,105 +1,156 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// src/contexts/DataContext.jsx
+// DataContext migrado a JSON Server.
+// Mantiene exactamente la misma API que usaban los componentes
+// (services, products, clients, pets, sales + funciones CRUD)
+// para que no tengas que tocar ningún componente existente.
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  servicesApi,
+  productsApi,
+  clientsApi,
+  petsApi,
+  salesApi,
+} from '../api/apiClient';
 
 const DataContext = createContext();
 export const useData = () => useContext(DataContext);
 
 export const DataProvider = ({ children }) => {
-    // 1. Definimos los datos iniciales de prueba (Mock Data)
-    const initialServices = [
-        { id: 1, title: 'Estética Completa', description: 'Baño, corte y drenado.', price: 450, duration: '2h', category: 'Estética' },
-        { id: 2, title: 'Consulta General', description: 'Revisión de rutina.', price: 350, duration: '45min', category: 'Veterinaria' }
-    ];
+  const [services,   setServices]   = useState([]);
+  const [products,   setProducts]   = useState([]);
+  const [clients,    setClients]    = useState([]);
+  const [pets,       setPets]       = useState([]);
+  const [sales,      setSales]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
 
-    const initialProducts = [
-        { id: 1, name: 'Shampoo Antipulgas', price: 180, stock: 15, category: 'Higiene' },
-        { id: 2, name: 'Alimento Premium Adulto', price: 1200, stock: 3, category: 'Alimentos' }
-    ];
+  // ── Carga inicial ────────────────────────────────────────────────────────
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [s, p, c, pe, sa] = await Promise.all([
+        servicesApi.getAll(),
+        productsApi.getAll(),
+        clientsApi.getAll(),
+        petsApi.getAll(),
+        salesApi.getAll(),
+      ]);
+      setServices(s);
+      setProducts(p);
+      setClients(c);
+      setPets(pe);
+      setSales(sa);
+    } catch (err) {
+      console.error('Error cargando datos:', err);
+      setError('No se pudo conectar con el servidor. ¿Está corriendo JSON Server en el puerto 3001?');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    const initialClients = [
-        { id: 101, name: 'Juan Pérez', phone: '555-0192', email: 'juan@ejemplo.com' },
-        { id: 102, name: 'María García', phone: '555-0244', email: 'maria@ejemplo.com' }
-    ];
+  useEffect(() => { loadAll(); }, [loadAll]);
 
-    const initialPets = [
-        { id: 201, petName: 'Firulais', breed: 'Golden Retriever', weight: '30', ownerId: '101', notes: 'Alergia al pollo' },
-        { id: 202, petName: 'Luna', breed: 'Siamés', weight: '4', ownerId: '102', notes: 'Muy nerviosa' }
-    ];
+  // ── SERVICES ─────────────────────────────────────────────────────────────
+  const addService = async (s) => {
+    const created = await servicesApi.create(s);
+    setServices(prev => [...prev, created]);
+    return created;
+  };
 
-    const initialSales = [
-        { id: 1001, date: '12/01/2026', item: 'Consulta Veterinaria', price: 350 },
-        { id: 1002, date: '12/01/2026', item: 'Shampoo Antipulgas', price: 180 },
-        { id: 1003, date: '13/01/2026', item: 'Estética Luna', price: 450 }
-    ];
+  const updateService = async (id, updated) => {
+    const saved = await servicesApi.update(id, { ...updated, id });
+    setServices(prev => prev.map(s => s.id === id ? saved : s));
+    return saved;
+  };
 
-    // 2. Inicializamos los estados validando si el localStorage tiene datos REALES (no solo un array vacío)
-    const [services, setServices] = useState(() => {
-        const saved = JSON.parse(localStorage.getItem('services'));
-        return (saved && saved.length > 0) ? saved : initialServices;
-    });
+  const deleteService = async (id) => {
+    await servicesApi.delete(id);
+    setServices(prev => prev.filter(s => s.id !== id));
+  };
 
-    const [products, setProducts] = useState(() => {
-        const saved = JSON.parse(localStorage.getItem('products'));
-        return (saved && saved.length > 0) ? saved : initialProducts;
-    });
+  // ── PRODUCTS ─────────────────────────────────────────────────────────────
+  const addProduct = async (p) => {
+    const created = await productsApi.create(p);
+    setProducts(prev => [...prev, created]);
+    return created;
+  };
 
-    const [clients, setClients] = useState(() => {
-        const saved = JSON.parse(localStorage.getItem('clients'));
-        return (saved && saved.length > 0) ? saved : initialClients;
-    });
+  const updateProduct = async (id, updated) => {
+    const saved = await productsApi.update(id, { ...updated, id });
+    setProducts(prev => prev.map(p => p.id === id ? saved : p));
+    return saved;
+  };
 
-    const [pets, setPets] = useState(() => {
-        const saved = JSON.parse(localStorage.getItem('pets'));
-        return (saved && saved.length > 0) ? saved : initialPets;
-    });
+  const deleteProduct = async (id) => {
+    await productsApi.delete(id);
+    setProducts(prev => prev.filter(p => p.id !== id));
+  };
 
-    const [sales, setSales] = useState(() => {
-        const saved = JSON.parse(localStorage.getItem('sales'));
-        return (saved && saved.length > 0) ? saved : initialSales;
-    });
+  // ── CLIENTS ──────────────────────────────────────────────────────────────
+  const addClient = async (c) => {
+    const created = await clientsApi.create(c);
+    setClients(prev => [...prev, created]);
+    return created;
+  };
 
-    // 3. Sincronizar con LocalStorage cada vez que algo cambie
-    useEffect(() => {
-        localStorage.setItem('services', JSON.stringify(services));
-        localStorage.setItem('products', JSON.stringify(products));
-        localStorage.setItem('clients', JSON.stringify(clients));
-        localStorage.setItem('pets', JSON.stringify(pets));
-        localStorage.setItem('sales', JSON.stringify(sales));
-    }, [services, products, clients, pets, sales]);
+  const updateClient = async (id, updated) => {
+    const saved = await clientsApi.update(id, { ...updated, id });
+    setClients(prev => prev.map(c => c.id === id ? saved : c));
+    return saved;
+  };
 
-    // --- FUNCIONES CRUD ---
-    const addService = (s) => setServices([...services, { ...s, id: Date.now() }]);
-    const updateService = (id, updated) => setServices(services.map(s => s.id === id ? { ...updated, id } : s));
-    const deleteService = (id) => setServices(services.filter(s => s.id !== id));
+  const deleteClient = async (id) => {
+    const hasPets = pets.some(p => String(p.ownerId) === String(id));
+    if (hasPets) {
+      alert('No puedes borrar un cliente con mascotas vinculadas.');
+      return;
+    }
+    await clientsApi.delete(id);
+    setClients(prev => prev.filter(c => c.id !== id));
+  };
 
-    const addProduct = (p) => setProducts([...products, { ...p, id: Date.now() }]);
-    const updateProduct = (id, updated) => setProducts(products.map(p => p.id === id ? { ...updated, id } : p));
-    const deleteProduct = (id) => setProducts(products.filter(p => p.id !== id));
+  // ── PETS ─────────────────────────────────────────────────────────────────
+  const addPet = async (p) => {
+    const created = await petsApi.create(p);
+    setPets(prev => [...prev, created]);
+    return created;
+  };
 
-    const addClient = (c) => setClients([...clients, { ...c, id: Date.now() }]);
-    const updateClient = (id, updated) => setClients(clients.map(c => c.id === id ? { ...updated, id } : c));
-    const deleteClient = (id) => {
-        if (pets.some(p => String(p.ownerId) === String(id))) {
-            alert("No puedes borrar un cliente con mascotas vinculadas.");
-            return;
-        }
-        setClients(clients.filter(c => c.id !== id));
-    };
+  const updatePet = async (id, updated) => {
+    const saved = await petsApi.update(id, { ...updated, id });
+    setPets(prev => prev.map(p => p.id === id ? saved : p));
+    return saved;
+  };
 
-    const addPet = (p) => setPets([...pets, { ...p, id: Date.now() }]);
-    const updatePet = (id, updated) => setPets(pets.map(p => p.id === id ? { ...updated, id } : p));
-    const deletePet = (id) => setPets(pets.filter(p => p.id !== id));
+  const deletePet = async (id) => {
+    await petsApi.delete(id);
+    setPets(prev => prev.filter(p => p.id !== id));
+  };
 
-    const addSale = (item, price) => setSales([{ id: Date.now(), date: new Date().toLocaleDateString(), item, price }, ...sales]);
+  // ── SALES ────────────────────────────────────────────────────────────────
+  const addSale = async (item, price, clientId = null, type = 'service') => {
+    const created = await salesApi.create({ item, price, clientId, type });
+    setSales(prev => [created, ...prev]);
+    return created;
+  };
 
-    return (
-        <DataContext.Provider value={{ 
-            services, products, pets, clients, sales,
-            addService, updateService, deleteService,
-            addProduct, updateProduct, deleteProduct,
-            addClient, updateClient, deleteClient,
-            addPet, updatePet, deletePet, addSale
-        }}>
-            {children}
-        </DataContext.Provider>
-    );
+  return (
+    <DataContext.Provider value={{
+      // Estado
+      services, products, clients, pets, sales,
+      loading, error,
+      // Acciones
+      addService,    updateService,    deleteService,
+      addProduct,    updateProduct,    deleteProduct,
+      addClient,     updateClient,     deleteClient,
+      addPet,        updatePet,        deletePet,
+      addSale,
+      // Utilidad
+      reload: loadAll,
+    }}>
+      {children}
+    </DataContext.Provider>
+  );
 };

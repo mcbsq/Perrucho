@@ -1,28 +1,100 @@
-// src/pages/Shop/Shop.jsx
-import React, { useState, useEffect } from 'react';
-import ProductModal from './ProductModal';
+// src/pages/Shop.jsx
+import React, { useState } from 'react';
+import { useNavigate }     from 'react-router-dom';
+import { useData }         from '../contexts/DataContext';
+import { useAuth }         from '../contexts/AuthContext';
+import ProductModal        from '../pages/ProductModal';
 import './Shop.css';
 
+// ─── Ícono por categoría ──────────────────────────────────────────────────────
+const getCategoryIcon = (product) => {
+    if (product.icon) return product.icon;
+    const cat = (product.category || '').toLowerCase();
+    if (cat.includes('aliment'))   return '🍖';
+    if (cat.includes('higien'))    return '🛁';
+    if (cat.includes('accesorio')) return '🎀';
+    if (cat.includes('farmacia'))  return '💊';
+    if (cat.includes('juguete'))   return '🎾';
+    return '🎁';
+};
+
+// ─── Card de producto ─────────────────────────────────────────────────────────
+const ProductCard = ({ product, onBuy, isLoggedIn }) => {
+    const icon     = getCategoryIcon(product);
+    const lowStock = Number(product.stock) <= 5 && Number(product.stock) > 0;
+    const noStock  = Number(product.stock) === 0;
+
+    return (
+        <div className={`product-card-capsule ${noStock ? 'out-of-stock' : ''}`}>
+
+            {/* Imagen / ícono */}
+            <div className="product-image-box">
+                {product.image
+                    ? <img src={product.image} alt={product.name} />
+                    : <span className="product-icon-placeholder">{icon}</span>
+                }
+                {noStock  && <span className="stock-tag stock-tag--none">Agotado</span>}
+                {lowStock && <span className="stock-tag stock-tag--low">¡Pocas piezas!</span>}
+            </div>
+
+            {/* Info */}
+            <div className="product-card-body">
+                <span className="product-category-badge">{product.category || 'General'}</span>
+                <h2>{product.name}</h2>
+                <p className="product-description">
+                    {product.description || `Producto de la categoría ${product.category}.`}
+                </p>
+                <div className="product-price-row">
+                    <span className="product-price">${product.price}</span>
+                    {Number(product.stock) > 0 && (
+                        <span className="product-stock">{product.stock} disponibles</span>
+                    )}
+                </div>
+            </div>
+
+            {/* CTA */}
+            <button
+                className="btn-buy-now"
+                onClick={() => onBuy(product)}
+                disabled={noStock}
+            >
+                {noStock
+                    ? 'Sin stock'
+                    : isLoggedIn
+                        ? 'Comprar ahora'
+                        : 'Inicia sesión para comprar'
+                }
+            </button>
+        </div>
+    );
+};
+
+// ─── Página de tienda ─────────────────────────────────────────────────────────
 const Shop = () => {
-    const [products, setProducts] = useState([]);
-    const [selectedProduct, setSelectedProduct] = useState(null);
+    const { products, loading }   = useData();
+    const { isLoggedIn }          = useAuth();
+    const navigate                = useNavigate();
+    const [selected, setSelected] = useState(null);
+    const [category, setCategory] = useState('Todos');
 
-    // Cargar productos desde el localStorage (dados de alta en Admin)
-    useEffect(() => {
-        const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
-        setProducts(savedProducts);
-    }, []);
-
-    const handleOpenModal = (product) => {
-        setSelectedProduct(product);
+    const handleBuy = (product) => {
+        if (!isLoggedIn) {
+            navigate('/acceso', { state: { from: '/tienda' } });
+            return;
+        }
+        setSelected(product);
     };
 
-    const handleCloseModal = () => {
-        setSelectedProduct(null);
-    };
+    // Categorías únicas desde la BD
+    const categories = ['Todos', ...new Set(products.map(p => p.category).filter(Boolean))];
+
+    const filtered = category === 'Todos'
+        ? products
+        : products.filter(p => p.category === category);
 
     return (
         <div className="shop-page-container">
+
             <header className="shop-header">
                 <div className="premium-badge">Pet Shop Premium</div>
                 <h1>Todo lo que tu <span>mejor amigo</span> necesita</h1>
@@ -31,50 +103,47 @@ const Shop = () => {
                 </p>
             </header>
 
-            {/* GRID DE PRODUCTOS */}
-            <div className="shop-grid-container">
-                {products.length > 0 ? (
-                    products.map((product) => (
-                        <div key={product.id} className="product-card-capsule">
-                            <div className="product-image-box">
-                                {product.image ? (
-                                    <img src={product.image} alt={product.name} />
-                                ) : (
-                                    <span className="product-icon-placeholder">{product.icon || '🎁'}</span>
-                                )}
-                                {product.stock <= 5 && <span className="stock-tag">¡Pocas piezas!</span>}
-                            </div>
-                            
-                            <div className="product-card-body">
-                                <h2>{product.name}</h2>
-                                <p className="product-description">{product.description}</p>
-                                
-                                <div className="product-tags-row">
-                                    <span className="info-tag category">{product.category || 'General'}</span>
-                                    <span className="info-tag price-tag">💰 ${product.price}</span>
-                                </div>
-                            </div>
+            {/* Filtros por categoría */}
+            {!loading && products.length > 0 && (
+                <div className="shop-filters">
+                    {categories.map(cat => (
+                        <button
+                            key={cat}
+                            className={`shop-filter-btn ${category === cat ? 'active' : ''}`}
+                            onClick={() => setCategory(cat)}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            )}
 
-                            <button 
-                                className="btn-buy-now" 
-                                onClick={() => handleOpenModal(product)}
-                            >
-                                COMPRAR AHORA
-                            </button>
-                        </div>
+            {/* Grid de productos */}
+            <div className="shop-grid-container">
+                {loading ? (
+                    <p className="no-products">Cargando productos...</p>
+                ) : filtered.length > 0 ? (
+                    filtered.map(product => (
+                        <ProductCard
+                            key={product.id}
+                            product={product}
+                            onBuy={handleBuy}
+                            isLoggedIn={isLoggedIn}
+                        />
                     ))
                 ) : (
                     <div className="no-products">
-                        <p>No hay productos disponibles en este momento.</p>
+                        <span>🛍️</span>
+                        <p>No hay productos en esta categoría.</p>
                     </div>
                 )}
             </div>
 
-            {/* MODAL DE COMPRA */}
-            {selectedProduct && (
-                <ProductModal 
-                    product={selectedProduct} 
-                    onClose={handleCloseModal} 
+            {/* Modal de compra */}
+            {selected && (
+                <ProductModal
+                    product={selected}
+                    onClose={() => setSelected(null)}
                 />
             )}
         </div>
