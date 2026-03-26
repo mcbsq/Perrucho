@@ -19,15 +19,17 @@ const ProductModal = ({ product, onClose }) => {
     const [loading,       setLoading]       = useState(false);
     const [error,         setError]         = useState('');
 
-    if (!product) return null;
-
-    const maxQty = Number(product.stock) || 1;
-    const total  = product.price * qty;
-
+    // ✅ CORRECCIÓN: El Hook debe definirse ANTES de cualquier return condicional
     const clientRecord = useMemo(() =>
         clients.find(c => c.email === user?.email),
         [clients, user]
     );
+
+    // ✅ El return temprano ahora va después de todos los Hooks definidos
+    if (!product) return null;
+
+    const maxQty = Number(product.stock) || 1;
+    const total  = product.price * qty;
 
     const increaseQty = () => setQty(q => Math.min(q + 1, maxQty));
     const decreaseQty = () => setQty(q => Math.max(q - 1, 1));
