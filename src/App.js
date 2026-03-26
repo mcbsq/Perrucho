@@ -1,102 +1,99 @@
+// src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import './App.css'; 
-import { AuthProvider } from './contexts/AuthContext'; 
-import { DataProvider } from './contexts/DataContext'; 
-import Navbar from './components/Navbar/Navbar'; 
-import Footer from './components/Footer/Footer'; 
-import WhatsAppButton from './components/WhatsAppButton/WhatsAppButton';
-import ProtectedRoute from './components/ProtectedRoute'; 
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import './App.css';
+import { AuthProvider }  from './contexts/AuthContext';
+import { DataProvider }  from './contexts/DataContext';
+import Navbar            from './components/Navbar/Navbar';
+import Footer            from './components/Footer/Footer';
+import WhatsAppButton    from './components/WhatsAppButton/WhatsAppButton';
+import Chatbot           from './components/Chatbot/Chatbot';
+import ProtectedRoute    from './components/ProtectedRoute';
 
-// Importación de Páginas
-import Home from './pages/Home';
-import Services from './pages/Services'; 
-import Shop from './pages/Shop'; 
-import Contact from './pages/Contact'; 
-import Login from './components/Login/Login';
-import Register from './components/Register/Register';
-import AdminDashboard from './pages/admin/AdminDashboard'; 
+// ── Páginas ───────────────────────────────────────────────────────────────────
+import Home             from './pages/Home';
+import Services         from './pages/Services';
+import Shop             from './pages/Shop';
+import Contact          from './pages/Contact';
+import Login            from './components/Login/Login';
+import Register         from './components/Register/Register';
+import AdminDashboard   from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import Perfil           from './pages/cliente/Perfil';
 
 const AppContent = () => {
-  const location = useLocation();
-  
-  // Detectar si estamos en cualquier panel de gestión
-  const isDashboardPath = 
-    location.pathname.startsWith('/admin-dashboard') || 
-    location.pathname.startsWith('/employee-dashboard');
+    const location = useLocation();
 
-  return (
-    <div className="app-container">
-        {/* Ocultar elementos públicos en dashboards */}
-        {!isDashboardPath && <Navbar />}
+    const isDashboard =
+        location.pathname.startsWith('/admin-dashboard') ||
+        location.pathname.startsWith('/employee-dashboard');
 
-        <main className={isDashboardPath ? "admin-main-content" : "main-content"}>
-            <Routes>
-                {/* Rutas Públicas */}
-                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-                <Route path="/acceso" element={<Login />} />
-                <Route path="/registro" element={<Register />} />
-                <Route path="/contacto" element={<Contact />} />
+    const isAuthPage =
+        location.pathname === '/acceso' ||
+        location.pathname === '/registro';
 
-                {/* Servicios y Tienda */}
-                <Route path="/servicios" element={
-                    <ProtectedRoute allowedRoles={['cliente', 'administrador', 'empleado']}>
-                      <Services />
-                    </ProtectedRoute>
-                } />
+    const hideGlobalUI = isDashboard || isAuthPage;
 
-                <Route path="/tienda" element={
-                    <ProtectedRoute allowedRoles={['cliente', 'administrador', 'empleado']}>
-                      <Shop />
-                    </ProtectedRoute>
-                } />
+    return (
+        <div className="app-container">
+            {!hideGlobalUI && <Navbar />}
 
-                {/* Dashboard Admin */}
-                <Route path="/admin-dashboard" element={
-                    <ProtectedRoute allowedRoles={['administrador']}>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                } />
+            <main className={hideGlobalUI ? 'admin-main-content' : 'main-content'}>
+                <Routes>
+                    {/* ── Rutas públicas ── */}
+                    <Route path="/"          element={<Home />} />
+                    <Route path="/servicios" element={<Services />} />
+                    <Route path="/tienda"    element={<Shop />} />
+                    <Route path="/contacto"  element={<Contact />} />
+                    <Route path="/acceso"    element={<Login />} />
+                    <Route path="/registro"  element={<Register />} />
 
-                {/* Dashboard Empleado (Ruta Crítica) */}
-                <Route path="/employee-dashboard" element={
-                    <ProtectedRoute allowedRoles={['empleado']}>
-                        <EmployeeDashboard />
-                    </ProtectedRoute>
-                } />
+                    {/* ── Dashboards protegidos ── */}
+                    <Route path="/admin-dashboard/*" element={
+                        <ProtectedRoute allowedRoles={['administrador']}>
+                            <AdminDashboard />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/employee-dashboard/*" element={
+                        <ProtectedRoute allowedRoles={['empleado']}>
+                            <EmployeeDashboard />
+                        </ProtectedRoute>
+                    } />
 
-                {/* Otras Rutas */}
-                <Route path="/gestion-citas" element={
-                    <ProtectedRoute allowedRoles={['empleado', 'administrador']}>
-                      <div style={{padding: '100px'}}><h2>Gestión de Citas</h2></div>
-                    </ProtectedRoute>
-                } />
+                    {/* ── Perfil ── */}
+                    <Route path="/perfil" element={
+                        <ProtectedRoute allowedRoles={['cliente', 'administrador', 'empleado']}>
+                            <Perfil />
+                        </ProtectedRoute>
+                    } />
 
-                <Route path="/perfil" element={
-                    <ProtectedRoute>
-                        <div style={{padding: '100px'}}><h2>Mi Perfil</h2></div>
-                    </ProtectedRoute>
-                } />
-            </Routes>
-        </main>
-        
-        {!isDashboardPath && <Footer />} 
-        {!isDashboardPath && <WhatsAppButton />}
-    </div>
-  );
+                    {/* ── Fallback ── */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </main>
+
+            {/* Elementos flotantes — solo en páginas públicas */}
+            {!hideGlobalUI && (
+                <>
+                    <Footer />
+                    <WhatsAppButton />
+                    <Chatbot />
+                </>
+            )}
+        </div>
+    );
 };
 
 function App() {
-  return (
-    <AuthProvider>
-      <DataProvider>
-        <Router>
-            <AppContent />
-        </Router>
-      </DataProvider>
-    </AuthProvider>
-  );
+    return (
+        <AuthProvider>
+            <DataProvider>
+                <Router>
+                    <AppContent />
+                </Router>
+            </DataProvider>
+        </AuthProvider>
+    );
 }
 
 export default App;

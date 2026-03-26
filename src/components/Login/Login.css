@@ -1,127 +1,232 @@
 /* src/components/Login/Login.css */
 
-/* Variables (puedes importarlas desde un archivo global si lo tienes) */
-:root {
-    --primary-color: #3f51b5; /* Azul Material Design */
-    --shadow-light: 0 2px 5px rgba(0, 0, 0, 0.1);
-    --shadow-heavy: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
+/* ==========================================================================
+   CONTENEDOR: ocupa toda la pantalla
+   ========================================================================== */
 .login-container {
+    position: fixed;       /* cubre toda la ventana, sin importar navbar/footer */
+    inset: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - var(--navbar-height, 60px) - var(--footer-height, 60px)); /* Ajusta si tienes Navbar/Footer */
-    padding: 20px;
-    background-color: transparent; /* Permite ver el fondo de partículas */
-    flex-grow: 1; /* Ocupa el espacio disponible en .main-content */
+    overflow: hidden;
 }
 
-.login-card {
-    background-color: white;
-    padding: 40px;
-    border-radius: 30px;
-    box-shadow: var(--shadow-heavy);
+/* ==========================================================================
+   VIDEO DE FONDO FULL-SCREEN
+   ========================================================================== */
+.login-video-bg {
+    position: absolute;
+    inset: 0;
     width: 100%;
-    max-width: 400px; /* Ancho máximo para el formulario */
-    text-align: center;
-    transition: transform 0.3s ease-in-out; /* Animación al cargar */
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    z-index: 0;
+    pointer-events: none;
 }
 
-/* Animación de entrada suave */
-.login-card:hover {
-    transform: translateY(-5px);
+/* ==========================================================================
+   OVERLAY OSCURO
+   ========================================================================== */
+.login-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(15, 20, 40, 0.72), rgba(0, 0, 0, 0.4));
+    z-index: 1;
+}
+
+/* ==========================================================================
+   CARD: glassmorphism sobre el video
+   ========================================================================== */
+.login-card {
+    position: relative;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    padding: 48px 44px;
+    border-radius: 32px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.35);
+    animation: cardReveal 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+@keyframes cardReveal {
+    from { opacity: 0; transform: translateY(32px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* Logo */
+.login-logo {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    animation: bounceIn 0.8s ease both 0.2s;
+    
+}
+
+@keyframes bounceIn {
+    0%   { transform: scale(0.5); opacity: 0; }
+    70%  { transform: scale(1.15); }
+    100% { transform: scale(1);   opacity: 1; }
 }
 
 .login-card h2 {
-    color: var(--primary-color);
-    margin-bottom: 30px;
-    font-size: 2em;
+    color: white;
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 6px;
 }
 
+.login-subtitle {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
+    margin-bottom: 28px;
+}
+
+/* ==========================================================================
+   INPUTS
+   ========================================================================== */
 .input-group {
-    margin-bottom: 20px;
-    text-align: left; /* Alineamos la etiqueta a la izquierda */
+    margin-bottom: 18px;
+    text-align: left;
 }
 
 .input-group label {
-    display: block; /* La etiqueta ocupa su propia línea */
-    margin-bottom: 8px;
-    color: #555;
-    font-weight: 500;
+    display: block;
+    margin-bottom: 7px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.3px;
 }
 
 .input-group input {
     width: 100%;
-    padding: 12px 15px;
-    border: 1px solid #ddd;
-    border-radius: 20px;
+    padding: 13px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
     font-size: 1rem;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+    box-sizing: border-box;
+}
+
+.input-group input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
 }
 
 .input-group input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); /* Sombra de enfoque Material */
-    outline: none; /* Quitamos el outline por defecto del navegador */
+    border-color: rgba(116, 185, 255, 0.8);
+    box-shadow: 0 0 0 3px rgba(116, 185, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+    outline: none;
 }
 
+/* ==========================================================================
+   BOTÓN
+   ========================================================================== */
 .login-button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 12px 25px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 14px;
     border: none;
-    border-radius: 20px;
-    font-size: 1.1rem;
-    font-weight: 600;
+    border-radius: 16px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
     cursor: pointer;
-    box-shadow: var(--shadow-light);
-    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-    width: 100%; /* El botón ocupa todo el ancho */
-    margin-top: 20px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #1a2035;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.login-button:hover {
-    background-color: #30409a; /* Un azul más oscuro al hacer hover */
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-heavy);
+.login-button:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.02);
+    background: white;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
 }
 
+.login-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   ERROR
+   ========================================================================== */
+.error-message {
+    background: rgba(231, 76, 60, 0.2);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+    color: #ff8a80;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+/* ==========================================================================
+   FOOTER DE LA CARD
+   ========================================================================== */
 .login-footer {
-    margin-top: 30px;
-    font-size: 0.95rem;
-    color: #666;
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 0.92rem;
+}
+
+.login-footer p {
+    color: rgba(255, 255, 255, 0.65);
+    margin: 0;
 }
 
 .login-footer a {
-    color: var(--primary-color);
+    color: rgba(255, 255, 255, 0.9);
     text-decoration: none;
-    font-weight: 500;
-    transition: color 0.3s ease;
+    font-weight: 600;
+    transition: color 0.3s;
 }
 
 .login-footer a:hover {
-    color: #30409a;
+    color: white;
     text-decoration: underline;
 }
 
-/* -------------------------------------
- * RESPONSIVIDAD (Móviles)
- * ------------------------------------- */
-@media (max-width: 600px) {
+.login-back {
+    color: rgba(255, 255, 255, 0.5) !important;
+    font-size: 0.85rem;
+    font-weight: 500 !important;
+}
+
+.login-back:hover {
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-decoration: none !important;
+}
+
+/* ==========================================================================
+   RESPONSIVIDAD
+   ========================================================================== */
+@media (max-width: 480px) {
     .login-card {
-        padding: 25px;
-        margin: 0 15px; /* Margen a los lados en móviles */
+        padding: 36px 24px;
+        border-radius: 24px;
+        margin: 0 16px;
+        max-width: 100%;
     }
-    .login-card h2 {
-        font-size: 1.8em;
-        margin-bottom: 20px;
-    }
-    .input-group input, .login-button {
-        padding: 10px 12px;
-        font-size: 1rem;
-    }
-    .login-footer {
-        font-size: 0.9rem;
-    }
+
+    .login-card h2    { font-size: 1.7rem; }
+    .login-logo       { font-size: 2.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-video-bg { animation-play-state: paused; }
+    .login-card     { animation: none; }
+    .login-logo     { animation: none; }
 }

@@ -1,0 +1,181 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Administrador",
+      "email": "admin@mascotas.com",
+      "password": "123456",
+      "role": "administrador",
+      "phone": "",
+      "createdAt": "2026-01-01"
+    },
+    {
+      "id": 2,
+      "name": "Empleado",
+      "email": "empleado@mascotas.com",
+      "password": "123456",
+      "role": "empleado",
+      "phone": "",
+      "createdAt": "2026-01-01"
+    }
+  ],
+  "clients": [
+    {
+      "id": 101,
+      "name": "Juan Pérez",
+      "phone": "555-0192",
+      "email": "juan@ejemplo.com",
+      "createdAt": "2026-01-12"
+    },
+    {
+      "id": 102,
+      "name": "María García",
+      "phone": "555-0244",
+      "email": "maria@ejemplo.com",
+      "createdAt": "2026-01-12"
+    }
+  ],
+  "pets": [
+    {
+      "id": 201,
+      "petName": "Firulais",
+      "breed": "Golden Retriever",
+      "weight": "30",
+      "ownerId": 101,
+      "notes": "Alergia al pollo",
+      "history": [],
+      "createdAt": "2026-01-12"
+    },
+    {
+      "id": 202,
+      "petName": "Luna",
+      "breed": "Siamés",
+      "weight": "4",
+      "ownerId": 102,
+      "notes": "Muy nerviosa",
+      "history": [],
+      "createdAt": "2026-01-12"
+    }
+  ],
+  "services": [
+    {
+      "id": 1,
+      "title": "Baño de mascotas",
+      "description": "Baño completo con shampoo dermatológico, secado profesional y perfume.",
+      "price": 250,
+      "priceChico": 250,
+      "priceMediano": 350,
+      "priceGrande": 450,
+      "duration": "60 min",
+      "category": "Higiene",
+      "icon": "🛁",
+      "color": "blue",
+      "popular": false
+    },
+    {
+      "id": 2,
+      "title": "Corte de cabello",
+      "description": "Corte personalizado según la raza, acabado con tijera y estilo profesional.",
+      "price": 350,
+      "priceChico": 350,
+      "priceMediano": 480,
+      "priceGrande": 600,
+      "duration": "90 min",
+      "category": "Estética",
+      "icon": "✂️",
+      "color": "lavender",
+      "popular": true
+    },
+    {
+      "id": 3,
+      "title": "Arreglo de uñas",
+      "description": "Corte y limado de uñas, incluye lima y revisión de almohadillas.",
+      "price": 120,
+      "priceChico": 120,
+      "priceMediano": 150,
+      "priceGrande": 180,
+      "duration": "20 min",
+      "category": "Higiene",
+      "icon": "🐾",
+      "color": "mint",
+      "popular": false
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Shampoo Antipulgas",
+      "price": 180,
+      "stock": 15,
+      "category": "Higiene"
+    },
+    {
+      "id": 2,
+      "name": "Alimento Premium Adulto",
+      "price": 1200,
+      "stock": 3,
+      "category": "Alimentos"
+    },
+    {
+      "id": 3,
+      "name": "Collar Antipulgas",
+      "price": 320,
+      "stock": 8,
+      "category": "Accesorios"
+    }
+  ],
+  "appointments": [
+    {
+      "id": 1001,
+      "clientId": 101,
+      "petId": 201,
+      "serviceId": 1,
+      "petName": "Firulais",
+      "serviceName": "Baño de mascotas",
+      "date": "2026-03-15",
+      "time": "10:00",
+      "status": "Pendiente",
+      "finalPrice": 450,
+      "notes": "",
+      "createdAt": "2026-03-12"
+    },
+    {
+      "petId": "202",
+      "serviceId": "2",
+      "time": "17:09",
+      "date": "2026-03-18",
+      "status": "Pendiente",
+      "finalPrice": 350,
+      "petName": "Luna",
+      "serviceName": "Corte de cabello",
+      "createdAt": "2026-03-17",
+      "id": 1002
+    }
+  ],
+  "sales": [
+    {
+      "id": 1001,
+      "date": "2026-01-12",
+      "item": "Baño de mascotas (Firulais)",
+      "price": 350,
+      "clientId": 101,
+      "type": "service"
+    },
+    {
+      "id": 1002,
+      "date": "2026-01-12",
+      "item": "Shampoo Antipulgas",
+      "price": 180,
+      "clientId": 102,
+      "type": "product"
+    },
+    {
+      "id": 1003,
+      "date": "2026-01-13",
+      "item": "Corte de cabello (Luna)",
+      "price": 350,
+      "clientId": 102,
+      "type": "service"
+    }
+  ]
+}

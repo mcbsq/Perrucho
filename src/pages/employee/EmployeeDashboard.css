@@ -1,266 +1,899 @@
-/* ==========================================================================
-   TIPOGRAFÍAS Y VARIABLES (ESTILO STAFF/OPERATIVO)
-   ========================================================================== */
+/* src/pages/employee/EmployeeDashboard.css */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Quicksand:wght@400;500;600;700&display=swap');
 
+/* ==========================================================================
+   VARIABLES — identidad lavanda para el rol empleado
+   ========================================================================== */
 :root {
-    --staff-primary: #a29bfe;       /* Lavanda Operativo */
-    --staff-secondary: #6c5ce7;     /* Violeta profundo */
-    --staff-mint: #55efc4;          /* Menta (Completado) */
-    --staff-bg: #f8faff;            /* Fondo más azulado/limpio */
-    --staff-text: #2d3436;
-    --staff-muted: #636e72;
-    
-    --radius-lg: 35px;
-    --radius-md: 20px;
-    --radius-pill: 50px;
-    --shadow-soft: 0 10px 30px rgba(162, 155, 254, 0.15);
-    --transition: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    --emp-primary:    #a29bfe;
+    --emp-deep:       #6c5ce7;
+    --emp-mint:       #55efc4;
+    --emp-amber:      #fdcb6e;
+    --emp-red:        #ff7675;
+    --emp-sidebar:    #1e272e;
+    --emp-bg:         #f8f9ff;
+    --emp-text:       #2d3436;
+    --emp-muted:      #636e72;
+    --emp-white:      #ffffff;
+    --emp-shadow:     0 4px 20px rgba(162,155,254,0.12);
+    --emp-radius-lg:  20px;
+    --emp-radius-md:  12px;
+    --emp-radius-pill:999px;
+    --emp-topbar-h:   64px;
+    --emp-sidebar-w:  68px;
+    --emp-ease:       cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* ==========================================================================
-   LAYOUT BASE
-   ========================================================================== */
-.admin-layout {
-    display: flex;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.emp-layout {
+    display: grid;
+    grid-template-columns: var(--emp-sidebar-w) 1fr;
+    grid-template-rows: var(--emp-topbar-h) 1fr;
     min-height: 100vh;
-    background-color: var(--staff-bg);
+    background: var(--emp-bg);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    color: var(--emp-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
+
+/* ==========================================================================
+   TOPBAR
+   ========================================================================== */
+.emp-topbar {
+    grid-column: 1 / -1;
+    height: var(--emp-topbar-h);
+    background: var(--emp-white);
+    border-bottom: 1px solid rgba(162,155,254,0.2);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px 0 20px;
+    position: sticky; top: 0; z-index: 200;
+}
+.emp-topbar-left { display: flex; align-items: center; gap: 12px; }
+.emp-topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.emp-logo {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.4rem; font-weight: 800;
+    color: var(--emp-sidebar); letter-spacing: -1px;
+}
+.emp-logo span { color: var(--emp-primary); }
+
+.emp-role-badge {
+    background: #f0eeff; color: var(--emp-deep);
+    font-size: 0.72rem; font-weight: 800;
+    padding: 4px 12px; border-radius: var(--emp-radius-pill);
+    border: 1px solid rgba(108,92,231,0.2);
+    letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+.emp-greeting {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.88rem; color: var(--emp-muted);
+}
+.emp-greeting strong { color: var(--emp-text); }
+.emp-greeting svg { color: var(--emp-primary); }
+
+.emp-logout-btn {
+    width: 36px; height: 36px;
+    background: #fff0f0; color: var(--emp-red);
+    border: none; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s;
+}
+.emp-logout-btn:hover { background: var(--emp-red); color: white; }
+
+/* ==========================================================================
+   SIDEBAR — solo iconos con acento lavanda
+   ========================================================================== */
+.emp-sidebar {
+    grid-row: 2; width: var(--emp-sidebar-w);
+    background: var(--emp-sidebar);
+    display: flex; flex-direction: column;
+    align-items: center; padding: 16px 0 20px;
+    position: sticky; top: var(--emp-topbar-h);
+    height: calc(100vh - var(--emp-topbar-h));
+    overflow-y: auto; z-index: 100;
+}
+.emp-sidebar-nav {
+    display: flex; flex-direction: column;
+    gap: 4px; width: 100%; padding: 0 8px; flex: 1;
+}
+.emp-nav-btn {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px; width: 100%; padding: 10px 4px;
+    border: none; border-radius: var(--emp-radius-md);
+    background: transparent; color: rgba(255,255,255,0.35);
+    cursor: pointer; transition: all 0.25s var(--emp-ease);
+    font-family: 'Quicksand', sans-serif; font-weight: 600;
+}
+.emp-nav-btn svg { font-size: 1.1rem; transition: transform 0.2s; }
+.emp-nav-label   { font-size: 0.6rem; }
+.emp-nav-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.75); }
+.emp-nav-btn.active {
+    background: var(--emp-primary); color: white;
+    box-shadow: 0 4px 14px rgba(162,155,254,0.4);
+}
+.emp-nav-btn.active svg { transform: scale(1.05); }
+
+.emp-sidebar-logout {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(255,118,117,0.12); color: var(--emp-red);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; transition: all 0.2s; margin-top: 8px;
+}
+.emp-sidebar-logout:hover { background: var(--emp-red); color: white; }
+
+/* ==========================================================================
+   MAIN
+   ========================================================================== */
+.emp-main {
+    grid-row: 2; padding: 32px 36px;
+    overflow-y: auto; min-height: calc(100vh - var(--emp-topbar-h));
+}
+
+.emp-page-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 24px;
+}
+.emp-page-header h2 { font-size: 1.65rem; color: var(--emp-sidebar); letter-spacing: -0.03em; margin-bottom: 4px; }
+.emp-page-header p  { font-size: 0.88rem; color: var(--emp-muted); font-weight: 500; }
+
+/* ==========================================================================
+   KPIs OPERATIVOS
+   ========================================================================== */
+.emp-kpi-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px; margin-bottom: 24px;
+}
+.emp-kpi {
+    background: var(--emp-white);
+    border-radius: var(--emp-radius-lg);
+    padding: 20px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    box-shadow: var(--emp-shadow);
+    border-top: 4px solid var(--emp-primary);
+    transition: transform 0.3s var(--emp-ease);
+}
+.emp-kpi:hover { transform: translateY(-3px); }
+.emp-kpi--lavender { border-top-color: var(--emp-primary); }
+.emp-kpi--mint     { border-top-color: var(--emp-mint); }
+.emp-kpi--amber    { border-top-color: var(--emp-amber); }
+.emp-kpi--red      { border-top-color: var(--emp-red); }
+
+.emp-kpi-num {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.9rem; font-weight: 800;
+    color: var(--emp-sidebar); line-height: 1;
+}
+.emp-kpi-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--emp-muted); }
+.emp-kpi--red .emp-kpi-num { color: var(--emp-red); }
+
+/* ==========================================================================
+   FORMULARIO NUEVA CITA
+   ========================================================================== */
+.emp-appo-form {
+    background: var(--emp-white);
+    border: 2px dashed var(--emp-primary);
+    border-radius: var(--emp-radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+.emp-form-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.emp-span2 { grid-column: span 2; }
+.emp-form-grid input,
+.emp-form-grid select,
+.emp-form-grid textarea {
+    width: 100%; padding: 10px 14px;
+    border-radius: var(--emp-radius-md);
+    border: 1.5px solid #ede9fe;
+    background: var(--emp-bg);
+    font-size: 0.9rem; font-family: 'Quicksand', sans-serif;
+    color: var(--emp-text); transition: all 0.25s;
+}
+.emp-form-grid input:focus,
+.emp-form-grid select:focus,
+.emp-form-grid textarea:focus {
+    outline: none; border-color: var(--emp-primary);
+    background: white; box-shadow: 0 0 0 4px rgba(162,155,254,0.15);
+}
+.emp-price-preview {
+    background: #f0eeff; color: var(--emp-deep);
+    border-radius: 8px; padding: 8px 12px;
+    font-size: 0.85rem; font-weight: 600;
+    margin: 10px 0 0;
+    display: inline-block;
+}
+.emp-price-preview strong { font-family: 'Montserrat', sans-serif; }
+
+/* ==========================================================================
+   LAYOUT AGENDA
+   ========================================================================== */
+.emp-agenda-layout {
+    display: grid; grid-template-columns: 1fr 300px; gap: 20px;
+}
+.emp-agenda-list { display: flex; flex-direction: column; gap: 10px; }
+
+.emp-empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; padding: 60px 20px; color: var(--emp-muted);
+    border: 2px dashed #ede9fe; border-radius: var(--emp-radius-lg);
+    text-align: center;
+}
+.emp-empty-state svg { font-size: 2rem; opacity: 0.3; }
+.emp-empty { text-align: center; color: var(--emp-muted); padding: 20px; font-size: 0.88rem; }
+
+/* Tarjeta de cita */
+.emp-appt-card {
+    background: var(--emp-white);
+    border: 1.5px solid transparent;
+    border-radius: var(--emp-radius-md);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; position: relative;
+    transition: all 0.25s var(--emp-ease);
+    box-shadow: var(--emp-shadow);
+}
+.emp-appt-card:hover {
+    border-color: var(--emp-primary);
+    transform: translateX(4px);
+}
+.emp-appt-card.selected {
+    border-color: var(--emp-deep);
+    background: #f8f6ff;
+    box-shadow: 0 6px 20px rgba(108,92,231,0.14);
+}
+.emp-appt-card.atendido {
+    border-left: 4px solid var(--emp-mint);
+    opacity: 0.8;
+}
+
+.emp-appt-time {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 0.75rem; font-weight: 700;
+    color: var(--emp-deep); background: #f0eeff;
+    padding: 4px 10px; border-radius: var(--emp-radius-pill);
+    white-space: nowrap;
+}
+.emp-appt-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.emp-appt-info strong { font-size: 0.9rem; color: var(--emp-sidebar); }
+.emp-appt-info span   { font-size: 0.77rem; color: var(--emp-muted); }
+.emp-appt-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.emp-appt-price { font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 800; color: var(--emp-primary); }
+
+.emp-status-pill {
+    display: flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: var(--emp-radius-pill);
+    font-size: 0.72rem; font-weight: 700;
+}
+.emp-status-pill.done    { background: #e1f5ee; color: #085041; }
+.emp-status-pill.pending { background: #f0eeff; color: var(--emp-deep); }
+
+.emp-appt-del {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; border-radius: 6px;
+    background: none; border: none; color: var(--emp-muted);
+    cursor: pointer; opacity: 0; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; font-size: 0.72rem;
+}
+.emp-appt-card:hover .emp-appt-del { opacity: 1; }
+.emp-appt-del:hover { background: #fff1f0; color: var(--emp-red); }
+
+/* ==========================================================================
+   PANEL EXPEDIENTE RÁPIDO
+   ========================================================================== */
+.emp-exp-panel {
+    background: var(--emp-white);
+    border-radius: var(--emp-radius-lg);
+    padding: 20px;
+    box-shadow: var(--emp-shadow);
+    border: 1px solid rgba(162,155,254,0.2);
+    position: sticky; top: 20px;
+    max-height: calc(100vh - 120px); overflow-y: auto;
+}
+.emp-exp-empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; height: 200px;
+    color: var(--emp-muted); text-align: center; font-size: 0.88rem;
+}
+.emp-exp-empty svg { font-size: 2rem; opacity: 0.2; }
+
+.emp-exp-content { display: flex; flex-direction: column; gap: 14px; }
+.emp-exp-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.9rem; color: var(--emp-deep);
+    padding-bottom: 12px; border-bottom: 1px solid #f0eeff;
+}
+.emp-exp-pet-info {
+    display: flex; align-items: flex-start; gap: 12px;
+}
+.emp-exp-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--emp-primary), var(--emp-deep));
+    color: white; font-weight: 800; font-size: 1.1rem;
+    font-family: 'Montserrat', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.emp-exp-pet-info > div { display: flex; flex-direction: column; gap: 2px; }
+.emp-exp-pet-info strong { font-size: 0.95rem; color: var(--emp-sidebar); }
+.emp-exp-pet-info span   { font-size: 0.78rem; color: var(--emp-muted); }
+.emp-exp-owner-info { color: var(--emp-primary) !important; font-weight: 700 !important; }
+
+.emp-notes-preview {
+    background: #f8f6ff; border-radius: var(--emp-radius-md);
+    padding: 12px 14px; border-left: 4px solid var(--emp-primary);
+}
+.emp-notes-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--emp-primary); display: block; margin-bottom: 6px; }
+.emp-notes-preview p { font-size: 0.85rem; color: var(--emp-text); line-height: 1.5; }
+
+.emp-last-visit {
+    background: #f0fdf4; border-radius: var(--emp-radius-md);
+    padding: 12px 14px; border-left: 4px solid var(--emp-mint);
+}
+.emp-last-visit-date { font-size: 0.72rem; color: #085041; font-weight: 700; margin-bottom: 4px; }
+.emp-last-visit p { font-size: 0.83rem; color: var(--emp-text); line-height: 1.5; }
+
+.emp-exp-actions { display: flex; flex-direction: column; gap: 8px; }
+
+/* ==========================================================================
+   MODAL EXPEDIENTE COMPLETO
+   ========================================================================== */
+.emp-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(30,39,46,0.55);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: empFadeOverlay 0.2s ease;
+}
+@keyframes empFadeOverlay { from { opacity:0; } to { opacity:1; } }
+
+.emp-modal-box {
+    background: var(--emp-white);
+    border-radius: var(--emp-radius-lg);
+    width: 100%; max-width: 640px;
+    max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(108,92,231,0.18);
+    animation: empModalIn 0.3s var(--emp-ease);
+}
+@keyframes empModalIn {
+    from { opacity:0; transform: translateY(20px) scale(0.97); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+}
+.emp-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #f0eeff;
+    position: sticky; top: 0; background: white; z-index: 1;
+}
+.emp-modal-header h3 { font-size: 1.05rem; color: var(--emp-deep); }
+.emp-modal-close {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #f0eeff; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--emp-deep); transition: all 0.2s;
+}
+.emp-modal-close:hover { background: var(--emp-red); color: white; }
+.emp-modal-body { padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+/* Expediente: cabecera del paciente */
+.exp-patient-header {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #f8f6ff; border-radius: var(--emp-radius-md);
+    padding: 16px;
+}
+.exp-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--emp-primary), var(--emp-deep));
+    color: white; font-weight: 800; font-size: 1.3rem;
+    font-family: 'Montserrat', sans-serif;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.exp-patient-header > div { display: flex; flex-direction: column; gap: 3px; }
+.exp-patient-header h4 { font-size: 1.1rem; color: var(--emp-sidebar); margin: 0; }
+.exp-patient-header span { font-size: 0.82rem; color: var(--emp-muted); }
+.exp-owner { color: var(--emp-primary) !important; font-weight: 700 !important; }
+
+/* Secciones del expediente */
+.exp-section { display: flex; flex-direction: column; gap: 8px; }
+.exp-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; font-weight: 700;
+    color: var(--emp-deep); text-transform: uppercase; letter-spacing: 0.8px;
+}
+.exp-textarea {
+    width: 100%; padding: 12px 14px;
+    border-radius: var(--emp-radius-md);
+    border: 1.5px solid #ede9fe; background: var(--emp-bg);
+    font-family: 'Quicksand', sans-serif; font-size: 0.9rem;
+    color: var(--emp-text); resize: vertical; transition: all 0.25s;
+    line-height: 1.6;
+}
+.exp-textarea.sm { min-height: 60px; }
+.exp-textarea:focus { outline: none; border-color: var(--emp-primary); background: white; box-shadow: 0 0 0 4px rgba(162,155,254,0.15); }
+
+.exp-session-row { display: flex; gap: 10px; align-items: flex-end; }
+.exp-session-row .exp-textarea { flex: 1; }
+
+.btn-add-entry {
+    padding: 10px 16px; background: var(--emp-primary); color: white;
+    border: none; border-radius: var(--emp-radius-md);
+    font-weight: 700; font-size: 0.82rem; cursor: pointer;
+    white-space: nowrap; transition: all 0.2s; height: fit-content;
     font-family: 'Quicksand', sans-serif;
 }
+.btn-add-entry:hover:not(:disabled) { background: var(--emp-deep); }
+.btn-add-entry:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Reutilización de Sidebar y Topbar del Admin con toques Staff */
-.admin-sidebar {
-    background-color: #1e272e;
-    z-index: 1000;
+/* Historial */
+.exp-history { display: flex; flex-direction: column; gap: 10px; max-height: 240px; overflow-y: auto; }
+.exp-history-entry {
+    background: var(--emp-bg); border-radius: 10px;
+    padding: 10px 14px; border-left: 3px solid var(--emp-primary);
 }
+.exp-history-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.exp-history-date   { font-size: 0.75rem; font-weight: 700; color: var(--emp-primary); }
+.exp-history-author { font-size: 0.7rem; color: var(--emp-muted); background: #f0eeff; padding: 1px 7px; border-radius: 10px; }
+.exp-history-detail { font-size: 0.85rem; color: var(--emp-text); line-height: 1.5; }
 
-.nav-capsule.active {
-    background: linear-gradient(135deg, var(--staff-primary), var(--staff-secondary));
-    box-shadow: 0 8px 20px rgba(108, 92, 231, 0.3);
+.btn-save-exp {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, var(--emp-primary), var(--emp-deep));
+    color: white; border: none; border-radius: var(--emp-radius-md);
+    font-weight: 800; font-size: 0.95rem;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+    transition: all 0.3s var(--emp-ease);
 }
-
-.admin-main-panel {
-    flex-grow: 1;
-    padding: 40px;
-    margin-top: 75px;
-    transition: margin-left var(--transition);
-}
+.btn-save-exp:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(108,92,231,0.3); }
 
 /* ==========================================================================
-   MODAL DE EXPEDIENTE (POP-UP INTERNO)
+   FORMULARIOS GENERALES
    ========================================================================== */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(45, 52, 54, 0.6);
-    backdrop-filter: blur(10px);
-    display: flex;
+.emp-form-card {
+    background: var(--emp-white);
+    border-radius: var(--emp-radius-lg); padding: 24px 28px;
+    box-shadow: var(--emp-shadow); margin-bottom: 20px;
+    border: 1px solid rgba(162,155,254,0.15);
+}
+.emp-form-title {
+    font-size: 0.95rem; color: var(--emp-primary);
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid #f0eeff;
+}
+.emp-form-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* Botones */
+.emp-btn-primary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 20px; background: var(--emp-primary); color: white;
+    border: none; border-radius: var(--emp-radius-md);
+    font-weight: 800; font-family: 'Montserrat', sans-serif; font-size: 0.88rem;
+    cursor: pointer; transition: all 0.3s var(--emp-ease);
+}
+.emp-btn-primary:hover { background: var(--emp-deep); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(162,155,254,0.3); }
+.emp-btn-primary.sm { padding: 8px 16px; font-size: 0.82rem; }
+
+.emp-btn-secondary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px; background: #f0eeff; color: var(--emp-deep);
+    border: none; border-radius: var(--emp-radius-md);
+    font-weight: 700; font-family: 'Quicksand', sans-serif; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s; width: 100%;
     justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    padding: 20px;
+}
+.emp-btn-secondary:hover { background: var(--emp-primary); color: white; }
+
+.emp-btn-done {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px; background: #e1f5ee; color: #085041;
+    border: none; border-radius: var(--emp-radius-md);
+    font-weight: 700; font-family: 'Quicksand', sans-serif; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s; width: 100%;
+    justify-content: center;
+}
+.emp-btn-done:hover { background: var(--emp-mint); color: #04342C; }
+
+.emp-btn-ghost {
+    padding: 8px 16px; background: #f1f2f6; color: var(--emp-muted);
+    border: none; border-radius: var(--emp-radius-md);
+    font-weight: 700; font-family: 'Quicksand', sans-serif; font-size: 0.85rem;
+    cursor: pointer; transition: all 0.2s;
+}
+.emp-btn-ghost:hover { background: #e0e4ea; }
+.emp-btn-ghost.sm { padding: 8px 14px; font-size: 0.82rem; }
+
+.emp-btn-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; transition: all 0.2s;
+}
+.emp-btn-icon.edit    { background: #f0eeff; color: var(--emp-primary); }
+.emp-btn-icon.edit:hover { background: var(--emp-primary); color: white; }
+.emp-btn-icon.lavender { background: #f0eeff; color: var(--emp-deep); }
+.emp-btn-icon.lavender:hover { background: var(--emp-deep); color: white; }
+
+/* ==========================================================================
+   TABLAS
+   ========================================================================== */
+.emp-table-card {
+    background: var(--emp-white); border-radius: var(--emp-radius-lg);
+    box-shadow: var(--emp-shadow); overflow: hidden; margin-top: 4px;
+}
+.emp-table { width: 100%; border-collapse: collapse; }
+.emp-table th {
+    background: var(--emp-bg); padding: 13px 18px; text-align: left;
+    font-size: 0.72rem; font-family: 'Montserrat', sans-serif;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--emp-primary); font-weight: 700;
+}
+.emp-table td { padding: 13px 18px; border-bottom: 1px solid #f0eeff; font-size: 0.9rem; font-weight: 500; }
+.emp-table tr:last-child td { border-bottom: none; }
+.emp-table tr:hover td { background: #faf9ff; }
+.emp-actions-cell { display: flex; gap: 8px; justify-content: flex-end; }
+
+.emp-badge {
+    display: inline-block; padding: 3px 10px;
+    border-radius: var(--emp-radius-pill);
+    font-size: 0.75rem; font-weight: 700;
+    background: #f0eeff; color: var(--emp-deep);
 }
 
-.modal-capsule {
-    background: white;
-    width: 100%;
-    max-width: 750px;
-    border-radius: var(--radius-lg);
-    padding: 40px;
-    position: relative;
-    box-shadow: 0 40px 100px rgba(0,0,0,0.2);
-    animation: modalSlideUp 0.5s var(--transition);
+/* ==========================================================================
+   PACIENTES GRID
+   ========================================================================== */
+.emp-pet-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px; margin-top: 8px;
 }
-
-@keyframes modalSlideUp {
-    from { opacity: 0; transform: translateY(40px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+.emp-pet-card {
+    background: var(--emp-white); border-radius: var(--emp-radius-lg);
+    padding: 16px 18px; display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--emp-shadow); border: 1px solid rgba(162,155,254,0.12);
+    transition: all 0.3s var(--emp-ease);
 }
-
-.modal-form-group label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.emp-pet-card:hover { transform: translateY(-3px); border-color: var(--emp-primary); box-shadow: 0 10px 24px rgba(162,155,254,0.18); }
+.emp-pet-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--emp-primary), var(--emp-deep));
+    color: white; font-weight: 800; font-size: 1rem;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    margin-bottom: 15px;
-    color: var(--staff-secondary);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.emp-pet-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.emp-pet-info h5   { font-size: 0.9rem; color: var(--emp-sidebar); }
+.emp-pet-info span { font-size: 0.76rem; color: var(--emp-muted); }
+.emp-pet-owner { color: var(--emp-primary) !important; font-weight: 700 !important; }
+.emp-pet-card-actions { display: flex; gap: 6px; }
+
+/* ==========================================================================
+   INVENTARIO
+   ========================================================================== */
+.emp-stock-alert {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff7ed; color: #92400e;
+    border: 1px solid #fde68a; border-radius: var(--emp-radius-md);
+    padding: 12px 16px; margin-bottom: 16px;
+    font-size: 0.88rem; font-weight: 600;
+}
+.emp-stock-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: var(--emp-radius-pill);
+    font-size: 0.78rem; font-weight: 700;
+}
+.emp-stock-pill.ok  { background: #e1f5ee; color: #085041; }
+.emp-stock-pill.low { background: #FCEBEB; color: #791F1F; }
+
+/* ==========================================================================
+   MODAL FULL (calendario)
+   ========================================================================== */
+.modal-full {
+    max-width: 1100px !important;
+    width: calc(100vw - 40px) !important;
+    max-height: 92vh !important;
+}
+.modal-full .emp-modal-body {
+    padding: 0 20px 20px !important;
+    display: flex; flex-direction: column; gap: 0;
 }
 
-.btn-modal-primary {
-    background: linear-gradient(135deg, var(--staff-mint), #00b894);
-    color: white;
-    border: none;
-    padding: 20px;
-    border-radius: var(--radius-md);
-    width: 100%;
+/* ==========================================================================
+   CALENDARIO — TOOLBAR
+   ========================================================================== */
+.cal-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 4px 16px;
+    border-bottom: 1px solid #f0eeff;
+    margin-bottom: 12px;
+    flex-wrap: wrap; gap: 10px;
+}
+.cal-nav { display: flex; align-items: center; gap: 6px; }
+.cal-nav-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #f0eeff; color: var(--emp-deep);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; transition: all 0.2s;
+}
+.cal-nav-btn:hover { background: var(--emp-primary); color: white; }
+.cal-today-btn {
+    padding: 6px 14px; border-radius: 8px;
+    background: white; border: 1.5px solid #ede9fe;
+    color: var(--emp-deep); font-weight: 700; font-size: 0.82rem;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Quicksand', sans-serif;
+}
+.cal-today-btn:hover { background: #f0eeff; }
+.cal-period-label {
+    font-family: 'Montserrat', sans-serif; font-size: 1rem;
+    font-weight: 800; color: var(--emp-sidebar); margin-left: 8px;
+}
+.cal-view-switcher { display: flex; align-items: center; gap: 4px; }
+.cal-view-btn {
+    padding: 6px 14px; border-radius: 8px;
+    border: 1.5px solid #ede9fe; background: white;
+    color: var(--emp-muted); font-weight: 700; font-size: 0.82rem;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Quicksand', sans-serif;
+}
+.cal-view-btn.active { background: var(--emp-primary); color: white; border-color: var(--emp-primary); }
+
+/* Formulario dentro del calendario */
+.cal-appt-form {
+    background: var(--emp-bg);
+    border: 2px dashed var(--emp-primary);
+    border-radius: var(--emp-radius-md);
+    padding: 16px; margin-bottom: 14px;
+}
+.cal-form-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;
+}
+.cal-form-grid input,
+.cal-form-grid select {
+    padding: 9px 12px; border-radius: 10px;
+    border: 1.5px solid #ede9fe; background: white;
+    font-family: 'Quicksand', sans-serif; font-size: 0.88rem;
+    color: var(--emp-text);
+}
+.cal-form-grid input:focus,
+.cal-form-grid select:focus {
+    outline: none; border-color: var(--emp-primary);
+    box-shadow: 0 0 0 3px rgba(162,155,254,0.15);
+}
+
+.cal-view-container { flex: 1; overflow: hidden; }
+
+/* ==========================================================================
+   VISTA MES
+   ========================================================================== */
+.cal-month { display: flex; flex-direction: column; gap: 0; }
+.cal-month-header {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    text-align: center; margin-bottom: 6px;
+}
+.cal-month-day-label {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    color: var(--emp-primary); padding: 6px 0; letter-spacing: 0.5px;
+}
+.cal-month-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+.cal-cell {
+    min-height: 90px; background: white; border-radius: 8px;
+    padding: 6px; border: 1px solid #f0eeff;
+    cursor: pointer; transition: background 0.2s;
+    display: flex; flex-direction: column; gap: 3px;
+    overflow: hidden;
+}
+.cal-cell:hover { background: #faf8ff; border-color: var(--emp-primary); }
+.cal-cell--empty { background: transparent; border-color: transparent; cursor: default; }
+.cal-cell--today { border-color: var(--emp-primary); background: #f8f5ff; }
+.cal-cell-num {
+    font-family: 'Montserrat', sans-serif; font-size: 0.82rem; font-weight: 700;
+    color: var(--emp-text); margin-bottom: 2px;
+}
+.cal-cell--today .cal-cell-num {
+    background: var(--emp-primary); color: white;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+}
+.cal-event-chip {
+    font-size: 0.68rem; font-weight: 600; padding: 2px 6px;
+    border-radius: 4px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; cursor: pointer;
+    transition: opacity 0.15s;
+}
+.cal-event-chip:hover { opacity: 0.8; }
+.cal-more { font-size: 0.65rem; color: var(--emp-muted); font-weight: 600; padding: 1px 4px; }
+
+/* ==========================================================================
+   VISTA SEMANA
+   ========================================================================== */
+.cal-week { display: flex; flex-direction: column; height: 520px; }
+.cal-week-header {
+    display: grid; grid-template-columns: 52px repeat(7, 1fr);
+    border-bottom: 1px solid #f0eeff; margin-bottom: 0; flex-shrink: 0;
+}
+.cal-time-gutter { width: 52px; flex-shrink: 0; }
+.cal-week-day-label {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px 4px; cursor: pointer; transition: background 0.2s;
+    border-radius: 8px;
+}
+.cal-week-day-label:hover { background: #f0eeff; }
+.cal-week-day-label.today .wdl-name { color: var(--emp-primary); }
+.wdl-name { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--emp-muted); }
+.wdl-num {
+    font-family: 'Montserrat', sans-serif; font-size: 1.1rem; font-weight: 800;
+    color: var(--emp-text); line-height: 1.2;
+}
+.today-circle {
+    background: var(--emp-primary); color: white !important;
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+}
+
+.cal-week-scroll { flex: 1; overflow-y: auto; }
+.cal-week-grid { display: flex; flex-direction: column; }
+.cal-hour-row {
+    display: grid; grid-template-columns: 52px repeat(7, 1fr);
+    min-height: 56px; border-bottom: 1px solid #f8f5ff;
+}
+.cal-time-label {
+    font-size: 0.68rem; color: var(--emp-muted); font-weight: 600;
+    padding: 6px 8px 0; text-align: right; flex-shrink: 0;
+}
+.cal-hour-cell {
+    border-left: 1px solid #f8f5ff; padding: 2px 3px;
+    display: flex; flex-direction: column; gap: 2px;
+    min-height: 56px; position: relative;
+}
+.cal-event-block {
+    border-radius: 6px; padding: 4px 7px;
+    font-size: 0.72rem; cursor: pointer;
+    display: flex; flex-direction: column; gap: 1px;
+    transition: opacity 0.15s; min-height: 42px;
+}
+.cal-event-block:hover { opacity: 0.85; }
+.cal-event-block strong { font-size: 0.72rem; }
+.cal-event-block span   { font-size: 0.66rem; opacity: 0.85; }
+
+/* ==========================================================================
+   VISTA DÍA
+   ========================================================================== */
+.cal-day { display: flex; flex-direction: column; height: 520px; }
+.cal-day-label {
+    font-family: 'Montserrat', sans-serif; font-size: 1rem; font-weight: 800;
+    color: var(--emp-sidebar); padding: 4px 0 12px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid #f0eeff; margin-bottom: 0; flex-shrink: 0;
+    text-transform: capitalize;
+}
+.cal-day-count {
+    font-size: 0.75rem; background: #f0eeff; color: var(--emp-deep);
+    padding: 3px 10px; border-radius: 20px; font-weight: 700;
+}
+.cal-day-scroll { flex: 1; overflow-y: auto; }
+.cal-day-row {
+    display: grid; grid-template-columns: 52px 1fr;
+    min-height: 64px; border-bottom: 1px solid #f8f5ff;
+}
+.cal-day-events { padding: 4px 6px; display: flex; flex-direction: column; gap: 4px; }
+.cal-day-event {
+    border-radius: 8px; padding: 8px 12px;
+    cursor: pointer; transition: opacity 0.15s;
+    display: flex; flex-direction: column; gap: 3px;
+}
+.cal-day-event:hover { opacity: 0.85; }
+.cal-day-event-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+}
+.cal-day-event strong { font-size: 0.85rem; }
+.cal-day-event span   { font-size: 0.78rem; opacity: 0.85; }
+.cal-day-owner { font-size: 0.72rem; opacity: 0.7; }
+.cal-day-price {
+    font-family: 'Montserrat', sans-serif; font-size: 0.8rem; font-weight: 800;
+    margin-top: 2px;
+}
+.cal-empty-slot { min-height: 60px; }
+
+/* ==========================================================================
+   MODAL DETALLE DE CITA
+   ========================================================================== */
+.appt-detail-header {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #f8f6ff; border-radius: var(--emp-radius-md);
+    padding: 16px; margin-bottom: 16px;
+}
+.appt-detail-avatar {
+    width: 50px; height: 50px; border-radius: 50%;
+    color: white; font-weight: 800; font-size: 1.2rem;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 800;
-    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.appt-detail-header > div { display: flex; flex-direction: column; gap: 3px; }
+.appt-detail-header h4 { font-size: 1.05rem; color: var(--emp-sidebar); margin: 0; }
+.appt-detail-header span { font-size: 0.82rem; color: var(--emp-muted); }
+.appt-detail-owner { color: var(--emp-primary) !important; font-weight: 700 !important; }
+
+.appt-detail-grid { display: flex; flex-direction: column; gap: 0; margin-bottom: 14px; }
+.appt-detail-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid #f0eeff;
+    font-size: 0.88rem;
+}
+.appt-detail-row:last-child { border-bottom: none; }
+.appt-detail-row span { color: var(--emp-muted); }
+.appt-detail-notes {
+    background: #f8f6ff; border-radius: var(--emp-radius-md);
+    padding: 12px 14px; border-left: 4px solid var(--emp-primary);
+    margin-bottom: 4px;
+}
+.appt-detail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+
+/* KPI clickable */
+.emp-kpi--clickable {
     cursor: pointer;
-    margin-top: 25px;
-    transition: var(--transition);
 }
-
-.btn-modal-primary:hover {
+.emp-kpi--clickable:hover {
     transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(85, 239, 196, 0.4);
+    box-shadow: 0 12px 28px rgba(162,155,254,0.25);
+    border-color: var(--emp-primary);
+}
+.emp-kpi-hint {
+    font-size: 0.68rem; font-weight: 700; color: var(--emp-primary);
+    margin-top: 2px;
 }
 
 /* ==========================================================================
-   AGENDA Y PACIENTES (DASHBOARD STAFF)
+   ANIMACIONES & SCROLLBAR
    ========================================================================== */
-.pacientes-container-layout {
-    display: grid;
-    grid-template-columns: 1fr 420px;
-    gap: 30px;
+.fade-in { animation: empFadeIn 0.45s var(--emp-ease) both; }
+@keyframes empFadeIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
-
-.agenda-list-full {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* Tarjeta de Cita Individual */
-.agenda-item-v2 {
-    background: white;
-    padding: 25px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: var(--transition);
-}
-
-.agenda-item-v2:hover {
-    transform: translateX(10px);
-    border-color: var(--staff-primary);
-}
-
-.agenda-item-v2.active {
-    background: #f0eeff;
-    border-color: var(--staff-secondary);
-}
-
-.agenda-item-v2.completed {
-    border-left: 10px solid var(--staff-mint);
-    background: #f6fffb;
-}
-
-.time-tag {
-    background: var(--staff-secondary);
-    color: white;
-    padding: 8px 15px;
-    border-radius: var(--radius-pill);
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 800;
-}
-
-.status-pill {
-    padding: 6px 15px;
-    border-radius: var(--radius-pill);
-    font-size: 0.75rem;
-    font-weight: 700;
-    background: #dfe6e9;
-    margin-left: auto;
-}
-
-.status-pill.success {
-    background: var(--staff-mint);
-    color: white;
-}
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ede9fe; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--emp-primary); }
 
 /* ==========================================================================
-   PANEL LATERAL (EXPEDIENTE RÁPIDO)
-   ========================================================================== */
-.pacientes-agenda-side {
-    position: sticky;
-    top: 110px;
-    height: fit-content;
-}
-
-.quick-file-v2 {
-    background: white;
-    padding: 30px;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-soft);
-    border: 1px solid rgba(108, 92, 231, 0.1);
-}
-
-.file-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--staff-secondary);
-    margin-bottom: 25px;
-    font-family: 'Montserrat', sans-serif;
-}
-
-.file-card-inner .pet-mini-info h4 {
-    font-size: 1.8rem;
-    margin: 0;
-    color: var(--staff-text);
-}
-
-.notes-preview {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: var(--radius-md);
-    margin: 20px 0;
-    border-left: 5px solid var(--staff-primary);
-}
-
-/* ==========================================================================
-   ESTADÍSTICAS DE STAFF
-   ========================================================================== */
-.control-grid .stat-card {
-    border-top: 6px solid var(--staff-primary);
-    border-radius: var(--radius-lg);
-}
-
-.stat-card h3 {
-    color: var(--staff-secondary);
-}
-
-/* ==========================================================================
-   TABLAS Y FORMULARIOS
-   ========================================================================== */
-.dashboard-form {
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(162, 155, 254, 0.2);
-}
-
-table thead th {
-    background: #f0f3ff;
-    color: var(--staff-secondary);
-}
-
-.edit-btn {
-    background: #f0eeff;
-    color: var(--staff-secondary);
-}
-
-.edit-btn:hover {
-    background: var(--staff-secondary);
-    color: white;
-}
-
-/* ==========================================================================
-   RESPONSIVO
+   RESPONSIVE
    ========================================================================== */
 @media (max-width: 1100px) {
-    .pacientes-container-layout {
-        grid-template-columns: 1fr;
-    }
-    
-    .pacientes-agenda-side {
-        position: static;
-    }
+    .emp-agenda-layout { grid-template-columns: 1fr; }
+    .emp-exp-panel { position: static; max-height: none; }
+}
+@media (max-width: 850px) {
+    :root { --emp-sidebar-w: 0px; --emp-topbar-h: 56px; }
+    .emp-layout { grid-template-columns: 1fr; grid-template-rows: var(--emp-topbar-h) 1fr 68px; }
+    .emp-sidebar { grid-row: 3; grid-column: 1; width: 100%; height: 68px; flex-direction: row; padding: 0 8px; position: fixed; bottom: 0; left: 0; top: auto; border-top: 1px solid rgba(162,155,254,0.2); border-radius: 18px 18px 0 0; }
+    .emp-sidebar-nav { flex-direction: row; padding: 0; justify-content: space-around; }
+    .emp-nav-btn { flex: 1; padding: 6px 4px; }
+    .emp-sidebar-logout { display: none; }
+    .emp-main { padding: 16px 16px 88px; grid-row: 2; }
+    .emp-kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .emp-form-grid { grid-template-columns: 1fr; }
+    .emp-span2 { grid-column: span 1; }
+    .emp-page-header { flex-direction: column; gap: 12px; }
+}
+@media (max-width: 480px) {
+    .emp-kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .emp-topbar { padding: 0 14px; }
+    .emp-greeting { display: none; }
 }
