@@ -150,6 +150,42 @@
       "serviceName": "Corte de cabello",
       "createdAt": "2026-03-17",
       "id": 1002
+    },
+    {
+      "petId": "201",
+      "serviceId": "2",
+      "time": "17:07",
+      "date": "2026-03-31",
+      "status": "Pendiente",
+      "finalPrice": 700,
+      "petName": "Firulais",
+      "serviceName": "Corte de cabello",
+      "createdAt": "2026-03-31",
+      "id": 1003
+    },
+    {
+      "petId": "202",
+      "serviceId": "2",
+      "time": "17:07",
+      "date": "2026-03-31",
+      "status": "Pendiente",
+      "finalPrice": 350,
+      "petName": "Luna",
+      "serviceName": "Corte de cabello",
+      "createdAt": "2026-03-31",
+      "id": 1004
+    },
+    {
+      "petId": "201",
+      "serviceId": "2",
+      "time": "17:07",
+      "date": "2026-03-31",
+      "status": "Pendiente",
+      "finalPrice": 700,
+      "petName": "Firulais",
+      "serviceName": "Corte de cabello",
+      "createdAt": "2026-03-31",
+      "id": 1005
     }
   ],
   "sales": [
@@ -176,6 +212,14 @@
       "price": 350,
       "clientId": 102,
       "type": "service"
+    },
+    {
+      "item": "1x Corte de cabello, 1x Arreglo de uñas",
+      "price": 470,
+      "clientId": null,
+      "type": "service",
+      "date": "31/3/2026",
+      "id": 1004
     }
   ]
 }
