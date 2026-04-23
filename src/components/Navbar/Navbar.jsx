@@ -4,7 +4,6 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { useAuth } from '../../contexts/AuthContext';
 
-// --- ICONOS SVG ---
 const MenuIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
         <path d="M0 0h24v24H0z" fill="none"/>
@@ -41,20 +40,22 @@ const LogoutIcon = () => (
 
 const Navbar = () => {
     const { user, isLoggedIn, logout } = useAuth();
-    const location  = useLocation();
-    const navigate  = useNavigate();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     const [scrolled,         setScrolled]         = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Detectar scroll
+    // Solo en "/" hay hero oscuro — letras blancas.
+    // En todas las demás páginas el fondo es claro — letras oscuras.
+    const isHome = location.pathname === '/';
+
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 100);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // Cerrar menú móvil al cambiar de ruta
     useEffect(() => {
         setIsMobileMenuOpen(false);
     }, [location.pathname]);
@@ -74,10 +75,10 @@ const Navbar = () => {
     const navbarClasses = [
         'navbar-container',
         scrolled ? 'scrolled-capsule' : 'top-transparent',
+        isHome   ? 'is-home'          : 'is-page',
         isMobileMenuOpen ? 'menu-open' : '',
-    ].join(' ');
+    ].filter(Boolean).join(' ');
 
-    // Helper para clases activas con NavLink
     const navClass = ({ isActive }) =>
         isActive ? 'nav-item nav-item--active' : 'nav-item';
 
@@ -85,20 +86,17 @@ const Navbar = () => {
         <header className={navbarClasses}>
             <div className="navbar-content">
 
-                {/* Logo */}
                 <NavLink to="/" className="navbar-logo" onClick={handleHomeClick}>
                     perrucho<span>.</span>
                 </NavLink>
 
-                {/* Desktop nav */}
                 <nav className="nav-links-desktop">
-                    <NavLink to="/"         className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
+                    <NavLink to="/"          className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
                     <NavLink to="/servicios" className={navClass}>Servicios</NavLink>
                     <NavLink to="/tienda"    className={navClass}>Tienda</NavLink>
                     <NavLink to="/contacto"  className={navClass}>Contacto</NavLink>
                 </nav>
 
-                {/* Acciones */}
                 <div className="navbar-actions">
                     {isLoggedIn ? (
                         <>
@@ -115,11 +113,10 @@ const Navbar = () => {
                     ) : (
                         <NavLink to="/acceso" className="nav-access-btn">
                             <UserIcon />
-                            <span>Acceder</span>
+                            <span>Iniciar sesión</span>
                         </NavLink>
                     )}
 
-                    {/* Toggle móvil */}
                     <button
                         className="mobile-menu-toggle"
                         onClick={() => setIsMobileMenuOpen(prev => !prev)}
@@ -130,7 +127,6 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* Menú Móvil */}
             <nav className={`nav-links-mobile ${isMobileMenuOpen ? 'open' : ''}`}>
                 <NavLink to="/"          className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
                 <NavLink to="/servicios" className={navClass}>Servicios</NavLink>

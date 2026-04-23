@@ -6,8 +6,10 @@ import bannerImage from '../assets/1.jpg';
 import heroVideo   from '../assets/hero.mp4';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+// ─── ServiceCard ahora es un componente compartido ────────────────────────────
+import ServiceCard from '../components/ServiceCard/ServiceCard';
 
-// ─── Hook de autenticación ────────────────────────────────────────────────────
+// ─── Hook de navegación con auth ─────────────────────────────────────────────
 const useAuthAction = () => {
     const { isLoggedIn } = useAuth();
     const navigate = useNavigate();
@@ -17,8 +19,7 @@ const useAuthAction = () => {
     };
 };
 
-// ─── Hook: animación de número al entrar en pantalla ─────────────────────────
-// IMPORTANTE: usado dentro de un componente hijo (TrustStatItem), no en .map()
+// ─── Hook: contador animado al entrar en pantalla ─────────────────────────────
 const useCountUp = (target, duration = 1800) => {
     const [count, setCount] = useState(0);
     const ref  = useRef(null);
@@ -33,7 +34,7 @@ const useCountUp = (target, duration = 1800) => {
                 const start = performance.now();
                 const tick  = (now) => {
                     const progress = Math.min((now - start) / duration, 1);
-                    const ease = 1 - Math.pow(1 - progress, 3);
+                    const ease     = 1 - Math.pow(1 - progress, 3);
                     setCount(Math.floor(ease * target));
                     if (progress < 1) requestAnimationFrame(tick);
                     else setCount(target);
@@ -48,88 +49,13 @@ const useCountUp = (target, duration = 1800) => {
     return { count, ref };
 };
 
-// ─── Tarjeta de servicio — datos 100% desde la BD ────────────────────────────
-const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
-    const [selectedSize, setSelectedSize] = useState('mediano');
-
-    // Precios desde la BD — con fallback al cálculo si no existen
-    const base = Number(service.price) || 0;
-    const prices = {
-        chico:   service.priceChico   ?? base,
-        mediano: service.priceMediano ?? +(base * 1.25).toFixed(0),
-        grande:  service.priceGrande  ?? +(base * 1.50).toFixed(0),
-    };
-
-    // Color e ícono desde la BD — con fallback por categoría
-    const color = service.color || inferColor(service);
-    const icon  = service.icon  || inferIcon(service);
-
-    return (
-        <div className={`svc-card svc-card--${color}`}>
-            {service.popular && (
-                <div className="svc-popular-badge">⭐ Más popular</div>
-            )}
-            <div className={`svc-icon-wrap svc-icon-wrap--${color}`}>
-                <span className="svc-icon">{icon}</span>
-            </div>
-            <h3 className="svc-title">{service.title}</h3>
-            <p className="svc-desc">{service.description || `Servicio de ${service.category}`}</p>
-            {service.duration && (
-                <span className="svc-duration">⏱ {service.duration}</span>
-            )}
-            <div className="svc-size-selector">
-                {['chico','mediano','grande'].map(size => (
-                    <button
-                        key={size}
-                        className={`svc-size-btn ${selectedSize === size ? 'active' : ''}`}
-                        onClick={() => setSelectedSize(size)}
-                    >
-                        {size.charAt(0).toUpperCase() + size.slice(1)}
-                    </button>
-                ))}
-            </div>
-            <div className={`svc-price-display svc-price-display--${color}`}>
-                <span className="svc-price-label">Precio</span>
-                <span className="svc-price-amount">${prices[selectedSize]}</span>
-            </div>
-            <button
-                className={`svc-cta-btn svc-cta-btn--${color}`}
-                onClick={() => onReserve(service)}
-            >
-                {isLoggedIn ? 'Reservar ahora' : 'Inicia sesión para reservar'}
-            </button>
-        </div>
-    );
-};
-
-// ─── Fallbacks de color e ícono (solo si la BD no los trae) ──────────────────
-function inferColor(service) {
-    const cat   = (service.category || '').toLowerCase();
-    const title = (service.title    || '').toLowerCase();
-    if (title.includes('corte') || cat.includes('estét')) return 'lavender';
-    if (title.includes('uña'))                            return 'mint';
-    if (cat.includes('veter') || cat.includes('médic'))   return 'mint';
-    return 'blue';
-}
-
-function inferIcon(service) {
-    const cat   = (service.category || '').toLowerCase();
-    const title = (service.title    || '').toLowerCase();
-    if (title.includes('baño')  || cat.includes('higien')) return '🛁';
-    if (title.includes('corte') || cat.includes('estét'))  return '✂️';
-    if (title.includes('uña'))                             return '🐾';
-    if (title.includes('vacun'))                           return '💉';
-    if (cat.includes('veter')   || cat.includes('médic'))  return '🏥';
-    return '🐾';
-}
-
 // ─── Sección "Cómo funciona" ──────────────────────────────────────────────────
 const HowItWorksSection = () => {
     const authAction = useAuthAction();
     const STEPS = [
-        { num:'01', icon:'🔍', title:'Elige tu servicio',  desc:'Explora nuestro catálogo y selecciona el servicio que tu mascota necesita.', color:'blue' },
-        { num:'02', icon:'📅', title:'Agenda tu cita',     desc:'Selecciona el día y hora que más te convenga. Confirmación inmediata.',       color:'lavender' },
-        { num:'03', icon:'🐾', title:'¡Ven y disfruta!',   desc:'Llega con tu mascota y nosotros nos encargamos del resto con amor.',          color:'mint' },
+        { num: '01', icon: '🔍', title: 'Elige tu servicio',  desc: 'Explora nuestro catálogo y selecciona el servicio que tu mascota necesita.', color: 'blue'     },
+        { num: '02', icon: '📅', title: 'Agenda tu cita',     desc: 'Selecciona el día y hora que más te convenga. Confirmación inmediata.',       color: 'lavender' },
+        { num: '03', icon: '🐾', title: '¡Ven y disfruta!',   desc: 'Llega con tu mascota y nosotros nos encargamos del resto con amor.',          color: 'mint'     },
     ];
     return (
         <section className="how-section">
@@ -165,7 +91,7 @@ const HowItWorksSection = () => {
     );
 };
 
-// ─── Ítem de stat individual (hook dentro de componente, no en .map) ──────────
+// ─── Ítem de stat (hook dentro de componente, no en .map) ────────────────────
 const TrustStatItem = ({ target, suffix, label, icon }) => {
     const { count, ref } = useCountUp(target);
     return (
@@ -180,10 +106,10 @@ const TrustStatItem = ({ target, suffix, label, icon }) => {
 // ─── Franja de confianza ──────────────────────────────────────────────────────
 const TrustStrip = () => {
     const STATS = [
-        { target:500, suffix:'+', label:'Clientes felices',   icon:'😊' },
-        { target:5,   suffix:'★', label:'Calificación',       icon:'⭐' },
-        { target:3,   suffix:'',  label:'Especialistas',      icon:'👨‍⚕️' },
-        { target:10,  suffix:'+', label:'Años de experiencia',icon:'🏆' },
+        { target: 500, suffix: '+', label: 'Clientes felices',    icon: '😊' },
+        { target: 5,   suffix: '★', label: 'Calificación',        icon: '⭐' },
+        { target: 3,   suffix: '',  label: 'Especialistas',       icon: '👨‍⚕️' },
+        { target: 10,  suffix: '+', label: 'Años de experiencia', icon: '🏆' },
     ];
     return (
         <div className="trust-strip">
@@ -194,12 +120,12 @@ const TrustStrip = () => {
     );
 };
 
-// ─── Sección "¿Por qué nosotros?" ────────────────────────────────────────────
+// ─── ¿Por qué nosotros? ───────────────────────────────────────────────────────
 const FEATURES = [
-    { icon:'🏥', title:'Veterinaria certificada', desc:'Médicos veterinarios con cédula profesional y años de experiencia en pequeñas especies.' },
-    { icon:'✂️', title:'Estética premium',        desc:'Cortes, baños y tratamientos con productos dermatológicos de alta calidad.' },
-    { icon:'🛍️', title:'Tienda especializada',    desc:'Alimentos, accesorios y suplementos seleccionados por nuestros especialistas.' },
-    { icon:'📅', title:'Agenda en línea',         desc:'Reserva tu cita en segundos y recibe recordatorios automáticos.' },
+    { icon: '🏥', title: 'Veterinaria certificada',  desc: 'Médicos veterinarios con cédula profesional y años de experiencia en pequeñas especies.' },
+    { icon: '✂️', title: 'Estética premium',          desc: 'Cortes, baños y tratamientos con productos dermatológicos de alta calidad.' },
+    { icon: '🛍️', title: 'Tienda especializada',      desc: 'Alimentos, accesorios y suplementos seleccionados por nuestros especialistas.' },
+    { icon: '📅', title: 'Agenda en línea',           desc: 'Reserva tu cita en segundos y recibe recordatorios automáticos.' },
 ];
 
 const WhyUsSection = () => (
@@ -217,7 +143,7 @@ const WhyUsSection = () => (
     </section>
 );
 
-// ─── Tarjeta de producto ──────────────────────────────────────────────────────
+// ─── Card de producto ─────────────────────────────────────────────────────────
 const ProductCard = ({ item }) => {
     const authAction = useAuthAction();
     return (
@@ -269,13 +195,17 @@ const Home = () => {
                 </video>
                 {isLoggedIn && user && (
                     <div className="hero-welcome-badge">
-                        Bienvenido de nuevo, <span>{user.name}</span> 👋
+                        Bienvenido de nuevo, <span>{user.name.split(' ')[0]}</span> 👋
                     </div>
                 )}
                 <div className="hero-copy">
+                    {/* MARCA prominente arriba del título principal */}
+                    <p className="hero-brand-name">Perrucho Delivery</p>
                     <p className="hero-tagline">Estética · Veterinaria · Tienda</p>
-                    <h1 className="hero-title">El cuidado que<br />tu mascota merece</h1>
-                    <p className="hero-subtitle">Confíenos a su mascota para consentirla y embellecerla.</p>
+                    <h1 className="hero-title">Confíenos a su mascota<br />para consentirla y embellecerla</h1>
+                    <p className="hero-subtitle">
+                        Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.
+                    </p>
                     <div className="hero-actions">
                         <button className="reserve-button hero-cta-main" onClick={() => authAction('/servicios')}>
                             Reservar cita
@@ -298,11 +228,12 @@ const Home = () => {
                 <p className="section-eyebrow">Lo que ofrecemos</p>
                 <h3>Nuestros Servicios</h3>
                 <p className="section-sub">
-                    Selecciona el tamaño de tu mascota en cada tarjeta para ver el precio exacto.
+                    Selecciona el tamaño de tu mascota para ver el precio exacto.
                 </p>
+                {/* Usa el componente compartido */}
                 <div className="svc-cards-grid">
                     {loading ? (
-                        <p className="empty-msg">Cargando servicios...</p>
+                        <p className="svc-empty-msg">Cargando servicios...</p>
                     ) : services.length > 0 ? (
                         services.slice(0, 3).map(s => (
                             <ServiceCard
@@ -313,7 +244,7 @@ const Home = () => {
                             />
                         ))
                     ) : (
-                        <p className="empty-msg">Cargando servicios profesionales...</p>
+                        <p className="svc-empty-msg">Cargando servicios profesionales...</p>
                     )}
                 </div>
             </section>
@@ -321,7 +252,7 @@ const Home = () => {
             {/* ── ¿POR QUÉ NOSOTROS? ── */}
             <WhyUsSection />
 
-            {/* ── PRODUCTOS DESDE LA BD ── */}
+            {/* ── PRODUCTOS DESTACADOS ── */}
             <section className="content-section">
                 <h3>Productos Destacados</h3>
                 <div className="service-cards-grid">
@@ -330,7 +261,7 @@ const Home = () => {
                             <ProductCard key={p.id} item={p} />
                         ))
                     ) : (
-                        <p className="empty-msg">Cargando productos exclusivos...</p>
+                        <p className="svc-empty-msg">Cargando productos exclusivos...</p>
                     )}
                 </div>
             </section>

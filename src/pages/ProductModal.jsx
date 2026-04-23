@@ -1,5 +1,4 @@
 // src/pages/ProductModal.jsx
-// Si lo mueves a src/components/ServiceModal/, cambia las rutas a ../../contexts/...
 import React, { useState, useMemo } from 'react';
 import {
     FaCreditCard, FaMoneyBillWave, FaCheckCircle,
@@ -10,8 +9,8 @@ import { useData }  from '../contexts/DataContext';
 import './Shop.css';
 
 const ProductModal = ({ product, onClose }) => {
-    const { user }                                       = useAuth();
-    const { clients, addSale, updateProduct, products }  = useData();
+    const { user }                                      = useAuth();
+    const { clients, addSale, updateProduct, products } = useData();
 
     const [step,          setStep]          = useState(1);
     const [qty,           setQty]           = useState(1);
@@ -19,13 +18,16 @@ const ProductModal = ({ product, onClose }) => {
     const [loading,       setLoading]       = useState(false);
     const [error,         setError]         = useState('');
 
-    // ✅ CORRECCIÓN: El Hook debe definirse ANTES de cualquier return condicional
-    const clientRecord = useMemo(() =>
-        clients.find(c => c.email === user?.email),
-        [clients, user]
-    );
+    // FIX: Buscar cliente por clientId de sesión primero (usuarios nuevos),
+    // luego fallback por email (usuarios legacy sin clientId en sesión).
+    const clientRecord = useMemo(() => {
+        if (user?.clientId) {
+            const byId = clients.find(c => String(c.id) === String(user.clientId));
+            if (byId) return byId;
+        }
+        return clients.find(c => c.email?.toLowerCase() === user?.email?.toLowerCase());
+    }, [clients, user]);
 
-    // ✅ El return temprano ahora va después de todos los Hooks definidos
     if (!product) return null;
 
     const maxQty = Number(product.stock) || 1;
@@ -73,7 +75,7 @@ const ProductModal = ({ product, onClose }) => {
                     <div className="modal-progress-fill" style={{ width: progressMap[step] }} />
                 </div>
 
-                {/* ── PASO 1: Producto + cantidad ── */}
+                {/* PASO 1: Producto + cantidad */}
                 {step === 1 && (
                     <div className="modal-step-content fade-in">
                         <div className="service-modal-icon">
@@ -109,7 +111,7 @@ const ProductModal = ({ product, onClose }) => {
                     </div>
                 )}
 
-                {/* ── PASO 2: Pago ── */}
+                {/* PASO 2: Pago */}
                 {step === 2 && (
                     <div className="modal-step-content fade-in">
                         <h2>Método de pago</h2>
@@ -154,7 +156,7 @@ const ProductModal = ({ product, onClose }) => {
                     </div>
                 )}
 
-                {/* ── PASO 3: Éxito ── */}
+                {/* PASO 3: Éxito */}
                 {step === 3 && (
                     <div className="modal-step-content success-animation fade-in">
                         <FaCheckCircle className="icon-success-final" />

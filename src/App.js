@@ -1,9 +1,9 @@
 // src/App.js
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import './App.css';
-import { AuthProvider }  from './contexts/AuthContext';
-import { DataProvider }  from './contexts/DataContext';
+import { AuthProvider, setDataReloader } from './contexts/AuthContext';
+import { DataProvider, useData }         from './contexts/DataContext';
 import Navbar            from './components/Navbar/Navbar';
 import Footer            from './components/Footer/Footer';
 import WhatsAppButton    from './components/WhatsAppButton/WhatsAppButton';
@@ -11,15 +11,30 @@ import Chatbot           from './components/Chatbot/Chatbot';
 import ProtectedRoute    from './components/ProtectedRoute';
 
 // ── Páginas ───────────────────────────────────────────────────────────────────
-import Home             from './pages/Home';
-import Services         from './pages/Services';
-import Shop             from './pages/Shop';
-import Contact          from './pages/Contact';
-import Login            from './components/Login/Login';
-import Register         from './components/Register/Register';
-import AdminDashboard   from './pages/admin/AdminDashboard';
+import Home              from './pages/Home';
+import Services          from './pages/Services';
+import Shop              from './pages/Shop';
+import Contact           from './pages/Contact';
+import Login             from './components/Login/Login';
+import Register          from './components/Register/Register';
+import AdminDashboard    from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
-import Perfil           from './pages/cliente/Perfil';
+import Perfil            from './pages/cliente/Perfil';
+
+// ── Puente AuthContext ↔ DataContext ─────────────────────────────────────────
+// Va dentro de <DataProvider> para poder acceder a useData().
+// No renderiza nada — solo inyecta reloadClientsAndPets en AuthContext
+// para que register() lo llame y el nuevo cliente aparezca en dashboards.
+const DataReloaderBridge = () => {
+    const { reloadClientsAndPets } = useData();
+    useEffect(() => {
+        setDataReloader(reloadClientsAndPets);
+        return () => setDataReloader(null);
+    }, [reloadClientsAndPets]);
+    return null;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const AppContent = () => {
     const location = useLocation();
@@ -88,6 +103,7 @@ function App() {
     return (
         <AuthProvider>
             <DataProvider>
+                <DataReloaderBridge />  {/* ← puente AuthContext ↔ DataContext */}
                 <Router>
                     <AppContent />
                 </Router>
