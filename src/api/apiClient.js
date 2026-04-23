@@ -1,7 +1,13 @@
 // src/api/apiClient.js
-const BASE_URL = process.env.NODE_ENV === 'production'
-    ? '/api'
-    : (process.env.REACT_APP_API_URL || 'http://localhost:3001');
+//
+// Entornos:
+//   local dev  → http://localhost:3001  (JSON Server local)
+//   producción → REACT_APP_API_URL      (Railway backend)
+//
+// En Vercel: agrega la variable REACT_APP_API_URL con la URL de Railway.
+// En local:  no necesitas nada, apunta a localhost:3001 automáticamente.
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 const handleResponse = async (res) => {
     if (!res.ok) {
@@ -20,7 +26,6 @@ const api = {
     delete: (endpoint)       => fetch(`${BASE_URL}${endpoint}`, { method: 'DELETE' }).then(handleResponse),
 };
 
-// Helper: siempre ISO "2026-04-21" sin importar el locale del navegador
 const today = () => new Date().toISOString().split('T')[0];
 
 // ── Usuarios ──────────────────────────────────────────────────────────────────
@@ -47,15 +52,15 @@ export const clientsApi = {
 
 // ── Mascotas ──────────────────────────────────────────────────────────────────
 export const petsApi = {
-    getAll:     ()          => api.get('/pets'),
-    getByOwner: (ownerId)   => api.get(`/pets?ownerId=${ownerId}`),
-    getById:    (id)        => api.get(`/pets/${id}`),
-    create:     (data)      => api.post('/pets', { ...data, createdAt: today() }),
-    update:     (id, data)  => api.put(`/pets/${id}`, data),
-    delete:     (id)        => api.delete(`/pets/${id}`),
+    getAll:     ()         => api.get('/pets'),
+    getByOwner: (ownerId)  => api.get(`/pets?ownerId=${ownerId}`),
+    getById:    (id)       => api.get(`/pets/${id}`),
+    create:     (data)     => api.post('/pets', { ...data, createdAt: today() }),
+    update:     (id, data) => api.put(`/pets/${id}`, data),
+    delete:     (id)       => api.delete(`/pets/${id}`),
 };
 
-// ── Servicios — calcula precios por talla automáticamente ─────────────────────
+// ── Servicios ─────────────────────────────────────────────────────────────────
 export const servicesApi = {
     getAll:  ()         => api.get('/services'),
     getById: (id)       => api.get(`/services/${id}`),
@@ -98,19 +103,17 @@ export const productsApi = {
 
 // ── Citas ─────────────────────────────────────────────────────────────────────
 export const appointmentsApi = {
-    getAll:      ()          => api.get('/appointments'),
-    getByClient: (clientId)  => api.get(`/appointments?clientId=${clientId}`),
-    getByDate:   (date)      => api.get(`/appointments?date=${date}`),
-    create:      (data)      => api.post('/appointments', { ...data, createdAt: today() }),
-    update:      (id, data)  => api.patch(`/appointments/${id}`, data),
-    delete:      (id)        => api.delete(`/appointments/${id}`),
+    getAll:      ()         => api.get('/appointments'),
+    getByClient: (clientId) => api.get(`/appointments?clientId=${clientId}`),
+    getByDate:   (date)     => api.get(`/appointments?date=${date}`),
+    create:      (data)     => api.post('/appointments', { ...data, createdAt: today() }),
+    update:      (id, data) => api.patch(`/appointments/${id}`, data),
+    delete:      (id)       => api.delete(`/appointments/${id}`),
 };
 
-// ── Ventas — FIX: fecha siempre ISO, nunca toLocaleDateString ─────────────────
+// ── Ventas ────────────────────────────────────────────────────────────────────
 export const salesApi = {
-    getAll: () => api.get('/sales'),
-    // FIX BUG: toLocaleDateString() producía "21/4/2026" (formato MX) que rompía
-    // todos los filtros de fecha. Ahora siempre ISO "2026-04-21".
+    getAll: ()     => api.get('/sales'),
     create: (data) => api.post('/sales', { ...data, date: today() }),
 };
 
