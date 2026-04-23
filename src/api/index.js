@@ -1,22 +1,15 @@
-// server.js — JSON Server para desarrollo local
-// FIX: PATCH ahora incluido en Access-Control-Allow-Methods
-// Para correr: npm run server  (o  node server.js)
-// Endpoint base: http://localhost:3001
-
 const jsonServer = require('json-server');
-const path       = require('path');
+const path = require('path');
+const server = jsonServer.create();
 
-const server      = jsonServer.create();
-const router      = jsonServer.router(path.join(__dirname, 'db.json'));
+// IMPORTANTE: Vercel necesita que el router apunte correctamente al archivo
+const router = jsonServer.router(path.join(__dirname, 'db.json'));
 const middlewares = jsonServer.defaults();
 
-// ── CORS — debe ir ANTES de middlewares y router ──────────────────────────────
-// json-server/express no incluye PATCH en los defaults, por eso el preflight falla.
 server.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin',  '*');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    // Responder el preflight OPTIONS inmediatamente, sin pasar al router
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
     }
@@ -24,19 +17,22 @@ server.use((req, res, next) => {
 });
 
 server.use(middlewares);
+
+// Reescribir rutas para que /api/users se convierta en /users para el router interno
+server.use(jsonServer.rewriter({
+  "/api/*": "/$1"
+}));
+
 server.use(router);
 
-const port = process.env.PORT || 3001;
-server.listen(port, () => {
-    console.log(`\n🐾 Perrucho JSON Server corriendo en http://localhost:${port}`);
-    console.log(`   Métodos permitidos: GET POST PUT PATCH DELETE`);
-    console.log(`   GET /clients      → clientes`);
-    console.log(`   GET /pets         → mascotas`);
-    console.log(`   GET /services     → servicios`);
-    console.log(`   GET /products     → inventario`);
-    console.log(`   GET /appointments → citas`);
-    console.log(`   GET /sales        → ventas`);
-    console.log(`   GET /users        → usuarios\n`);
-});
+// En Vercel, NO usamos server.listen() para producción, 
+// solo lo exportamos. Pero mantenemos esto para tu desarrollo local.
+if (process.env.NODE_ENV !== 'production') {
+    const port = 3001;
+    server.listen(port, () => {
+        console.log(`🐾 Perrucho Local Server en http://localhost:${port}`);
+    });
+}
 
+// ESTA ES LA CLAVE PARA VERCEL
 module.exports = server;
