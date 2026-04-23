@@ -16,29 +16,50 @@
       "password": "123456",
       "role": "empleado",
       "phone": "",
+      "capacity": 1,
       "createdAt": "2026-01-01"
+    },
+    {
+      "id": 3,
+      "name": "Miguel Ceballos Quiroz",
+      "phone": "2283045591",
+      "email": "miguelcq13@gmail.com",
+      "password": "123456",
+      "confirmPassword": "123456",
+      "role": "cliente",
+      "clientId": 103,
+      "createdAt": "2026-04-22"
     }
   ],
   "clients": [
     {
       "id": 101,
       "name": "Juan Pérez",
-      "phone": "555-0192",
+      "phone": "228 123 4567",
       "email": "juan@ejemplo.com",
       "createdAt": "2026-01-12"
     },
     {
       "id": 102,
       "name": "María García",
-      "phone": "555-0244",
+      "phone": "228 987 6543",
       "email": "maria@ejemplo.com",
       "createdAt": "2026-01-12"
+    },
+    {
+      "id": 103,
+      "name": "Miguel Ceballos Quiroz",
+      "phone": "2283045591",
+      "email": "miguelcq13@gmail.com",
+      "address": "",
+      "createdAt": "2026-04-22"
     }
   ],
   "pets": [
     {
       "id": 201,
       "petName": "Firulais",
+      "species": "perro",
       "breed": "Golden Retriever",
       "weight": "30",
       "ownerId": 101,
@@ -49,12 +70,24 @@
     {
       "id": 202,
       "petName": "Luna",
+      "species": "gato",
       "breed": "Siamés",
       "weight": "4",
       "ownerId": 102,
       "notes": "Muy nerviosa",
       "history": [],
       "createdAt": "2026-01-12"
+    },
+    {
+      "id": 203,
+      "petName": "Aika",
+      "species": "perro",
+      "breed": "Pastor Australiano",
+      "weight": "15",
+      "notes": "",
+      "ownerId": 103,
+      "history": [],
+      "createdAt": "2026-04-22"
     }
   ],
   "services": [
@@ -107,21 +140,24 @@
       "name": "Shampoo Antipulgas",
       "price": 180,
       "stock": 15,
-      "category": "Higiene"
+      "category": "Higiene",
+      "description": "Shampoo especial con ingredientes activos contra pulgas y garrapatas."
     },
     {
       "id": 2,
       "name": "Alimento Premium Adulto",
       "price": 1200,
-      "stock": 3,
-      "category": "Alimentos"
+      "stock": 2,
+      "category": "Alimentos",
+      "description": "Fórmula balanceada con proteínas de alta calidad para perros adultos."
     },
     {
       "id": 3,
       "name": "Collar Antipulgas",
       "price": 320,
       "stock": 8,
-      "category": "Accesorios"
+      "category": "Accesorios",
+      "description": "Protección continua hasta 8 meses contra pulgas y garrapatas."
     }
   ],
   "appointments": [
@@ -132,66 +168,79 @@
       "serviceId": 1,
       "petName": "Firulais",
       "serviceName": "Baño de mascotas",
-      "date": "2026-03-15",
+      "date": "2026-04-21",
       "time": "10:00",
       "status": "Pendiente",
       "finalPrice": 450,
       "notes": "",
-      "createdAt": "2026-03-12"
+      "assignedTo": "",
+      "createdAt": "2026-04-18"
     },
     {
-      "petId": "202",
-      "serviceId": "2",
-      "time": "17:09",
-      "date": "2026-03-18",
-      "status": "Pendiente",
-      "finalPrice": 350,
+      "id": 1002,
+      "clientId": 102,
+      "petId": 202,
+      "serviceId": 2,
       "petName": "Luna",
       "serviceName": "Corte de cabello",
-      "createdAt": "2026-03-17",
-      "id": 1002
-    },
-    {
-      "petId": "201",
-      "serviceId": "2",
-      "time": "17:07",
-      "date": "2026-03-31",
-      "status": "Pendiente",
-      "finalPrice": 700,
-      "petName": "Firulais",
-      "serviceName": "Corte de cabello",
-      "createdAt": "2026-03-31",
-      "id": 1003
-    },
-    {
-      "petId": "202",
-      "serviceId": "2",
-      "time": "17:07",
-      "date": "2026-03-31",
-      "status": "Pendiente",
+      "date": "2026-04-21",
+      "time": "11:00",
+      "status": "Confirmada",
       "finalPrice": 350,
-      "petName": "Luna",
-      "serviceName": "Corte de cabello",
-      "createdAt": "2026-03-31",
-      "id": 1004
+      "notes": "",
+      "assignedTo": 2,
+      "createdAt": "2026-04-19"
     },
     {
-      "petId": "201",
-      "serviceId": "2",
-      "time": "17:07",
-      "date": "2026-03-31",
-      "status": "Pendiente",
-      "finalPrice": 700,
+      "id": 1003,
+      "clientId": 101,
+      "petId": 201,
+      "serviceId": 2,
       "petName": "Firulais",
       "serviceName": "Corte de cabello",
-      "createdAt": "2026-03-31",
+      "date": "2026-04-22",
+      "time": "09:00",
+      "status": "Confirmada",
+      "finalPrice": 700,
+      "notes": "",
+      "assignedTo": "",
+      "createdAt": "2026-04-20"
+    },
+    {
+      "id": 1004,
+      "clientId": 103,
+      "petId": 203,
+      "serviceId": 3,
+      "petName": "Aika",
+      "serviceName": "Arreglo de uñas",
+      "date": "2026-04-22",
+      "time": "18:00",
+      "status": "Confirmada",
+      "finalPrice": 180,
+      "notes": "",
+      "assignedTo": 2,
+      "createdAt": "2026-04-22"
+    },
+    {
+      "petId": 203,
+      "petName": "Aika",
+      "serviceId": 2,
+      "serviceName": "Corte de cabello",
+      "clientId": 103,
+      "date": "2026-04-22",
+      "time": "17:00",
+      "status": "Pendiente",
+      "finalPrice": 525,
+      "paymentMethod": "tarjeta",
+      "assignedTo": "",
+      "createdAt": "2026-04-22",
       "id": 1005
     }
   ],
   "sales": [
     {
       "id": 1001,
-      "date": "2026-01-12",
+      "date": "2026-04-10",
       "item": "Baño de mascotas (Firulais)",
       "price": 350,
       "clientId": 101,
@@ -199,7 +248,7 @@
     },
     {
       "id": 1002,
-      "date": "2026-01-12",
+      "date": "2026-04-12",
       "item": "Shampoo Antipulgas",
       "price": 180,
       "clientId": 102,
@@ -207,19 +256,33 @@
     },
     {
       "id": 1003,
-      "date": "2026-01-13",
+      "date": "2026-04-15",
       "item": "Corte de cabello (Luna)",
       "price": 350,
       "clientId": 102,
       "type": "service"
     },
     {
-      "item": "1x Corte de cabello, 1x Arreglo de uñas",
+      "id": 1004,
+      "date": "2026-04-18",
+      "item": "Corte de cabello + Arreglo de uñas",
       "price": 470,
-      "clientId": null,
-      "type": "service",
-      "date": "31/3/2026",
-      "id": 1004
+      "clientId": 101,
+      "type": "service"
+    },
+    {
+      "item": "Alimento Premium Adulto (x1)",
+      "price": 1200,
+      "clientId": 103,
+      "date": "2026-04-22",
+      "id": 1005
+    },
+    {
+      "item": "Reserva: Corte de cabello (Aika)",
+      "price": 525,
+      "clientId": 103,
+      "date": "2026-04-22",
+      "id": 1006
     }
   ]
 }

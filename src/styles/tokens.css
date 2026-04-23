@@ -1,0 +1,68 @@
+/* ==========================================================================
+   PERRUCHO — Design Tokens
+   Importar en index.css con: @import './styles/tokens.css';
+   ========================================================================== */
+:root {
+    /* ── Colores de marca ── */
+    --color-brand:        #2d3446;
+    --color-accent:       #74b9ff;
+    --color-accent-dark:  #185FA5;
+    --color-mint:         #55efc4;
+    --color-mint-dark:    #1D9E75;
+    --color-lavender:     #a29bfe;
+    --color-lavender-dark:#6c5ce7;
+    --color-red-soft:     #ff7675;
+
+    /* ── Texto ── */
+    --color-text-main:    #2d3446;
+    --color-text-muted:   #636e72;
+    --color-text-hint:    #aaa;
+
+    /* ── Fondos ── */
+    --color-bg-page:      #f8fafc;
+    --color-bg-white:     #ffffff;
+    --color-bg-section:   #f0f4f8;
+
+    /* ── Superficies con color ── */
+    --color-surface-blue:     #e6f1fb;
+    --color-surface-lavender: #f0eeff;
+    --color-surface-mint:     #e1f5ee;
+
+    /* ── Bordes ── */
+    --color-border-light: rgba(0, 0, 0, 0.05);
+    --color-border-mid:   rgba(0, 0, 0, 0.08);
+
+    /* ── Radios ── */
+    --radius-pill:   999px;
+    --radius-card:   36px;
+    --radius-card-lg:48px;
+    --radius-icon:   24px;
+    --radius-btn:    16px;
+    --radius-input:  20px;
+
+    /* ── Sombras ── */
+    --shadow-card:  0 12px 32px rgba(0, 0, 0, 0.06);
+    --shadow-hover: 0 28px 56px rgba(116, 185, 255, 0.18);
+    --shadow-btn:   0 10px 24px rgba(116, 185, 255, 0.30);
+
+    /* ── Transiciones ── */
+    --ease-bounce:  cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --ease-smooth:  cubic-bezier(0.25, 1, 0.5, 1);
+    --transition-base: all 0.3s var(--ease-smooth);
+    --transition-bounce: all 0.4s var(--ease-bounce);
+
+    /* ── Navbar ── */
+    --nav-bg-glass:  rgba(255, 255, 255, 0.88);
+    --nav-border:    rgba(255, 255, 255, 0.4);
+    --nav-shadow:    0 20px 40px -10px rgba(0, 0, 0, 0.15);
+
+    /* ── Espaciado de sección ── */
+    --section-padding-y:  100px;
+    --section-padding-x:  8%;
+}
+
+/* ── Breakpoints de referencia (usar en media queries) ──
+   Mobile:  max-width: 480px
+   Tablet:  max-width: 768px
+   Desktop: max-width: 1024px
+   ── */

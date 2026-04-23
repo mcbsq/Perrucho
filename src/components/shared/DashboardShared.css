@@ -1,0 +1,377 @@
+/* src/components/shared/DashboardShared.css
+   Importar en index.css o en ambos dashboards CSS:
+   @import '../../components/shared/DashboardShared.css';
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ══ FAB ══════════════════════════════════════════════════════════════ */
+.ds-fab {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    z-index: 150;
+}
+.ds-fab:hover  { transform: scale(1.12) translateY(-3px); box-shadow: 0 14px 32px rgba(0,0,0,0.25); }
+.ds-fab:active { transform: scale(0.96); }
+@media (max-width: 850px) { .ds-fab { bottom: 90px; right: 18px; } }
+
+/* ══ MODAL ════════════════════════════════════════════════════════════ */
+.ds-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: dsOverlayIn 0.2s ease;
+}
+@keyframes dsOverlayIn { from{opacity:0;}to{opacity:1;} }
+
+.ds-modal {
+    background: white;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+    animation: dsModalIn 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+.ds-modal--wide { max-width: 680px; }
+@keyframes dsModalIn {
+    from { opacity:0; transform: translateY(20px) scale(0.96); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+}
+
+.ds-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #f1f2f6;
+    position: sticky; top: 0; background: white; z-index: 1;
+    border-radius: 20px 20px 0 0;
+}
+.ds-modal-header h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    color: #1e272e; margin: 0;
+}
+.ds-modal-close {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #f1f2f6; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #636e72; transition: all 0.2s;
+}
+.ds-modal-close:hover { background: #ff7675; color: white; }
+.ds-modal-body { padding: 20px 24px 28px; }
+
+/* ══ FORM INSIDE MODAL ════════════════════════════════════════════════ */
+.ds-form-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 12px 16px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.ds-form-grid label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #636e72;
+    text-align: right;
+    white-space: nowrap;
+}
+.ds-form-grid input,
+.ds-form-grid select,
+.ds-form-grid textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid #f1f2f6;
+    background: #f8fafc;
+    font-size: 0.9rem;
+    font-family: 'Quicksand', sans-serif;
+    color: #2d3436;
+    transition: all 0.2s;
+}
+.ds-form-grid input:focus,
+.ds-form-grid select:focus,
+.ds-form-grid textarea:focus {
+    outline: none;
+    border-color: #74b9ff;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(116,185,255,0.12);
+}
+.ds-form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 4px;
+    border-top: 1px solid #f1f2f6;
+    margin-top: 4px;
+}
+
+/* ══ BUTTONS ══════════════════════════════════════════════════════════ */
+.ds-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px;
+    border: none; border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; transition: all 0.25s;
+}
+.ds-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+.ds-btn--primary {
+    background: #55efc4; color: #04342C;
+}
+.ds-btn--primary:hover:not(:disabled) {
+    background: #00b894; color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(85,239,196,0.35);
+}
+.ds-btn--secondary {
+    background: #f1f2f6; color: #636e72;
+}
+.ds-btn--secondary:hover { background: #e0e4ea; }
+.ds-btn--danger {
+    background: #ff7675; color: white;
+}
+.ds-btn--danger:hover { background: #d63031; }
+.ds-btn--confirm {
+    background: #dbeafe; color: #1e3a8a;
+}
+.ds-btn--confirm:hover { background: #74b9ff; color: white; }
+.ds-btn--process {
+    background: #fef3c7; color: #78350f;
+}
+.ds-btn--process:hover { background: #f59e0b; color: white; }
+.ds-btn--finish {
+    background: #d1fae5; color: #064e3b;
+}
+.ds-btn--finish:hover { background: #10b981; color: white; }
+
+.ds-btn-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 0.82rem; transition: all 0.2s; flex-shrink: 0;
+}
+.ds-btn-icon--edit { background: #eef2ff; color: #74b9ff; }
+.ds-btn-icon--edit:hover { background: #74b9ff; color: white; }
+.ds-btn-icon--del  { background: #fff1f0; color: #ff7675; }
+.ds-btn-icon--del:hover  { background: #ff7675; color: white; }
+
+/* ══ STATUS BADGE ═════════════════════════════════════════════════════ */
+.ds-status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 700;
+    font-family: 'Quicksand', sans-serif;
+    white-space: nowrap;
+}
+.ds-status-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ══ STATUS SELECTOR ══════════════════════════════════════════════════ */
+.ds-status-selector {
+    position: relative; display: inline-block;
+}
+.ds-status-trigger {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: none; border: none; cursor: pointer; padding: 0;
+}
+.ds-status-arrow {
+    font-size: 0.65rem; color: #636e72;
+}
+.ds-status-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0;
+    background: white; border-radius: 12px;
+    border: 1.5px solid rgba(116,185,255,0.2);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 300; min-width: 160px;
+    overflow: hidden;
+    animation: dsDropIn 0.15s ease;
+}
+@keyframes dsDropIn { from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);} }
+.ds-status-dropdown-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.6px; color: #636e72;
+    padding: 8px 12px 4px;
+}
+.ds-status-option {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 9px 12px;
+    background: none; border: none; cursor: pointer;
+    font-size: 0.85rem; font-weight: 600; text-align: left;
+    font-family: 'Quicksand', sans-serif;
+    color: var(--opt-text, #2d3436);
+    transition: background 0.15s;
+    border-left: 3px solid var(--opt-border, transparent);
+}
+.ds-status-option:hover { background: var(--opt-bg, #f8fafc); }
+
+/* ══ CARDS GRID ═══════════════════════════════════════════════════════ */
+.ds-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 14px;
+    padding-bottom: 88px; /* espacio para FAB */
+}
+.ds-cards-grid--compact {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* ══ BASE CARD ════════════════════════════════════════════════════════ */
+.ds-card {
+    background: white;
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    border: 1.5px solid #f1f2f6;
+    transition: all 0.3s cubic-bezier(0.25,1,0.5,1);
+}
+.ds-card:hover {
+    transform: translateY(-3px);
+    border-color: #74b9ff;
+    box-shadow: 0 8px 24px rgba(116,185,255,0.12);
+}
+.ds-card--low  { border-left: 4px solid #f59e0b; }
+.ds-card--out  { border-left: 4px solid #ff7675; opacity: 0.8; }
+
+/* Avatar genérico */
+.ds-card-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.2rem; font-weight: 800;
+    flex-shrink: 0;
+}
+
+/* Body */
+.ds-card-body { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ds-card-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.95rem; font-weight: 700;
+    color: #1e272e;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ds-card-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.ds-card-owner { font-size: 0.78rem; color: #74b9ff; font-weight: 700; }
+.ds-card-notes {
+    font-size: 0.74rem; color: #636e72;
+    background: #fafafa; border-left: 2px solid #fdcb6e;
+    padding: 3px 8px; border-radius: 0 4px 4px 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Actions column */
+.ds-card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+
+/* ══ TAGS ══════════════════════════════════════════════════════════════ */
+.ds-tag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.72rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+}
+.ds-tag--blue   { background: #e6f1fb; color: #185FA5; }
+.ds-tag--purple { background: #f0eeff; color: #6c5ce7; }
+.ds-tag--green  { background: #ecfdf5; color: #065f46; }
+.ds-tag--gray   { background: #f3f4f6; color: #4b5563; }
+.ds-tag--red    { background: #fee2e2; color: #b91c1c; }
+
+/* ══ PET CARD SPECIFIC ════════════════════════════════════════════════ */
+.ds-pet-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; position: relative;
+}
+.ds-pet-initial {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.25rem; font-weight: 800; color: white;
+}
+.ds-pet-emoji-badge {
+    position: absolute; bottom: -3px; right: -3px;
+    font-size: 0.95rem;
+    background: white; width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12); line-height: 1;
+}
+
+/* ══ SERVICE CARD SPECIFIC ════════════════════════════════════════════ */
+.ds-service-icon {
+    font-size: 2rem; width: 52px; height: 52px;
+    background: #f8fafc; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.ds-service-prices {
+    display: flex; gap: 10px; flex-wrap: wrap;
+}
+.ds-service-prices span {
+    font-size: 0.72rem; color: #636e72;
+}
+.ds-service-prices strong { color: #1e272e; }
+
+/* ══ PRODUCT CARD SPECIFIC ════════════════════════════════════════════ */
+.ds-product-icon {
+    font-size: 2rem; width: 52px; height: 52px;
+    background: #f8fafc; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.ds-stock-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.75rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px;
+}
+.ds-stock-badge.ok  { background: #d1fae5; color: #064e3b; }
+.ds-stock-badge.low { background: #fef3c7; color: #78350f; }
+.ds-stock-badge.out { background: #fee2e2; color: #b91c1c; }
+
+/* ══ USER CARD SPECIFIC ═══════════════════════════════════════════════ */
+.ds-user-card .ds-card-avatar {
+    font-size: 1.1rem;
+}
+
+/* ══ PAGE HEADER with button ══════════════════════════════════════════ */
+.ds-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+.ds-page-header-left h2 {
+    font-size: 1.65rem;
+    font-family: 'Montserrat', sans-serif;
+    color: #1e272e; letter-spacing: -0.03em; margin-bottom: 4px;
+}
+.ds-page-header-left p { font-size: 0.88rem; color: #636e72; font-weight: 500; }
+.ds-page-header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Responsive */
+@media (max-width: 600px) {
+    .ds-form-grid {
+        grid-template-columns: 1fr;
+    }
+    .ds-form-grid label {
+        text-align: left;
+    }
+    .ds-cards-grid {
+        grid-template-columns: 1fr;
+    }
+}

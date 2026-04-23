@@ -1,7 +1,7 @@
 // src/api/apiClient.js
-const BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : (process.env.REACT_APP_API_URL || 'http://localhost:3001');
+const BASE_URL = process.env.NODE_ENV === 'production'
+    ? '/api'
+    : (process.env.REACT_APP_API_URL || 'http://localhost:3001');
 
 const handleResponse = async (res) => {
     if (!res.ok) {
@@ -13,20 +13,23 @@ const handleResponse = async (res) => {
 };
 
 const api = {
-    get:    (endpoint)        => fetch(`${BASE_URL}${endpoint}`).then(handleResponse),
-    post:   (endpoint, body)  => fetch(`${BASE_URL}${endpoint}`, { method:'POST',  headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(handleResponse),
-    put:    (endpoint, body)  => fetch(`${BASE_URL}${endpoint}`, { method:'PUT',   headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(handleResponse),
-    patch:  (endpoint, body)  => fetch(`${BASE_URL}${endpoint}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(handleResponse),
-    delete: (endpoint)        => fetch(`${BASE_URL}${endpoint}`, { method:'DELETE' }).then(handleResponse),
+    get:    (endpoint)       => fetch(`${BASE_URL}${endpoint}`).then(handleResponse),
+    post:   (endpoint, body) => fetch(`${BASE_URL}${endpoint}`, { method: 'POST',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(handleResponse),
+    put:    (endpoint, body) => fetch(`${BASE_URL}${endpoint}`, { method: 'PUT',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(handleResponse),
+    patch:  (endpoint, body) => fetch(`${BASE_URL}${endpoint}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(handleResponse),
+    delete: (endpoint)       => fetch(`${BASE_URL}${endpoint}`, { method: 'DELETE' }).then(handleResponse),
 };
+
+// Helper: siempre ISO "2026-04-21" sin importar el locale del navegador
+const today = () => new Date().toISOString().split('T')[0];
 
 // ── Usuarios ──────────────────────────────────────────────────────────────────
 export const usersApi = {
-    getAll:  ()          => api.get('/users'),
-    getById: (id)        => api.get(`/users/${id}`),
-    create:  (data)      => api.post('/users', data),
-    update:  (id, data)  => api.put(`/users/${id}`, data),
-    delete:  (id)        => api.delete(`/users/${id}`),
+    getAll:  ()         => api.get('/users'),
+    getById: (id)       => api.get(`/users/${id}`),
+    create:  (data)     => api.post('/users', data),
+    update:  (id, data) => api.put(`/users/${id}`, data),
+    delete:  (id)       => api.delete(`/users/${id}`),
     login: async (email, password) => {
         const users = await api.get(`/users?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
         return users.length > 0 ? users[0] : null;
@@ -35,33 +38,32 @@ export const usersApi = {
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
 export const clientsApi = {
-    getAll:  ()          => api.get('/clients'),
-    getById: (id)        => api.get(`/clients/${id}`),
-    create:  (data)      => api.post('/clients', { ...data, createdAt: new Date().toISOString().split('T')[0] }),
-    update:  (id, data)  => api.put(`/clients/${id}`, data),
-    delete:  (id)        => api.delete(`/clients/${id}`),
+    getAll:  ()         => api.get('/clients'),
+    getById: (id)       => api.get(`/clients/${id}`),
+    create:  (data)     => api.post('/clients', { ...data, createdAt: today() }),
+    update:  (id, data) => api.put(`/clients/${id}`, data),
+    delete:  (id)       => api.delete(`/clients/${id}`),
 };
 
 // ── Mascotas ──────────────────────────────────────────────────────────────────
 export const petsApi = {
-    getAll:      ()         => api.get('/pets'),
-    getByOwner:  (ownerId)  => api.get(`/pets?ownerId=${ownerId}`),
-    getById:     (id)       => api.get(`/pets/${id}`),
-    create:      (data)     => api.post('/pets', { ...data, createdAt: new Date().toISOString().split('T')[0] }),
-    update:      (id, data) => api.put(`/pets/${id}`, data),
-    delete:      (id)       => api.delete(`/pets/${id}`),
+    getAll:     ()          => api.get('/pets'),
+    getByOwner: (ownerId)   => api.get(`/pets?ownerId=${ownerId}`),
+    getById:    (id)        => api.get(`/pets/${id}`),
+    create:     (data)      => api.post('/pets', { ...data, createdAt: today() }),
+    update:     (id, data)  => api.put(`/pets/${id}`, data),
+    delete:     (id)        => api.delete(`/pets/${id}`),
 };
 
-// ── Servicios — incluye precios por talla ─────────────────────────────────────
+// ── Servicios — calcula precios por talla automáticamente ─────────────────────
 export const servicesApi = {
-    getAll:  ()          => api.get('/services'),
-    getById: (id)        => api.get(`/services/${id}`),
-    // Al crear, si no vienen los precios por talla los calculamos desde price
+    getAll:  ()         => api.get('/services'),
+    getById: (id)       => api.get(`/services/${id}`),
     create: (data) => {
         const base = Number(data.price) || 0;
         return api.post('/services', {
-            icon:         data.icon  || '',
-            color:        data.color || 'blue',
+            icon:         data.icon    || '',
+            color:        data.color   || 'blue',
             popular:      data.popular || false,
             priceChico:   data.priceChico   ?? base,
             priceMediano: data.priceMediano ?? +(base * 1.25).toFixed(0),
@@ -72,8 +74,8 @@ export const servicesApi = {
     update: (id, data) => {
         const base = Number(data.price) || 0;
         return api.put(`/services/${id}`, {
-            icon:         data.icon  || '',
-            color:        data.color || 'blue',
+            icon:         data.icon    || '',
+            color:        data.color   || 'blue',
             popular:      data.popular || false,
             priceChico:   data.priceChico   ?? base,
             priceMediano: data.priceMediano ?? +(base * 1.25).toFixed(0),
@@ -87,27 +89,29 @@ export const servicesApi = {
 
 // ── Productos ─────────────────────────────────────────────────────────────────
 export const productsApi = {
-    getAll:  ()          => api.get('/products'),
-    getById: (id)        => api.get(`/products/${id}`),
-    create:  (data)      => api.post('/products', data),
-    update:  (id, data)  => api.put(`/products/${id}`, data),
-    delete:  (id)        => api.delete(`/products/${id}`),
+    getAll:  ()         => api.get('/products'),
+    getById: (id)       => api.get(`/products/${id}`),
+    create:  (data)     => api.post('/products', data),
+    update:  (id, data) => api.put(`/products/${id}`, data),
+    delete:  (id)       => api.delete(`/products/${id}`),
 };
 
 // ── Citas ─────────────────────────────────────────────────────────────────────
 export const appointmentsApi = {
-    getAll:      ()         => api.get('/appointments'),
-    getByClient: (clientId) => api.get(`/appointments?clientId=${clientId}`),
-    getByDate:   (date)     => api.get(`/appointments?date=${date}`),
-    create:      (data)     => api.post('/appointments', { ...data, createdAt: new Date().toISOString().split('T')[0] }),
-    update:      (id, data) => api.patch(`/appointments/${id}`, data),
-    delete:      (id)       => api.delete(`/appointments/${id}`),
+    getAll:      ()          => api.get('/appointments'),
+    getByClient: (clientId)  => api.get(`/appointments?clientId=${clientId}`),
+    getByDate:   (date)      => api.get(`/appointments?date=${date}`),
+    create:      (data)      => api.post('/appointments', { ...data, createdAt: today() }),
+    update:      (id, data)  => api.patch(`/appointments/${id}`, data),
+    delete:      (id)        => api.delete(`/appointments/${id}`),
 };
 
-// ── Ventas ────────────────────────────────────────────────────────────────────
+// ── Ventas — FIX: fecha siempre ISO, nunca toLocaleDateString ─────────────────
 export const salesApi = {
-    getAll:  ()          => api.get('/sales'),
-    create:  (data)      => api.post('/sales', { ...data, date: new Date().toLocaleDateString() }),
+    getAll: () => api.get('/sales'),
+    // FIX BUG: toLocaleDateString() producía "21/4/2026" (formato MX) que rompía
+    // todos los filtros de fecha. Ahora siempre ISO "2026-04-21".
+    create: (data) => api.post('/sales', { ...data, date: today() }),
 };
 
 export default api;
