@@ -3,9 +3,14 @@
 // FIX 2: register() crea entrada en /clients Y en /users con clientId vinculado
 // FIX 3: tras register(), llama reloadClientsAndPets() del DataContext para que
 //         el nuevo cliente aparezca en los dashboards sin recargar la página
+// FIX 4 (CRÍTICO): register() ahora acepta petData como 2do argumento y crea
+//         la mascota en /pets con ownerId = newClient.id. Antes Register.jsx
+//         pasaba petData pero AuthContext.register lo ignoraba → la mascota
+//         nunca se guardaba (causa raíz del feedback "no visualizaba las
+//         mascotas agregadas").
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { usersApi, clientsApi } from '../api/apiClient';
+import { usersApi, clientsApi, petsApi } from '../api/apiClient';
 
 const AuthContext  = createContext();
 const SESSION_KEY  = 'perrucho_session';
@@ -68,8 +73,9 @@ export const AuthProvider = ({ children }) => {
     // ── Register ──────────────────────────────────────────────────────────────
     // 1. Crea entrada en /clients → aparece en lista de admin/empleado
     // 2. Crea usuario en /users con clientId vinculado
-    // 3. Recarga el DataContext para que los dashboards vean el nuevo cliente
-    const register = async (clientData) => {
+    // 3. Si viene petData, crea la mascota inicial en /pets con ownerId=clientId
+    // 4. Recarga el DataContext para que los dashboards vean el nuevo cliente
+    const register = async (clientData, petData = null) => {
         const today = new Date().toISOString().split('T')[0];
         try {
             // Paso 1: crear registro de cliente
@@ -91,13 +97,33 @@ export const AuthProvider = ({ children }) => {
                 createdAt: today,
             });
 
-            // Paso 3: loguear sin password
+            // Paso 3: si llegó petData, crear la mascota inicial.
+            // El cliente del feedback dijo: "se crea el perfil y automáticamente
+            // se procede a agregar los datos de la mascota. Sin embargo al entrar
+            // a mi perfil no visualizaba las mascotas agregadas." — esto era
+            // porque la mascota nunca se guardaba. Ahora sí.
+            if (petData && (petData.petName || petData.name)) {
+                await petsApi.create({
+                    petName: petData.petName || petData.name,
+                    species: petData.species || 'perro',
+                    breed:   petData.breed   || '',
+                    weight:  petData.weight  || '',
+                    age:     petData.age     || '',
+                    notes:   petData.notes   || '',
+                    ownerId: newClient.id,
+                    history: [],
+                    createdAt: today,
+                });
+            }
+
+            // Paso 4: loguear sin password
             const { password: _pw, ...safeUser } = newUser;
             const sessionUser = { ...safeUser, clientId: newClient.id };
             setUser(sessionUser);
 
-            // Paso 4: notificar al DataContext para que recargue clients/pets
-            // Esto hace que el nuevo cliente aparezca en admin/empleado de inmediato
+            // Paso 5: notificar al DataContext para que recargue clients/pets
+            // Esto hace que el nuevo cliente y mascota aparezcan en
+            // admin/empleado de inmediato sin recargar página.
             if (_reloadClientsAndPets) {
                 _reloadClientsAndPets().catch(() => {});
             }

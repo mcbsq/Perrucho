@@ -1321,3 +1321,549 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
         position: relative;
     }
 }
+/* src/pages/employee/EmployeeDashboard.patch.css
+ * Estilos adicionales para los nuevos elementos del dashboard tras la auditoría.
+ * IMPORTAR este archivo después de EmployeeDashboard.css en el JSX.
+ *
+ * Alternativa: copia este contenido al final de tu EmployeeDashboard.css principal.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Spinner inline cuando una cita está siendo actualizada
+   ═══════════════════════════════════════════════════════════════════════════ */
+.emp-appt-card.is-updating {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.emp-appt-spinner {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ede9fe;
+    border-top-color: var(--emp-primary);
+    border-radius: 50%;
+    animation: empSpin 0.8s linear infinite;
+}
+@keyframes empSpin { to { transform: translateY(-50%) rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Botón de WhatsApp (contactar al cliente)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.emp-btn-whatsapp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--emp-radius-md);
+    background: #25d366;
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-family: 'Quicksand', sans-serif;
+    width: 100%;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s var(--emp-ease);
+}
+.emp-btn-whatsapp:hover {
+    background: #128c7e;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37,211,102,0.35);
+    color: white;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Última visita destacada en el modal de expediente
+   ═══════════════════════════════════════════════════════════════════════════ */
+.exp-last-visit-highlight {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1.5px solid #a7f3d0;
+    border-left: 4px solid var(--emp-mint);
+    border-radius: var(--emp-radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+}
+
+.exp-last-visit-highlight::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    background: var(--emp-mint);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(85,239,196,0.3);
+    animation: pulseDot 2s ease-in-out infinite;
+}
+@keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(85,239,196,0.3); }
+    50%      { box-shadow: 0 0 0 8px rgba(85,239,196,0.1); }
+}
+
+.exp-last-visit-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #065f46;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.exp-last-visit-date {
+    font-size: 0.78rem;
+    color: #065f46;
+    font-weight: 700;
+}
+.exp-last-visit-highlight p {
+    font-size: 0.88rem;
+    color: var(--emp-text);
+    line-height: 1.5;
+    margin-top: 4px;
+}
+
+/* Estado vacío de historial */
+.emp-no-history {
+    background: #f8f6ff;
+    border: 1px dashed #ddd6fe;
+    border-radius: var(--emp-radius-md);
+    padding: 12px 16px;
+    text-align: center;
+}
+.emp-no-history p {
+    font-size: 0.85rem;
+    color: var(--emp-deep);
+    font-weight: 600;
+}
+
+/* Hint en sesiones */
+.exp-session-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: var(--emp-muted);
+    font-style: italic;
+    line-height: 1.4;
+    padding: 6px 8px;
+    background: #f8f6ff;
+    border-radius: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Slot error y legend del calendario
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cal-slot-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: var(--emp-radius-md);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+.cal-slot-error svg { flex-shrink: 0; color: #991b1b; }
+
+.cal-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--emp-bg);
+    border-radius: var(--emp-radius-md);
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+    color: var(--emp-muted);
+    font-weight: 600;
+}
+.cal-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Botón GCal-style en popup
+   ═══════════════════════════════════════════════════════════════════════════ */
+.adp { /* placeholder por si la clase ya no existe en otros archivos */ }
+
+.adp-bar {
+    height: 4px;
+    width: 100%;
+}
+.adp-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #f0eeff;
+}
+.adp-body {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.adp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    color: var(--emp-text);
+}
+.adp-icon { color: var(--emp-primary); flex-shrink: 0; }
+.adp-price {
+    margin-left: auto;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    color: var(--emp-deep);
+}
+.adp-footer {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px 12px;
+    border-top: 1px solid #f0eeff;
+    flex-wrap: wrap;
+}
+.adp-action-btn {
+    flex: 1;
+    justify-content: center;
+}
+.adp-gcal-btn {
+    flex: 1;
+    padding: 7px 10px;
+    background: #f0eeff;
+    color: var(--emp-deep);
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-family: 'Quicksand', sans-serif;
+    transition: all 0.2s;
+}
+.adp-gcal-btn:hover {
+    background: var(--emp-primary);
+    color: white;
+}
+.adp-del-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    background: #fff1f0;
+    color: var(--emp-red);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.adp-del-btn:hover {
+    background: var(--emp-red);
+    color: white;
+}
+
+.adp {
+    width: 300px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(108,92,231,0.18), 0 2px 8px rgba(0,0,0,0.08);
+    border: 1px solid rgba(162,155,254,0.2);
+    overflow: hidden;
+    animation: empPopupIn 0.18s var(--emp-ease) both;
+}
+@keyframes empPopupIn {
+    from { opacity: 0; transform: scale(0.94) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* src/pages/employee/EmployeeDashboard.patch.css
+ *
+ * Estilos adicionales para el dashboard de empleado tras los cambios v3.
+ * Importa este archivo después de EmployeeDashboard.css en el JSX
+ * (el componente ya lo hace mediante el import directo).
+ *
+ * Alternativa: copia este contenido al final de tu EmployeeDashboard.css.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Spinner inline cuando una cita está siendo actualizada
+   ═══════════════════════════════════════════════════════════════════════════ */
+.emp-appt-card.is-updating {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+}
+
+.emp-appt-spinner {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ede9fe;
+    border-top-color: var(--emp-primary);
+    border-radius: 50%;
+    animation: empSpin 0.8s linear infinite;
+}
+@keyframes empSpin { to { transform: translateY(-50%) rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Botón de Email (contactar al cliente por correo)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.emp-btn-email {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: var(--emp-radius-md);
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1e3a8a;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-family: 'Quicksand', sans-serif;
+    width: 100%;
+    border: 1px solid #93c5fd;
+    cursor: pointer;
+    transition: all 0.25s var(--emp-ease);
+}
+.emp-btn-email:hover {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Última visita destacada en el modal de expediente
+   ═══════════════════════════════════════════════════════════════════════════ */
+.exp-last-visit-highlight {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1.5px solid #a7f3d0;
+    border-left: 4px solid var(--emp-mint);
+    border-radius: var(--emp-radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+}
+
+.exp-last-visit-highlight::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    background: var(--emp-mint);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(85,239,196,0.3);
+    animation: pulseDot 2s ease-in-out infinite;
+}
+@keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(85,239,196,0.3); }
+    50%      { box-shadow: 0 0 0 8px rgba(85,239,196,0.1); }
+}
+
+.exp-last-visit-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #065f46;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.exp-last-visit-date {
+    font-size: 0.78rem;
+    color: #065f46;
+    font-weight: 700;
+}
+.exp-last-visit-highlight p {
+    font-size: 0.88rem;
+    color: var(--emp-text);
+    line-height: 1.5;
+    margin-top: 4px;
+}
+
+/* Estado vacío de historial */
+.emp-no-history {
+    background: #f8f6ff;
+    border: 1px dashed #ddd6fe;
+    border-radius: var(--emp-radius-md);
+    padding: 12px 16px;
+    text-align: center;
+}
+.emp-no-history p {
+    font-size: 0.85rem;
+    color: var(--emp-deep);
+    font-weight: 600;
+}
+
+/* Hint en sesiones */
+.exp-session-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: var(--emp-muted);
+    font-style: italic;
+    line-height: 1.4;
+    padding: 6px 8px;
+    background: #f8f6ff;
+    border-radius: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Slot error y legend del calendario
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cal-slot-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: var(--emp-radius-md);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+.cal-slot-error svg { flex-shrink: 0; color: #991b1b; }
+
+.cal-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--emp-bg);
+    border-radius: var(--emp-radius-md);
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+    color: var(--emp-muted);
+    font-weight: 600;
+}
+.cal-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Pop-up anclado al evento (estilo Google Calendar)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.adp {
+    width: 300px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(108,92,231,0.18), 0 2px 8px rgba(0,0,0,0.08);
+    border: 1px solid rgba(162,155,254,0.2);
+    overflow: hidden;
+    animation: empPopupIn 0.18s var(--emp-ease) both;
+}
+@keyframes empPopupIn {
+    from { opacity: 0; transform: scale(0.94) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.adp-bar {
+    height: 4px;
+    width: 100%;
+}
+.adp-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid #f0eeff;
+}
+.adp-body {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.adp-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    color: var(--emp-text);
+}
+.adp-icon { color: var(--emp-primary); flex-shrink: 0; }
+.adp-price {
+    margin-left: auto;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    color: var(--emp-deep);
+}
+.adp-footer {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px 12px;
+    border-top: 1px solid #f0eeff;
+    flex-wrap: wrap;
+}
+.adp-action-btn {
+    flex: 1;
+    justify-content: center;
+}
+.adp-gcal-btn {
+    flex: 1;
+    padding: 7px 10px;
+    background: #f0eeff;
+    color: var(--emp-deep);
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-family: 'Quicksand', sans-serif;
+    transition: all 0.2s;
+}
+.adp-gcal-btn:hover {
+    background: var(--emp-primary);
+    color: white;
+}
+.adp-del-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    background: #fff1f0;
+    color: var(--emp-red);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.adp-del-btn:hover {
+    background: var(--emp-red);
+    color: white;
+}

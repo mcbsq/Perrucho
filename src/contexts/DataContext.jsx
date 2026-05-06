@@ -1,7 +1,9 @@
 // src/contexts/DataContext.jsx
+// FIX: addSale ahora acepta `type` ('product' | 'service') como 4to argumento
+//      para que las ventas creadas desde POS o ServiceModal lo persistan.
 // FIX: expone reload() para que AuthContext lo llame tras register().
-// Cuando un cliente se registra, AuthContext.register() llama reload()
-// y el nuevo cliente aparece inmediatamente en admin/empleado.
+//      Cuando un cliente se registra, AuthContext.register() llama reload()
+//      y el nuevo cliente aparece inmediatamente en admin/empleado.
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
@@ -116,8 +118,12 @@ export const DataProvider = ({ children }) => {
     };
 
     // ── SALES ─────────────────────────────────────────────────────────────────
-    const addSale = async (item, price, clientId = null) => {
-        const created = await salesApi.create({ item, price, clientId });
+    // FIX: ahora acepta `type` opcional para distinguir productos vs servicios
+    // en el historial de compras del cliente (Perfil).
+    const addSale = async (item, price, clientId = null, type = null) => {
+        const payload = { item, price, clientId };
+        if (type) payload.type = type;
+        const created = await salesApi.create(payload);
         setSales(prev => [...prev, created]);
         return created;
     };

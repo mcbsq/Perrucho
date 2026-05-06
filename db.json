@@ -86,7 +86,13 @@
       "weight": "15",
       "notes": "",
       "ownerId": 103,
-      "history": [],
+      "history": [
+        {
+          "date": "5/5/2026",
+          "detail": "Baño de mascotas finalizado — $375",
+          "author": "Empleado"
+        }
+      ],
       "createdAt": "2026-04-22"
     }
   ],
@@ -235,6 +241,21 @@
       "assignedTo": "",
       "createdAt": "2026-04-22",
       "id": 1005
+    },
+    {
+      "petId": 203,
+      "petName": "Aika",
+      "serviceId": 1,
+      "serviceName": "Baño de mascotas",
+      "clientId": 103,
+      "date": "2026-05-07",
+      "time": "11:00",
+      "status": "Finalizada",
+      "finalPrice": 375,
+      "paymentMethod": "",
+      "assignedTo": "",
+      "createdAt": "2026-05-05",
+      "id": 1006
     }
   ],
   "sales": [
@@ -283,6 +304,22 @@
       "clientId": 103,
       "date": "2026-04-22",
       "id": 1006
+    },
+    {
+      "date": "2026-05-05",
+      "item": "Reserva: Baño de mascotas (Aika)",
+      "price": 375,
+      "clientId": 103,
+      "type": "service",
+      "id": 1007
+    },
+    {
+      "date": "2026-05-06",
+      "item": "Servicio: Baño de mascotas (Aika)",
+      "price": 375,
+      "clientId": 103,
+      "type": "service",
+      "id": 1008
     }
   ]
 }
