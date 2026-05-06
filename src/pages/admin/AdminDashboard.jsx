@@ -1,10 +1,17 @@
-// src/pages/admin/AdminDashboard.jsx  ── RONDA 4
-// • Todos los módulos: FAB + Modal + Cards (sin formularios inline)
-// • Estados de cita: Pendiente → Confirmada → En proceso → Finalizada | Cancelada
-// • Validación de concurrencia de slots
-// • Pop-up de detalle con selector de estado y botón de acción
-// • Búsqueda global cross-tab
-// • CalendarModal con vistas mes/semana/día, chips coloreados por estado
+// src/pages/admin/AdminDashboard.jsx  ── RONDA 5
+//
+// CAMBIOS v5:
+// FIX CRÍTICO de timezone — el calendario estaba desfasado 1 día.
+// Causa: dayDate.toISOString().split('T')[0] convierte la fecha LOCAL a UTC.
+// En México (UTC-6), el 7 de abril 00:00 local → 6 de abril 18:00 UTC →
+// quedaba como "2026-04-06" en el grid, pero el popup (que usa appt.date
+// directamente) mostraba "2026-04-07".
+// Solución: helper toLocalISO() que construye el string YYYY-MM-DD sin
+// pasar por UTC. Se aplica en WeekView, DayView y donde se navegue al day.
+//
+// Mantiene de v4: todos los módulos con FAB + Modal + Cards, estados de cita
+// con transiciones, validación de concurrencia, pop-up de detalle, búsqueda
+// global cross-tab, CalendarModal con vistas mes/semana/día.
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
@@ -34,7 +41,18 @@ import { formatMexPhone } from '../../utils/formatPhone';
 import './AdminDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const todayISO = () => new Date().toISOString().split('T')[0];
+// FIX timezone: construye YYYY-MM-DD desde una fecha LOCAL, sin pasar por UTC.
+// Esto evita el desfase de un día cuando estás en zonas horarias negativas
+// (México UTC-6: el 7 de abril 00:00 local = 6 de abril 18:00 UTC).
+const toLocalISO = (d) => {
+    if (!d) return '';
+    const year  = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day   = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const todayISO = () => toLocalISO(new Date());
 const parseDate = (s) => { if(!s)return null; const str=String(s); if(/^\d{4}-\d{2}-\d{2}$/.test(str))return new Date(str+'T12:00:00'); const p=str.split(/[\/\-T]/); if(p[0].length===4)return new Date(str); return new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T12:00:00`); };
 const isSameMonth = (d,y,m) => { const p=parseDate(d); return p&&!isNaN(p)&&p.getFullYear()===y&&p.getMonth()===m; };
 const isSameDay   = (d,o)   => { const p=parseDate(d); return p&&!isNaN(p)&&p.getFullYear()===o.getFullYear()&&p.getMonth()===o.getMonth()&&p.getDate()===o.getDate(); };
@@ -155,7 +173,6 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
             <div className="adp-body">
                 <div className="adp-row"><FaClock className="adp-icon"/><span>{appt.time||'—'} · {appt.date}</span></div>
                 <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{appt.serviceName||'—'}</span><strong className="adp-price">${appt.finalPrice||0}</strong></div>
-                {/* Selector de estado */}
                 <div className="adp-row">
                     <StatusSelector
                         current={appt.status||'Pendiente'}
@@ -201,14 +218,14 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const goNext=()=>{if(calView==='month'){setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1));}else{const d=new Date(dayDate);d.setDate(d.getDate()+(calView==='week'?7:1));setDayDate(d);}};
     const goToday=()=>{setViewDate(new Date(now.getFullYear(),now.getMonth(),1));setDayDate(new Date(now));};
     const switchView=(v)=>{const c=new Date(viewDate.getFullYear(),viewDate.getMonth(),1);const isCur=viewDate.getFullYear()===now.getFullYear()&&viewDate.getMonth()===now.getMonth();if(v!=='month')setDayDate(isCur?new Date(now):c);setCalView(v);};
-    const headerLabel=()=>{if(calView==='month')return`${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getFullYear()}`;if(calView==='day')return formatDateLong(dayDate.toISOString().split('T')[0]);const s=new Date(dayDate);s.setDate(s.getDate()-s.getDay());const e=new Date(s);e.setDate(e.getDate()+6);return`${s.getDate()} — ${e.getDate()} ${MONTH_NAMES[e.getMonth()]}`;};
+    // FIX timezone: usar toLocalISO en lugar de toISOString
+    const headerLabel=()=>{if(calView==='month')return`${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getFullYear()}`;if(calView==='day')return formatDateLong(toLocalISO(dayDate));const s=new Date(dayDate);s.setDate(s.getDate()-s.getDay());const e=new Date(s);e.setDate(e.getDate()+6);return`${s.getDate()} — ${e.getDate()} ${MONTH_NAMES[e.getMonth()]}`;};
 
     const openPopup=(appt,e)=>{e.stopPropagation();setAnchor(e.currentTarget.getBoundingClientRect());setSelAppt(appt);};
     const closePopup=()=>{setSelAppt(null);setAnchor(null);};
 
     const handleCreate=async(e)=>{
         e.preventDefault();
-        // Validar slot
         const check=validateSlot(appointments,newAppt.date,newAppt.time,empleados);
         if(!check.ok){setSlotError(check.message);return;}
         setSaving(true);
@@ -222,7 +239,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
         }finally{setSaving(false);}
     };
 
-    // Chip coloreado por estado
     const EventChip = ({appt,style='chip'}) => {
         const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
         const cls=style==='block'?'admin-cal-event-block':'admin-cal-event-chip';
@@ -237,6 +253,8 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     };
 
     // ── Vista Mes ──────────────────────────────────────────────────────────────
+    // Esta vista ya construía el ds manualmente sin toISOString, así que estaba
+    // bien. La incluyo igual para mantener consistencia.
     const MonthView=()=>{
         const y=viewDate.getFullYear(),m=viewDate.getMonth();
         const first=new Date(y,m,1).getDay();
@@ -278,7 +296,8 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                 {HOURS.map(h=><div key={h} className="admin-cal-hour-row">
                     <div className="admin-cal-time-label">{h}:00</div>
                     {wd.map((d,di)=>{
-                        const ds=d.toISOString().split('T')[0];
+                        // FIX timezone: usar toLocalISO en lugar de toISOString
+                        const ds=toLocalISO(d);
                         const slot=(apptsByDate[ds]||[]).filter(a=>{const min=parseTime(a.time);return min>=h*60&&min<(h+1)*60;});
                         return <div key={di} className="admin-cal-hour-cell">
                             {slot.map(a=><EventChip key={a.id} appt={a} style='block'/>)}
@@ -291,7 +310,8 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
 
     // ── Vista Día ──────────────────────────────────────────────────────────────
     const DayView=()=>{
-        const ds=dayDate.toISOString().split('T')[0];
+        // FIX timezone: usar toLocalISO en lugar de toISOString
+        const ds=toLocalISO(dayDate);
         const da=(apptsByDate[ds]||[]).sort((a,b)=>parseTime(a.time)-parseTime(b.time));
         return <div className="admin-cal-day">
             <div className="admin-cal-day-label">{formatDateLong(ds)}<span className="admin-cal-day-count">{da.length} cita{da.length!==1?'s':''}</span></div>
@@ -342,7 +362,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                 </div>
             </div>
 
-            {/* Leyenda de estados */}
             <div className="cal-legend">
                 {Object.entries(STATUS_COLORS).map(([s,c])=>(
                     <span key={s} className="cal-legend-item">
@@ -439,43 +458,36 @@ const AdminDashboard = () => {
 
     const [tab,setTab]=useState('control');
 
-    // Búsqueda global
     const [searchTerm,setSearchTerm]=useState('');
     const [searchFocus,setSearchFocus]=useState(false);
     const searchRef=useRef(null);
     useEffect(()=>{const h=(e)=>{if(searchRef.current&&!searchRef.current.contains(e.target))setSearchFocus(false);};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);},[]);
     const showSearchPanel=searchFocus&&searchTerm.length>=2;
 
-    // Modales de drill-down
     const [activeModal,setActiveModal]=useState(null);
     const [showCalendar,setShowCalendar]=useState(false);
 
-    // Modales de formularios — cada uno guarda el item a editar (null = nuevo)
-    const [clientModal,setClientModal]=useState(null);   // false=cerrado, null=nuevo, obj=editar
+    const [clientModal,setClientModal]=useState(null);
     const [petModal,setPetModal]=useState(null);
     const [serviceModal,setServiceModal]=useState(null);
     const [productModal,setProductModal]=useState(null);
     const [userModal,setUserModal]=useState(null);
 
-    // Appointments
     const [appointments,setAppointments]=useState([]);
     const [apptLoading,setApptLoading]=useState(false);
     const loadAppointments=useCallback(async()=>{setApptLoading(true);try{setAppointments(await appointmentsApi.getAll());}catch{addToast('Error al cargar citas','error');}finally{setApptLoading(false);}},[addToast]);
     useEffect(()=>{loadAppointments();},[loadAppointments]);
 
-    // Users
     const [users,setUsers]=useState([]);
     useEffect(()=>{usersApi.getAll().then(setUsers).catch(()=>addToast('Error usuarios','error'));},[]);
     const empleados=users.filter(u=>u.role==='empleado');
 
-    // POS
     const [cart,setCart]=useState([]);
     const [posSearch,setPosSearch]=useState('');
     const [posCategory,setPosCategory]=useState('Todos');
     const [posClientId,setPosClientId]=useState('');
     const [showCheckout,setShowCheckout]=useState(false);
 
-    // Stats
     const now=new Date(),todayStr_=todayISO();
     const stats=useMemo(()=>{const ms=sales.filter(s=>isSameMonth(s.date,now.getFullYear(),now.getMonth()));const ta=appointments.filter(a=>a.date===todayStr_);return{monthSales:ms.reduce((a,s)=>a+Number(s.price),0),appointmentsCount:ta.length,totalClients:clients.length,lowStock:products.filter(p=>Number(p.stock)<5).length};},[sales,appointments,clients,products,todayStr_]);
 
@@ -485,7 +497,7 @@ const AdminDashboard = () => {
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
     const processCheckout=async()=>{if(!cart.length)return;try{const sum=cart.map(i=>`${i.qty}x ${i.name||i.title}`).join(', ');await addSale(sum,+cartTotal.toFixed(2),posClientId||null);for(const item of cart){if(item.type==='product'){const o=products.find(p=>p.id===item.id);if(o)await updateProduct(item.id,{...o,stock:o.stock-item.qty});}}setCart([]);setPosClientId('');setShowCheckout(false);addToast('¡Venta procesada!','success');}catch{addToast('Error al procesar','error');}};
 
-    // ── CRUD genérico (via modales) ───────────────────────────────────────────
+    // ── CRUD genérico ─────────────────────────────────────────────────────────
     const handleSaveClient=async(form)=>{try{if(form.id){await updateClient(form.id,form);}else{await addClient(form);}addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{if(form.id){await updatePet(form.id,form);}else{await addPet(form);}addToast(form.id?'Paciente actualizado':'Paciente registrado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveService=async(form)=>{try{if(form.id){await updateService(form.id,form);}else{await addService(form);}addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
@@ -498,7 +510,6 @@ const AdminDashboard = () => {
     const handleAddAppointment=useCallback(async(formData)=>{
         const check=validateSlot(appointments,formData.date,formData.time,empleados);
         if(!check.ok){addToast(check.message,'error');throw new Error(check.message);}
-        // Derivar clientId de la mascota para que aparezca en el perfil del cliente
         const pet=pets.find(p=>String(p.id)===String(formData.petId));
         const dataWithClient={...formData, clientId: pet?.ownerId||formData.clientId||null};
         try{const c=await appointmentsApi.create(dataWithClient);setAppointments(p=>[...p,c]);addToast('Cita agendada','success');}
@@ -510,13 +521,13 @@ const AdminDashboard = () => {
         try{
             const updated=await appointmentsApi.update(appt.id,{status:newStatus});
             setAppointments(p=>p.map(a=>a.id===appt.id?{...a,...updated}:a));
-            // Al finalizar desde el selector de estado: registrar venta + historial
             if(newStatus==='Finalizada'){
                 const pet=pets.find(p=>String(p.id)===String(appt.petId));
                 await addSale(
                     `Servicio: ${appt.serviceName} (${appt.petName})`,
                     Number(appt.finalPrice),
-                    pet?.ownerId||null
+                    pet?.ownerId||null,
+                    'service'
                 );
                 if(pet)await updatePet(pet.id,{
                     ...pet,
@@ -536,7 +547,7 @@ const AdminDashboard = () => {
         if(!ok)return;
         try{
             const pet=pets.find(p=>String(p.id)===String(appo.petId));
-            await addSale(`Servicio: ${appo.serviceName} (${appo.petName})`,Number(appo.finalPrice),pet?.ownerId||null);
+            await addSale(`Servicio: ${appo.serviceName} (${appo.petName})`,Number(appo.finalPrice),pet?.ownerId||null,'service');
             if(pet)await updatePet(pet.id,{...pet,history:[...(pet.history||[]),{date:todayStr_,detail:`${appo.serviceName} finalizado — $${appo.finalPrice}`}]});
             const upd=await appointmentsApi.update(appo.id,{status:'Finalizada'});
             setAppointments(p=>p.map(a=>a.id===appo.id?{...a,...upd}:a));
@@ -568,12 +579,10 @@ const AdminDashboard = () => {
             <div className="toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {ConfirmNode}
 
-            {/* ── Modales drill-down ── */}
             {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='clientes' &&<ClientsReportModal sales={sales} clients={clients} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='stock'    &&<StockModal products={products} onClose={()=>setActiveModal(null)}/>}
 
-            {/* ── Calendario ── */}
             {showCalendar&&<CalendarModal
                 appointments={appointments} pets={pets} clients={clients}
                 services={services} users={users} role="admin"
@@ -585,14 +594,12 @@ const AdminDashboard = () => {
                 onDeleteAppt={handleDeleteAppt}
             />}
 
-            {/* ── Modales de formularios ── */}
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
             {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
             {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)}/>}
 
-            {/* ── Checkout POS ── */}
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Selecciona el cliente (opcional).</p>
                 <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select"><option value="">Sin cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
@@ -601,7 +608,6 @@ const AdminDashboard = () => {
                 <div className="form-actions form-actions--end" style={{marginTop:16}}><button className="btn-secondary" onClick={()=>setShowCheckout(false)}>Cancelar</button><button className="btn-primary" onClick={processCheckout}><FaReceipt/> Confirmar</button></div>
             </Modal>}
 
-            {/* TOPBAR */}
             <header className="admin-top-bar">
                 <div className="topbar-left">
                     <span className="admin-logo">perrucho<span>.</span></span>
@@ -619,16 +625,13 @@ const AdminDashboard = () => {
                 </div>
             </header>
 
-            {/* SIDEBAR */}
             <aside className="admin-sidebar">
                 <nav className="sidebar-nav">{NAV.map(item=><button key={item.id} className={`nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');setSearchFocus(false);}} title={item.label}>{item.icon}<span className="nav-label">{item.label}</span></button>)}</nav>
                 <button className="sidebar-logout" onClick={logout}><FaSignOutAlt/></button>
             </aside>
 
-            {/* MAIN */}
             <main className="admin-main-panel">
 
-                {/* ══ CONTROL ══ */}
                 {tab==='control'&&<div className="fade-in">
                     <div className="page-header"><h2>Panel de control</h2><p>{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</p></div>
                     <div className="stats-grid">
@@ -643,7 +646,6 @@ const AdminDashboard = () => {
                     </div>
                 </div>}
 
-                {/* ══ POS ══ */}
                 {tab==='pos'&&<div className="fade-in">
                     <div className="page-header"><h2>Punto de venta</h2></div>
                     <div className="pos-container">
@@ -665,7 +667,6 @@ const AdminDashboard = () => {
                     </div>
                 </div>}
 
-                {/* ══ CLIENTES ══ */}
                 {tab==='clientes'&&<div className="fade-in">
                     <div className="ds-page-header">
                         <div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div>
@@ -680,7 +681,6 @@ const AdminDashboard = () => {
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
-                {/* ══ PACIENTES ══ */}
                 {tab==='pacientes'&&<div className="fade-in">
                     <div className="ds-page-header">
                         <div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div>
@@ -700,7 +700,6 @@ const AdminDashboard = () => {
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 
-                {/* ══ SERVICIOS ══ */}
                 {tab==='servicios'&&<div className="fade-in">
                     <div className="ds-page-header">
                         <div className="ds-page-header-left"><h2>Servicios</h2><p>{services.length} en catálogo</p></div>
@@ -714,7 +713,6 @@ const AdminDashboard = () => {
                     <FAB onClick={()=>setServiceModal({})} title="Nuevo servicio" color="#a29bfe"/>
                 </div>}
 
-                {/* ══ INVENTARIO ══ */}
                 {tab==='productos'&&<div className="fade-in">
                     <div className="ds-page-header">
                         <div className="ds-page-header-left"><h2>Inventario</h2><p>{products.length} productos</p></div>
@@ -728,7 +726,6 @@ const AdminDashboard = () => {
                     <FAB onClick={()=>setProductModal({})} title="Nuevo producto" color="#55efc4"/>
                 </div>}
 
-                {/* ══ USUARIOS ══ */}
                 {tab==='usuarios'&&<div className="fade-in">
                     <div className="ds-page-header">
                         <div className="ds-page-header-left"><h2>Usuarios</h2><p>{users.length} registrados</p></div>

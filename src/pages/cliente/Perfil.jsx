@@ -1,18 +1,29 @@
 // src/pages/cliente/Perfil.jsx
-// Usa user.clientId (creado en el registro) para vincular todo
-// Mascotas creadas aquí aparecen en dashboards admin/empleado
-// Citas muestran estados con colores del sistema
+//
+// CAMBIOS v3:
+// 1. window.confirm() reemplazado por NotifyDialog custom (pop-up con estilo
+//    coherente, sin diálogo nativo del navegador).
+// 2. Notificaciones del Perfil: badge de count animado, campana con shake.
+//
+// Mantiene de v2: validación WhatsApp en form, raza editable, peso aproximado,
+// botón cancelar cita con regla MIN_CANCEL_HOURS, redirección a WhatsApp del
+// negocio cuando la cita está dentro de 24h.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     FaPaw, FaCalendarCheck, FaShoppingBag, FaSignOutAlt,
-    FaTimes, FaEdit, FaPlus, FaClock, FaSave,
-    FaBell, FaHistory, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt
+    FaTimes, FaEdit, FaPlus, FaSave,
+    FaBell, FaHistory, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt,
+    FaWhatsapp, FaInfoCircle, FaBan
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentsApi, petsApi, salesApi, clientsApi } from '../../api/apiClient';
+import { useNotify } from '../../components/shared/NotifyDialog';
+import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
-import { formatMexPhone } from '../../utils/formatPhone';
+import { formatMexPhone, whatsAppValidationError, isValidWhatsApp } from '../../utils/formatPhone';
+import { canClientCancel, MIN_CANCEL_HOURS } from '../../utils/bookingRules';
+import { clientToShopOnCancelRequest, clientToShopOnCancelDone, openWhatsApp } from '../../utils/whatsappNotify';
 import './Perfil.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,6 +85,7 @@ const Modal = ({ title, onClose, children }) => {
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 const Perfil = () => {
     const { user, logout, updateSessionUser } = useAuth();
+    const { notify, NotifyNode } = useNotify();
 
     const [myPets,    setMyPets]    = useState([]);
     const [myAppts,   setMyAppts]   = useState([]);
@@ -84,26 +96,25 @@ const Perfil = () => {
     const [toast,        setToast]        = useState(null);
     const [petModal,     setPetModal]     = useState(null);
     const [profileModal, setProfileModal] = useState(false);
+    const [cancelModal,  setCancelModal]  = useState(null); // appt a cancelar
     const [activeTab,    setActiveTab]    = useState('citas');
+
+    const [profilePhoneError, setProfilePhoneError] = useState('');
 
     const addToast = useCallback((message, type = 'info') => {
         setToast({ message, type, id: Date.now() });
     }, []);
 
     // ── Obtener clientId definitivo ───────────────────────────────────────────
-    // El clientId viene de user.clientId (creado en register)
-    // Si es un usuario creado antes del fix, buscamos por email como fallback
     const resolveClientId = useCallback(async () => {
         if (user?.clientId) return user.clientId;
 
-        // Fallback: buscar cliente por email
         try {
             const allClients = await clientsApi.getAll();
             const match = allClients.find(c =>
                 c.email?.toLowerCase() === user?.email?.toLowerCase()
             );
             if (match) {
-                // Actualizar el usuario en sesión con el clientId encontrado
                 if (updateSessionUser) updateSessionUser({ clientId: match.id });
                 return match.id;
             }
@@ -121,12 +132,10 @@ const Perfil = () => {
             const clientId = await resolveClientId();
 
             if (clientId) {
-                // Cargar el registro de cliente para el perfil
                 const allClients = await clientsApi.getAll();
                 const client = allClients.find(c => String(c.id) === String(clientId));
                 setMyClient(client || null);
 
-                // Citas del cliente
                 const appts = await appointmentsApi.getByClient(clientId);
                 setMyAppts(appts.sort((a, b) => {
                     if (a.date > b.date) return -1;
@@ -134,11 +143,9 @@ const Perfil = () => {
                     return (a.time || '').localeCompare(b.time || '');
                 }));
 
-                // Mascotas del cliente
                 const pets = await petsApi.getByOwner(clientId);
                 setMyPets(pets);
 
-                // Ventas del cliente
                 const allSales = await salesApi.getAll();
                 setMySales(
                     allSales
@@ -157,7 +164,6 @@ const Perfil = () => {
     useEffect(() => { loadData(); }, [loadData]);
 
     // Polling de citas — solo recarga citas cada 30s sin tocar mascotas ni ventas
-    // Así el cliente ve cambios de estado (Pendiente→Confirmada) sin recargar página
     const refreshAppts = useCallback(async () => {
         if (!user?.id) return;
         try {
@@ -169,7 +175,7 @@ const Perfil = () => {
                 if (a.date < b.date) return 1;
                 return (a.time || '').localeCompare(b.time || '');
             }));
-        } catch { /* silencioso — no interrumpir al usuario */ }
+        } catch { /* silencioso */ }
     }, [user, resolveClientId]);
 
     useEffect(() => {
@@ -181,10 +187,17 @@ const Perfil = () => {
     const handleSaveProfile = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
+        const phone = fd.get('phone');
+
+        if (phone && !isValidWhatsApp(phone)) {
+            setProfilePhoneError(whatsAppValidationError(phone));
+            return;
+        }
+
         const updated = {
             name:    fd.get('name'),
             email:   fd.get('email'),
-            phone:   fd.get('phone'),
+            phone:   phone,
             address: fd.get('address'),
         };
         try {
@@ -195,13 +208,22 @@ const Perfil = () => {
             }
             addToast('Perfil actualizado', 'success');
             setProfileModal(false);
+            setProfilePhoneError('');
         } catch {
             addToast('Error al actualizar', 'error');
         }
     };
 
+    const handleProfilePhoneInput = (e) => {
+        e.target.value = formatMexPhone(e.target.value);
+        if (e.target.value.length > 0) {
+            setProfilePhoneError(whatsAppValidationError(e.target.value));
+        } else {
+            setProfilePhoneError('');
+        }
+    };
+
     // ── Guardar mascota ───────────────────────────────────────────────────────
-    // Las mascotas se crean con el clientId correcto → aparecen en admin/empleado
     const handleSavePet = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
@@ -233,6 +255,63 @@ const Perfil = () => {
         }
     };
 
+    // ── Cancelar cita ─────────────────────────────────────────────────────────
+    // Si está dentro de la ventana → redirige a WhatsApp del negocio.
+    // Si está fuera → cancela en sistema y pregunta con pop-up custom si quiere
+    // avisar al negocio por WhatsApp.
+    const handleConfirmCancel = async () => {
+        if (!cancelModal) return;
+        const appt = cancelModal;
+        const check = canClientCancel(appt);
+
+        const clientName  = myClient?.name || user?.name || 'Cliente';
+        const baseInfo = {
+            clientName,
+            petName:     appt.petName     || 'Mascota',
+            serviceName: appt.serviceName || 'Servicio',
+            date:        appt.date,
+            time:        appt.time,
+        };
+
+        if (!check.ok) {
+            const url = clientToShopOnCancelRequest(baseInfo);
+            openWhatsApp(url);
+            addToast('Te redirigimos a WhatsApp para coordinar la cancelación.', 'info');
+            setCancelModal(null);
+            return;
+        }
+
+        // Fuera de la ventana → cancelar en el sistema
+        try {
+            await appointmentsApi.update(appt.id, { status: 'Cancelada' });
+            setMyAppts(prev => prev.map(a =>
+                a.id === appt.id ? { ...a, status: 'Cancelada' } : a
+            ));
+            addToast('Cita cancelada', 'success');
+            setCancelModal(null);
+
+            // Pop-up custom para preguntar si quiere avisar al negocio
+            setTimeout(async () => {
+                const wantsToNotify = await notify({
+                    type: 'confirm',
+                    icon: '💬',
+                    accent: 'mint',
+                    title: '¿Avisar al negocio?',
+                    message: 'Se abrirá WhatsApp con un mensaje pre-llenado para informar a la estética sobre tu cancelación.',
+                    confirmLabel: 'Sí, avisar',
+                    cancelLabel:  'No, gracias',
+                });
+                if (wantsToNotify) {
+                    const url = clientToShopOnCancelDone(baseInfo);
+                    if (url) openWhatsApp(url);
+                }
+            }, 200);
+        } catch {
+            addToast('Error al cancelar la cita', 'error');
+            setCancelModal(null);
+        }
+    };
+
     // ── Datos de display ──────────────────────────────────────────────────────
     const today       = new Date().toISOString().split('T')[0];
     const displayName = myClient?.name  || user?.name  || 'Usuario';
@@ -245,6 +324,12 @@ const Perfil = () => {
         a.status === 'Pendiente' || a.status === 'Confirmada'
     );
 
+    const isCancellable = (appt) => {
+        return appt.status !== 'Cancelada' &&
+               appt.status !== 'Finalizada' &&
+               appt.status !== 'En proceso';
+    };
+
     if (loading) return (
         <div className="perfil-loading">
             <div className="perfil-spinner" />
@@ -255,6 +340,7 @@ const Perfil = () => {
     return (
         <div className="perfil-container fade-in">
             {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+            {NotifyNode}
 
             <div className="perfil-grid">
 
@@ -309,7 +395,10 @@ const Perfil = () => {
                     {/* Notificaciones */}
                     {pendingAppts.length > 0 && (
                         <div className="profile-card notif-card">
-                            <h3><FaBell /> Notificaciones</h3>
+                            <h3>
+                                <FaBell /> Notificaciones
+                                <span className="notif-count-badge">{pendingAppts.length}</span>
+                            </h3>
                             {pendingAppts.slice(0, 4).map(a => (
                                 <div key={a.id} className="notif-item">
                                     <div className="notif-dot" style={{ background: STATUS_COLORS[a.status]?.dot }} />
@@ -358,7 +447,7 @@ const Perfil = () => {
                                             </div>
                                             <h4>{pet.petName}</h4>
                                             <p>{pet.species}{pet.breed ? ` · ${pet.breed}` : ''}</p>
-                                            {pet.weight && <span className="pet-weight">{pet.weight} kg</span>}
+                                            {pet.weight && <span className="pet-weight">~{pet.weight} kg</span>}
                                             {pet.notes  && <p className="pet-notes-mini">📌 {pet.notes}</p>}
                                             <span className="pet-edit-hint">Toca para editar</span>
                                         </div>
@@ -393,6 +482,7 @@ const Perfil = () => {
                                     <div className="appts-list">
                                         {myAppts.map(a => {
                                             const sc = STATUS_COLORS[a.status] || STATUS_COLORS['Pendiente'];
+                                            const cancellable = isCancellable(a);
                                             return (
                                                 <div key={a.id} className="appt-row" style={{ borderLeft: `4px solid ${sc.border}` }}>
                                                     <div className="appt-row-main">
@@ -412,7 +502,18 @@ const Perfil = () => {
                                                                 <span className="status-dot" style={{ background: sc.dot }} />
                                                                 {STATUS_EMOJI[a.status]} {a.status}
                                                             </span>
-                                                            {a.finalPrice && <span className="appt-price">${a.finalPrice}</span>}
+                                                            {a.finalPrice && (
+                                                                <span className="appt-price">~${a.finalPrice}</span>
+                                                            )}
+                                                            {cancellable && (
+                                                                <button
+                                                                    className="appt-cancel-btn"
+                                                                    onClick={() => setCancelModal(a)}
+                                                                    title="Cancelar cita"
+                                                                >
+                                                                    <FaBan /> Cancelar
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -465,7 +566,7 @@ const Perfil = () => {
                                                 </div>
                                                 <div>
                                                     <strong>{pet.petName}</strong>
-                                                    <span>{speciesEmoji(pet.species)} {pet.breed || '—'} · {pet.weight} kg</span>
+                                                    <span>{speciesEmoji(pet.species)} {pet.breed || '—'} · ~{pet.weight} kg</span>
                                                     {pet.notes && <span className="vet-notes">📌 {pet.notes}</span>}
                                                 </div>
                                             </div>
@@ -498,7 +599,7 @@ const Perfil = () => {
 
             {/* Modal editar perfil */}
             {profileModal && (
-                <Modal title="✏️ Editar mis datos" onClose={() => setProfileModal(false)}>
+                <Modal title="✏️ Editar mis datos" onClose={() => { setProfileModal(false); setProfilePhoneError(''); }}>
                     <form onSubmit={handleSaveProfile} className="perfil-form">
                         <div className="form-field">
                             <label><FaUser /> Nombre completo</label>
@@ -509,17 +610,24 @@ const Perfil = () => {
                             <input name="email" type="email" defaultValue={myClient?.email || user?.email} placeholder="correo@ejemplo.com" required />
                         </div>
                         <div className="form-field">
-                            <label><FaPhone /> Teléfono</label>
-                            <input name="phone" defaultValue={myClient?.phone} placeholder="55 1234 5678"
-                                onChange={e => e.target.value = formatMexPhone(e.target.value)}
-                                inputMode="numeric" />
+                            <label><FaWhatsapp /> WhatsApp (10 dígitos)</label>
+                            <input
+                                name="phone"
+                                defaultValue={myClient?.phone}
+                                placeholder="228 304 5591"
+                                onChange={handleProfilePhoneInput}
+                                inputMode="numeric"
+                            />
+                            {profilePhoneError && (
+                                <small className="form-hint form-hint--error">{profilePhoneError}</small>
+                            )}
                         </div>
                         <div className="form-field">
                             <label><FaMapMarkerAlt /> Dirección</label>
                             <input name="address" defaultValue={myClient?.address} placeholder="Calle y número" />
                         </div>
                         <div className="form-actions">
-                            <button type="button" className="btn-cancel" onClick={() => setProfileModal(false)}>Cancelar</button>
+                            <button type="button" className="btn-cancel" onClick={() => { setProfileModal(false); setProfilePhoneError(''); }}>Cancelar</button>
                             <button type="submit" className="btn-save"><FaSave /> Guardar</button>
                         </div>
                     </form>
@@ -547,13 +655,24 @@ const Perfil = () => {
                                 </select>
                             </div>
                             <div className="form-field">
-                                <label>Peso (kg)</label>
-                                <input name="weight" type="number" defaultValue={petModal?.weight} placeholder="Ej: 5" />
+                                <label>Peso aproximado (kg)</label>
+                                <input name="weight" type="number" step="0.1" defaultValue={petModal?.weight} placeholder="Ej: 5" />
                             </div>
                         </div>
+                        <small className="form-hint form-hint--info">
+                            <FaInfoCircle /> El peso final se verifica con báscula en sucursal.
+                        </small>
                         <div className="form-field">
                             <label>Raza</label>
-                            <input name="breed" defaultValue={petModal?.breed} placeholder="Ej: Poodle, Siamés..." />
+                            <input
+                                name="breed"
+                                type="text"
+                                defaultValue={petModal?.breed}
+                                placeholder="Ej: Poodle, Mestizo, Pastor Australiano..."
+                            />
+                            <small className="form-hint">
+                                Escríbela libremente. Si no estás seguro/a, puedes dejarla vacía o poner "mestizo".
+                            </small>
                         </div>
                         <div className="form-field">
                             <label>Notas / alergias</label>
@@ -568,6 +687,64 @@ const Perfil = () => {
                     </form>
                 </Modal>
             )}
+
+            {/* Modal cancelar cita */}
+            {cancelModal && (() => {
+                const check = canClientCancel(cancelModal);
+                const dentroVentana = !check.ok;
+                return (
+                    <Modal title="⚠️ Cancelar cita" onClose={() => setCancelModal(null)}>
+                        <div className="cancel-modal-body">
+                            <div className="cancel-appt-info">
+                                <p><strong>{cancelModal.petName}</strong> — {cancelModal.serviceName}</p>
+                                <p>📅 {formatDate(cancelModal.date)} {cancelModal.time && `· 🕐 ${cancelModal.time}`}</p>
+                            </div>
+
+                            {dentroVentana ? (
+                                <>
+                                    <div className="cancel-warning cancel-warning--blocked">
+                                        <FaInfoCircle />
+                                        <p>{check.reason}</p>
+                                    </div>
+                                    <p className="cancel-cta-text">
+                                        Para cancelar o reagendar esta cita, contacta directamente
+                                        a la estética por WhatsApp:
+                                    </p>
+                                    <div className="cancel-modal-actions">
+                                        <button type="button" className="btn-cancel" onClick={() => setCancelModal(null)}>
+                                            Volver
+                                        </button>
+                                        <button type="button" className="btn-whatsapp-cancel" onClick={handleConfirmCancel}>
+                                            <FaWhatsapp /> Contactar por WhatsApp
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="cancel-warning">
+                                        <FaInfoCircle />
+                                        <p>
+                                            Tienes <strong>{check.hoursLeft} hora(s)</strong> antes de tu cita.
+                                            Puedes cancelarla ahora ({MIN_CANCEL_HOURS}h+ de anticipación).
+                                        </p>
+                                    </div>
+                                    <p className="cancel-cta-text">
+                                        ¿Estás seguro/a de cancelar esta cita? Esta acción no se puede deshacer.
+                                    </p>
+                                    <div className="cancel-modal-actions">
+                                        <button type="button" className="btn-cancel" onClick={() => setCancelModal(null)}>
+                                            No, mantener
+                                        </button>
+                                        <button type="button" className="btn-confirm-cancel" onClick={handleConfirmCancel}>
+                                            <FaBan /> Sí, cancelar cita
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </Modal>
+                );
+            })()}
         </div>
     );
 };

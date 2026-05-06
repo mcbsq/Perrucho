@@ -17,6 +17,8 @@
     --perfil-radius:  20px;
     --perfil-shadow:  0 4px 20px rgba(0,0,0,0.06);
     --ease:           cubic-bezier(0.25, 1, 0.5, 1);
+    --whatsapp-green: #25d366;
+    --whatsapp-dark:  #128c7e;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,7 +43,6 @@
 /* ── Container ───────────────────────────────────────────────────────────── */
 .perfil-container {
     padding: 100px 20px 60px;
-    max-width: 1300px;
     margin: 0 auto;
     min-height: 100vh;
     font-family: 'Quicksand', sans-serif;
@@ -122,14 +123,138 @@ hr { border: none; border-top: 1px solid #f1f2f6; margin: 14px 0; }
 .next-appointment-box--empty p { text-align: center; padding: 12px 0; font-style: italic; }
 .appt-status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-top: 4px; }
 
-/* Notificaciones */
-.notif-card { border-top: 4px solid var(--perfil-amber) !important; }
-.notif-card h3 { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; font-family: 'Montserrat', sans-serif; color: var(--perfil-dark); margin-bottom: 12px; }
-.notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f2f6; }
-.notif-item:last-child { border-bottom: none; }
-.notif-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-.notif-item strong { font-size: 0.88rem; display: block; color: var(--perfil-dark); }
-.notif-date { font-size: 0.75rem; color: var(--perfil-muted); display: block; margin-top: 2px; }
+/* ═════════════════════════════════════════════════════════════════════════
+   ✨ NOTIFICACIONES — DISEÑO VISTOSO Y ANIMADO ✨
+   ═════════════════════════════════════════════════════════════════════════ */
+.notif-card {
+    border-top: 4px solid var(--perfil-amber) !important;
+    background: linear-gradient(135deg, #ffffff 0%, #fff9eb 100%) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decoración animada de fondo */
+.notif-card::before {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(253,203,110,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: notifGlow 3s ease-in-out infinite;
+}
+@keyframes notifGlow {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%      { transform: scale(1.3); opacity: 1; }
+}
+
+.notif-card h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.95rem;
+    font-family: 'Montserrat', sans-serif;
+    color: var(--perfil-dark);
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Ícono de campana con animación de "shake" suave */
+.notif-card h3 svg {
+    color: var(--perfil-amber);
+    font-size: 1.1rem;
+    animation: bellShake 2.5s ease-in-out infinite;
+    transform-origin: top center;
+}
+@keyframes bellShake {
+    0%, 88%, 100% { transform: rotate(0deg); }
+    90%  { transform: rotate(-12deg); }
+    92%  { transform: rotate(10deg); }
+    94%  { transform: rotate(-8deg); }
+    96%  { transform: rotate(6deg); }
+    98%  { transform: rotate(0deg); }
+}
+
+/* Badge de count con número de notificaciones */
+.notif-count-badge {
+    background: var(--perfil-red);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: auto;
+    font-family: 'Montserrat', sans-serif;
+    box-shadow: 0 2px 6px rgba(255,118,117,0.4);
+    animation: badgePulse 2s ease-in-out infinite;
+}
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 2px 6px rgba(255,118,117,0.4); }
+    50%      { transform: scale(1.1); box-shadow: 0 4px 14px rgba(255,118,117,0.7); }
+}
+
+.notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.6);
+    margin-bottom: 8px;
+    border-left: 3px solid transparent;
+    transition: all 0.25s var(--ease);
+    position: relative;
+    z-index: 1;
+    animation: notifSlideIn 0.45s var(--ease) both;
+}
+@keyframes notifSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.notif-item:nth-child(2) { animation-delay: 0.05s; }
+.notif-item:nth-child(3) { animation-delay: 0.1s;  }
+.notif-item:nth-child(4) { animation-delay: 0.15s; }
+.notif-item:last-child   { margin-bottom: 0; }
+
+.notif-item:hover {
+    background: white;
+    border-left-color: var(--perfil-amber);
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.notif-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.04);
+    animation: dotPulse 2s ease-in-out infinite;
+}
+@keyframes dotPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(116,185,255,0.15); }
+    50%      { box-shadow: 0 0 0 8px rgba(116,185,255,0.05); }
+}
+
+.notif-item strong {
+    font-size: 0.9rem;
+    display: block;
+    color: var(--perfil-dark);
+    margin-bottom: 2px;
+}
+.notif-date {
+    font-size: 0.76rem;
+    color: var(--perfil-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    font-weight: 600;
+}
 
 /* ── Main content ────────────────────────────────────────────────────────── */
 .perfil-main-content { display: flex; flex-direction: column; gap: 20px; }
@@ -193,6 +318,31 @@ hr { border: none; border-top: 1px solid #f1f2f6; margin: 14px 0; }
 .appt-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 .appt-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .appt-price { font-family: 'Montserrat', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--perfil-dark); }
+
+/* Botón de cancelar cita */
+.appt-cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #fff1f0;
+    color: var(--perfil-red);
+    border: 1px solid #ffd5d5;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Quicksand', sans-serif;
+    margin-top: 4px;
+}
+.appt-cancel-btn:hover {
+    background: var(--perfil-red);
+    color: white;
+    border-color: var(--perfil-red);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(255,118,117,0.35);
+}
 
 /* ── Ventas list ─────────────────────────────────────────────────────────── */
 .sales-list { display: flex; flex-direction: column; gap: 8px; }
@@ -266,6 +416,140 @@ hr { border: none; border-top: 1px solid #f1f2f6; margin: 14px 0; }
 .btn-save { padding: 10px 20px; background: var(--perfil-mint); color: #04342C; border: none; border-radius: 10px; font-weight: 800; font-family: 'Montserrat', sans-serif; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.25s var(--ease); }
 .btn-save:hover { background: #00b894; color: white; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(85,239,196,0.35); }
 
+/* Form hints */
+.form-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    color: var(--perfil-muted);
+    margin-top: 2px;
+    line-height: 1.4;
+}
+.form-hint--error {
+    color: var(--perfil-red);
+    font-weight: 600;
+}
+.form-hint--info {
+    background: #e6f1fb;
+    color: #185FA5;
+    padding: 6px 10px;
+    border-radius: 8px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   MODAL DE CANCELACIÓN DE CITA
+   ═════════════════════════════════════════════════════════════════════════ */
+.cancel-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cancel-appt-info {
+    background: #f8fafc;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border-left: 3px solid var(--perfil-blue);
+}
+.cancel-appt-info p {
+    font-size: 0.88rem;
+    margin-bottom: 4px;
+    color: var(--perfil-dark);
+}
+.cancel-appt-info p:last-child {
+    margin-bottom: 0;
+    color: var(--perfil-muted);
+}
+
+.cancel-warning {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.cancel-warning svg {
+    color: #92400e;
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 1rem;
+}
+.cancel-warning p {
+    font-size: 0.85rem;
+    color: #78350f;
+    line-height: 1.5;
+}
+
+.cancel-warning--blocked {
+    background: #fee2e2;
+    border-color: #fecaca;
+}
+.cancel-warning--blocked svg { color: #991b1b; }
+.cancel-warning--blocked p   { color: #7f1d1d; }
+
+.cancel-cta-text {
+    font-size: 0.88rem;
+    color: var(--perfil-dark);
+    line-height: 1.5;
+    text-align: center;
+    padding: 0 4px;
+}
+
+.cancel-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid #f1f2f6;
+}
+
+.btn-confirm-cancel {
+    padding: 10px 20px;
+    background: var(--perfil-red);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 800;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.25s var(--ease);
+}
+.btn-confirm-cancel:hover {
+    background: #d63031;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(255,118,117,0.4);
+}
+
+.btn-whatsapp-cancel {
+    padding: 10px 20px;
+    background: var(--whatsapp-green);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 800;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.25s var(--ease);
+}
+.btn-whatsapp-cancel:hover {
+    background: var(--whatsapp-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37,211,102,0.4);
+}
+
 /* ── Toast ───────────────────────────────────────────────────────────────── */
 .perfil-toast {
     position: fixed; bottom: 24px; right: 24px; z-index: 10000;
@@ -293,11 +577,13 @@ hr { border: none; border-top: 1px solid #f1f2f6; margin: 14px 0; }
     .tabs-header { gap: 6px; }
     .tab-btn { padding: 8px 12px; font-size: 0.78rem; }
     .appt-row-main { flex-direction: column; }
-    .appt-row-right { flex-direction: row; align-items: center; }
+    .appt-row-right { flex-direction: row; align-items: center; flex-wrap: wrap; }
 }
 @media (max-width: 600px) {
     .perfil-container { padding: 80px 12px 40px; }
     .form-row { grid-template-columns: 1fr; }
     .mascotas-grid { grid-template-columns: 1fr 1fr; }
     .perfil-toast { bottom: 12px; right: 12px; left: 12px; max-width: 100%; }
+    .cancel-modal-actions { flex-direction: column-reverse; }
+    .cancel-modal-actions button { width: 100%; justify-content: center; }
 }
