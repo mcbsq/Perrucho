@@ -1,11 +1,14 @@
 // src/components/ServiceCard/ServiceCard.jsx
-// ─────────────────────────────────────────────────────────────────────────────
-// Componente ÚNICO de tarjeta de servicio.
-// Antes estaba duplicado en Home.jsx y Services.jsx — cualquier cambio
-// requería editarlo en dos lugares. Ahora vive aquí y ambas páginas lo importan.
-// ─────────────────────────────────────────────────────────────────────────────
+//
+// CAMBIOS v2 según catálogo real:
+// - Selector de talla ahora usa los 6 rangos reales (Mini→Jumbo) del catálogo
+// - Precio calculado con calcServicePrice() en lugar del multiplicador genérico
+// - Los rangos muestran el rango de kg junto al nombre
+// - Se importa pricingRules para mantener consistencia con el resto del sistema
+
 import React, { useState } from 'react';
 import './ServiceCard.css';
+import { WEIGHT_RANGES, calcServicePrice } from '../../utils/pricingRules';
 
 // ── Helpers: color e ícono por defecto si la BD no los trae ──────────────────
 export function inferColor(service) {
@@ -30,14 +33,21 @@ export function inferIcon(service) {
 
 // ── Componente principal ─────────────────────────────────────────────────────
 const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
-    const [selectedSize, setSelectedSize] = useState('mediano');
+    // El rango por defecto es 'mediano' (el más común, 10-19kg)
+    const [selectedRange, setSelectedRange] = useState('mediano');
 
-    const base   = Number(service.price) || 0;
-    const prices = {
-        chico:   service.priceChico   ?? base,
-        mediano: service.priceMediano ?? +(base * 1.25).toFixed(0),
-        grande:  service.priceGrande  ?? +(base * 1.50).toFixed(0),
+    // Obtener el rango seleccionado y calcular el precio con los 6 rangos reales
+    const selectedRangeData = WEIGHT_RANGES.find(r => r.key === selectedRange);
+    // Para el preview de la card pasamos un peso representativo del rango seleccionado
+    const representativeWeight = {
+        mini:    3,
+        chico:   7,
+        mediano: 14,
+        grande:  25,
+        extra:   38,
+        jumbo:   50,
     };
+    const displayPrice = calcServicePrice(service, representativeWeight[selectedRange]);
 
     const color = service.color || inferColor(service);
     const icon  = service.icon  || inferIcon(service);
@@ -55,27 +65,29 @@ const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
             <h3 className="svc-title">{service.title}</h3>
             <p className="svc-desc">{service.description || `Servicio de ${service.category}`}</p>
 
-            {service.duration && (
-                <span className="svc-duration">⏱ {service.duration}</span>
-            )}
-
-            {/* Selector de talla */}
+            {/* Selector de talla — 6 rangos del catálogo */}
             <div className="svc-size-selector">
-                {['chico', 'mediano', 'grande'].map(size => (
+                {WEIGHT_RANGES.map(range => (
                     <button
-                        key={size}
-                        className={`svc-size-btn ${selectedSize === size ? 'active' : ''}`}
-                        onClick={() => setSelectedSize(size)}
+                        key={range.key}
+                        className={`svc-size-btn ${selectedRange === range.key ? 'active' : ''}`}
+                        onClick={() => setSelectedRange(range.key)}
+                        title={range.desc}
                     >
-                        {size.charAt(0).toUpperCase() + size.slice(1)}
+                        {range.label}
                     </button>
                 ))}
             </div>
 
+            {/* Rango de kg del tamaño seleccionado */}
+            {selectedRangeData && (
+                <span className="svc-range-desc">{selectedRangeData.desc}</span>
+            )}
+
             {/* Precio dinámico */}
             <div className={`svc-price-display svc-price-display--${color}`}>
-                <span className="svc-price-label">Precio</span>
-                <span className="svc-price-amount">${prices[selectedSize]}</span>
+                <span className="svc-price-label">Precio estimado</span>
+                <span className="svc-price-amount">${displayPrice}</span>
             </div>
 
             <button

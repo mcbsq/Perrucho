@@ -1,55 +1,30 @@
 // src/components/ServiceModal/ServiceModal.jsx
 //
-// CAMBIOS según feedback del cliente:
-// 1. Quitar "tiempo de trabajo" del flujo — ya no se muestra duración como chip
-//    ni se pide. El cliente solo elige día y el groomer asigna horario después.
-// 2. En la confirmación (paso 4), TOTAL y MÉTODO DE PAGO ya no se muestran como
-//    importes a cobrar. El total queda solo "informativo" en gris pequeño y el
-//    método de pago no aparece (se acordará al final del servicio según peso real).
-// 3. Tras confirmar la cita, se ofrece un botón opcional para enviar mensaje
-//    de WhatsApp al negocio confirmando que se reservó por la página.
-// 4. Bug fix: la sale ahora se crea con type='service' (antes se perdía).
-// 5. Fix: el petName guardado en el appt usa el nombre real cuando hay mascota.
+// CAMBIOS v3 según catálogo real:
+// 1. Slots de horario: 10:15, 11:00, 12:00...17:00 (antes 09:00-19:00)
+// 2. Selector de mascota ahora muestra el rango de peso correcto (6 rangos)
+//    y calcula el precio con calcServicePrice() en lugar del multiplicador genérico
+// 3. El precio estimado muestra el rango exacto (Mini/Chico/Mediano/etc.)
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-    FaCalendarAlt, FaClock, FaCheckCircle, FaTimes, FaPaw,
+    FaCalendarAlt, FaCheckCircle, FaTimes, FaPaw,
     FaChevronLeft, FaChevronRight, FaWhatsapp, FaInfoCircle
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { appointmentsApi } from '../../api/apiClient';
 import { clientToShopOnBooking, openWhatsApp } from '../../utils/whatsappNotify';
+import { calcServicePrice, weightRangeLabel, getWeightRange } from '../../utils/pricingRules';
+import { getBookingSlots } from '../../utils/bookingRules';
 import '../../pages/Services.css';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const calcPrice = (base, weight) => {
-    const w = Number(weight), p = Number(base);
-    if (!w || !p) return p;
-    if (w <= 5)  return p;
-    if (w <= 12) return +(p * 1.25).toFixed(2);
-    if (w <= 25) return +(p * 1.50).toFixed(2);
-    return +(p * 2.0).toFixed(2);
-};
-
-const SIZE_LABEL = (w) => {
-    const n = Number(w);
-    if (!n) return 'Por verificar';
-    if (n <= 5)  return 'Chico';
-    if (n <= 12) return 'Mediano';
-    if (n <= 25) return 'Grande';
-    return 'Extra grande';
-};
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAY_NAMES   = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
 
-// Slots de 1h entre 9am y 7pm
-const ALL_SLOTS = [
-    '09:00','10:00','11:00','12:00','13:00',
-    '14:00','15:00','16:00','17:00','18:00','19:00',
-];
+// Slots según horario real del catálogo (10:15am a 5pm)
+const ALL_SLOTS = getBookingSlots();
 
 const fmt12 = (t) => {
     if (!t) return '';
@@ -59,7 +34,10 @@ const fmt12 = (t) => {
     return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 };
 
-const todayISO = () => new Date().toISOString().split('T')[0];
+const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
 
 // ─── Mini Calendario ──────────────────────────────────────────────────────────
 const MiniCalendar = ({ selectedDate, onSelect }) => {
@@ -67,7 +45,7 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
     const [viewYear,  setViewYear]  = useState(today.getFullYear());
     const [viewMonth, setViewMonth] = useState(today.getMonth());
 
-    const firstDow   = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // lunes=0
+    const firstDow    = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
     const prevMonth = () => {
@@ -83,8 +61,8 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
     for (let i = 0; i < firstDow; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-    const isToday = (d) => d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
-    const isPast  = (d) => new Date(viewYear, viewMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const isToday    = (d) => d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+    const isPast     = (d) => new Date(viewYear, viewMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const isSelected = (d) => {
         if (!selectedDate || !d) return false;
         const iso = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -111,9 +89,9 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
                         key={i}
                         className={[
                             'sm-cal-cell',
-                            !d         ? 'empty'    : '',
-                            d && isPast(d)     ? 'past'     : '',
-                            d && isToday(d)    ? 'today'    : '',
+                            !d              ? 'empty'    : '',
+                            d && isPast(d)  ? 'past'     : '',
+                            d && isToday(d) ? 'today'    : '',
                             d && isSelected(d) ? 'selected' : '',
                         ].filter(Boolean).join(' ')}
                         onClick={() => handleClick(d)}
@@ -148,24 +126,17 @@ const TimeGrid = ({ date, selectedTime, onSelect, busySlots }) => {
                         type="button"
                         className={[
                             'sm-time-slot',
-                            busy     ? 'busy'     : 'free',
-                            isActive ? 'active'   : '',
+                            busy     ? 'busy'   : 'free',
+                            isActive ? 'active' : '',
                         ].filter(Boolean).join(' ')}
                         onClick={() => !busy && onSelect(slot)}
                         disabled={busy}
                         title={busy ? 'Horario no disponible' : fmt12(slot)}
                     >
-                        {busy ? (
-                            <>
-                                <span className="slot-time">{fmt12(slot)}</span>
-                                <span className="slot-label">No disponible</span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="slot-time">{fmt12(slot)}</span>
-                                <span className="slot-label">{isActive ? '✓ Seleccionado' : 'Disponible'}</span>
-                            </>
-                        )}
+                        <span className="slot-time">{fmt12(slot)}</span>
+                        <span className="slot-label">
+                            {busy ? 'No disponible' : isActive ? '✓ Seleccionado' : 'Disponible'}
+                        </span>
                     </button>
                 );
             })}
@@ -182,20 +153,13 @@ const ServiceModal = ({ service, onClose }) => {
     const [loading,     setLoading]     = useState(false);
     const [error,       setError]       = useState('');
     const [allAppts,    setAllAppts]    = useState([]);
-    const [bookingData, setBookingData] = useState({
-        petId: '', date: '', time: '',
-    });
-    // Guarda info para mostrar en pantalla de éxito y armar el WhatsApp
+    const [bookingData, setBookingData] = useState({ petId: '', date: '', time: '' });
     const [savedBooking, setSavedBooking] = useState(null);
 
-    // Cargar todas las citas para saber qué slots están ocupados
     useEffect(() => {
-        appointmentsApi.getAll()
-            .then(setAllAppts)
-            .catch(() => {});
+        appointmentsApi.getAll().then(setAllAppts).catch(() => {});
     }, []);
 
-    // Slots ocupados para la fecha seleccionada
     const busySlots = useMemo(() => {
         if (!bookingData.date) return [];
         return allAppts
@@ -204,7 +168,7 @@ const ServiceModal = ({ service, onClose }) => {
             .filter(Boolean);
     }, [allAppts, bookingData.date]);
 
-    // Resolver cliente
+    // Resolver cliente logueado
     const clientRecord = useMemo(() => {
         if (user?.clientId) {
             const byId = clients.find(c => String(c.id) === String(user.clientId));
@@ -219,45 +183,40 @@ const ServiceModal = ({ service, onClose }) => {
     );
 
     const selectedPet = myPets.find(p => String(p.id) === String(bookingData.petId));
-    // El precio se calcula con el peso APROXIMADO ingresado por el cliente.
-    // Se mostrará como "estimado" porque se verifica con báscula en sucursal.
-    const finalPrice  = selectedPet ? calcPrice(service.price, selectedPet.weight) : Number(service.price);
+
+    // Precio calculado con los 6 rangos reales
+    const finalPrice  = calcServicePrice(service, selectedPet?.weight);
+    const rangeLabel  = selectedPet ? weightRangeLabel(selectedPet.weight) : '';
 
     const next = () => { setError(''); setStep(s => s + 1); };
     const prev = () => { setError(''); setStep(s => s - 1); };
 
-    // ── Guardar reserva ──────────────────────────────────────────────────────
-    // Ya no se pregunta método de pago aquí — se acuerda al final del servicio
-    // según el peso real verificado.
     const handleConfirm = async () => {
         setLoading(true);
         setError('');
         try {
             const petName = selectedPet?.petName || 'Sin mascota';
-            const appt = await appointmentsApi.create({
-                petId:         bookingData.petId ? Number(bookingData.petId) : null,
+            await appointmentsApi.create({
+                petId:       bookingData.petId ? Number(bookingData.petId) : null,
                 petName,
-                serviceId:     service.id,
-                serviceName:   service.title,
-                clientId:      clientRecord?.id || null,
-                date:          bookingData.date,
-                time:          bookingData.time,
-                status:        'Pendiente',
-                finalPrice,           // precio estimado
-                paymentMethod: '',    // se define al finalizar el servicio
-                assignedTo:    '',
-                createdAt:     todayISO(),
+                serviceId:   service.id,
+                serviceName: service.title,
+                clientId:    clientRecord?.id || null,
+                date:        bookingData.date,
+                time:        bookingData.time,
+                status:      'Pendiente',
+                finalPrice,
+                paymentMethod: '',
+                assignedTo:  '',
+                createdAt:   todayISO(),
             });
-            // Registrar venta tipo "service" (FIX: antes se perdía el type)
             await addSale(
                 `Reserva: ${service.title} (${petName})`,
                 finalPrice,
                 clientRecord?.id || null,
                 'service'
             );
-            // Guardar para pantalla de éxito y armado de mensaje WhatsApp
             setSavedBooking({
-                appt,
                 clientName:  clientRecord?.name || user?.name || 'Cliente',
                 petName,
                 serviceName: service.title,
@@ -273,7 +232,6 @@ const ServiceModal = ({ service, onClose }) => {
         }
     };
 
-    // ── Notificar al negocio por WhatsApp ─────────────────────────────────────
     const handleNotifyShop = () => {
         if (!savedBooking) return;
         const url = clientToShopOnBooking(savedBooking);
@@ -295,7 +253,6 @@ const ServiceModal = ({ service, onClose }) => {
 
                 <button className="sm-close" type="button" onClick={onClose}><FaTimes /></button>
 
-                {/* Progress — ahora son 3 pasos visibles + 1 de éxito */}
                 {step <= 3 && (
                     <>
                         <div className="sm-progress-track">
@@ -310,7 +267,6 @@ const ServiceModal = ({ service, onClose }) => {
                 )}
 
                 {/* ── PASO 1: Servicio + mascota ── */}
-                {/* Cambio: ya no se muestra chip de duración */}
                 {step === 1 && (
                     <div className="sm-step fade-in">
                         <div className="sm-service-icon">{service.icon || '🐾'}</div>
@@ -327,14 +283,16 @@ const ServiceModal = ({ service, onClose }) => {
                                     <option value="">Selecciona tu mascota</option>
                                     {myPets.map(p => (
                                         <option key={p.id} value={p.id}>
-                                            {p.petName}{p.weight ? ` — ${SIZE_LABEL(p.weight)} (${p.weight} kg aprox.)` : ''}
+                                            {p.petName}{p.weight
+                                                ? ` — ${weightRangeLabel(p.weight)} (~${p.weight} kg)`
+                                                : ' — peso por verificar'}
                                         </option>
                                     ))}
                                 </select>
                                 {selectedPet && (
                                     <>
                                         <div className="sm-price-preview">
-                                            <span>Precio estimado para {selectedPet.petName}</span>
+                                            <span>Precio estimado · {rangeLabel}</span>
                                             <strong>${finalPrice}</strong>
                                         </div>
                                         <small className="sm-info-note">
@@ -411,14 +369,12 @@ const ServiceModal = ({ service, onClose }) => {
                     </div>
                 )}
 
-                {/* ── PASO 3: Confirmación (sin pago) ── */}
-                {/* Cambio: ya no se pide método de pago. El total aparece como
-                    "estimado" en pequeño, no como "Total a pagar". */}
+                {/* ── PASO 3: Confirmación ── */}
                 {step === 3 && (
                     <div className="sm-step fade-in">
                         <h2 className="sm-title">Revisar reserva</h2>
                         <p className="sm-desc">
-                            Confirma los datos. El pago se realizará en sucursal al
+                            Confirma los datos. El pago se realiza en sucursal al
                             finalizar el servicio.
                         </p>
 
@@ -431,7 +387,9 @@ const ServiceModal = ({ service, onClose }) => {
                                     <span>Mascota</span>
                                     <strong>
                                         {selectedPet.petName}
-                                        {selectedPet.weight ? ` · ${SIZE_LABEL(selectedPet.weight)}` : ''}
+                                        {selectedPet.weight
+                                            ? ` · ${weightRangeLabel(selectedPet.weight)}`
+                                            : ''}
                                     </strong>
                                 </div>
                             )}
@@ -443,7 +401,6 @@ const ServiceModal = ({ service, onClose }) => {
                                 <span>Hora preferida</span>
                                 <strong>{fmt12(bookingData.time)}</strong>
                             </div>
-                            {/* Total ahora es solo informativo, en clase distinta */}
                             <div className="sm-summary-row sm-summary-row--info">
                                 <span>Costo estimado <em>(se ajusta en sucursal)</em></span>
                                 <strong className="sm-info-amount">${finalPrice}</strong>
@@ -453,9 +410,9 @@ const ServiceModal = ({ service, onClose }) => {
                         <div className="sm-info-box">
                             <FaInfoCircle />
                             <p>
-                                El costo final depende del peso real y las condiciones
-                                de tu mascota, que se verifican en la sucursal. El método
-                                de pago se acuerda al finalizar el servicio.
+                                El costo final se determina con la evaluación de la mascota
+                                al ingreso. El método de pago se acuerda al finalizar el servicio.
+                                Llega con máximo 20 minutos de retraso.
                             </p>
                         </div>
 
@@ -475,7 +432,7 @@ const ServiceModal = ({ service, onClose }) => {
                     </div>
                 )}
 
-                {/* ── PASO 4: Éxito + opción WhatsApp ── */}
+                {/* ── PASO 4: Éxito ── */}
                 {step === 4 && savedBooking && (
                     <div className="sm-step sm-success fade-in">
                         <div className="sm-success-icon">
@@ -502,11 +459,7 @@ const ServiceModal = ({ service, onClose }) => {
                             </div>
                         </div>
 
-                        <button
-                            className="sm-btn-whatsapp"
-                            type="button"
-                            onClick={handleNotifyShop}
-                        >
+                        <button className="sm-btn-whatsapp" type="button" onClick={handleNotifyShop}>
                             <FaWhatsapp /> Avisar por WhatsApp a la estética
                         </button>
 
