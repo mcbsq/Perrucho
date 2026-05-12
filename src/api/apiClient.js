@@ -1,24 +1,19 @@
 // src/api/apiClient.js
 //
-// AUDITORÍA DE CONEXIÓN — Cambios v2:
-// 1. appointmentsApi.update: ahora hace GET + merge + PUT en vez de PATCH puro.
-//    PATCH falla en algunos despliegues de json-server v1 cuando el body tiene
-//    campos `null` o cuando el shape original difiere del payload. PUT con merge
-//    completo es 100% compatible.
-// 2. Normalización de IDs: los endpoints REST distinguen "1004" vs 1004, así que
-//    siempre se serializan como strings en la URL con encodeURIComponent.
-// 3. handleResponse: ahora distingue 404 (recurso no encontrado) de 5xx (servidor),
-//    para que la UI pueda dar mensajes más útiles.
-// 4. Retries simples para errores transitorios de red en producción (Render free
-//    tier puede tener cold starts de 30+ segundos).
+// CAMBIOS v3 (cierre de checklist):
+// - servicesApi.create/update: ya NO inyecta multiplicadores genéricos
+//   (priceChico = base*1.25, etc.). Ahora los 6 campos de precio vienen
+//   directamente del ServiceFormModal con los valores reales del catálogo.
+//   Si un campo está vacío, hace fallback al precio base (price), no a un
+//   multiplicador inventado.
+// - Se eliminan los campos legacy priceChico/priceMediano/priceGrande
+//   que generaban confusión con los nuevos priceMini/priceExtra/priceJumbo.
 //
-// Entornos:
-//   local dev  → http://localhost:3001  (JSON Server local)
-//   producción → REACT_APP_API_URL      (Render backend)
+// Mantiene de v2: GET+merge+PUT en appointmentsApi.update, retries para
+// cold starts de Render, normalización de IDs con encodeURIComponent.
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
-// ── handleResponse robusto ───────────────────────────────────────────────────
 const handleResponse = async (res) => {
     if (!res.ok) {
         let body = '';
@@ -31,13 +26,12 @@ const handleResponse = async (res) => {
     return text ? JSON.parse(text) : {};
 };
 
-// ── fetchWithRetry para soportar cold starts de Render ───────────────────────
+// Retries para cold starts de Render free tier
 const fetchWithRetry = async (url, options = {}, retries = 2) => {
     let lastErr;
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
             const res = await fetch(url, options);
-            // 5xx en primer intento → reintentar (cold start de Render)
             if (res.status >= 500 && attempt < retries) {
                 await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
                 continue;
@@ -64,8 +58,6 @@ const api = {
 };
 
 const today = () => new Date().toISOString().split('T')[0];
-
-// Normalizador de ID: garantiza string sin escape sucio
 const idStr = (id) => encodeURIComponent(String(id));
 
 // ── Usuarios ──────────────────────────────────────────────────────────────────
@@ -101,30 +93,45 @@ export const petsApi = {
 };
 
 // ── Servicios ─────────────────────────────────────────────────────────────────
+// FIX: ya no se inyectan multiplicadores genéricos (base*1.25, base*1.50, etc.)
+// Los 6 campos de precio vienen del ServiceFormModal con los valores reales.
+// El campo `price` se usa como precio base para el POS (precio de la variante mini
+// o el más bajo del catálogo) y como fallback si algún campo no viene.
 export const servicesApi = {
     getAll:  ()         => api.get('/services'),
     getById: (id)       => api.get(`/services/${idStr(id)}`),
     create: (data) => {
-        const base = Number(data.price) || 0;
+        const base = Number(data.priceMini || data.price) || 0;
         return api.post('/services', {
-            icon:         data.icon    || '',
-            color:        data.color   || 'blue',
-            popular:      data.popular || false,
-            priceChico:   data.priceChico   ?? base,
-            priceMediano: data.priceMediano ?? +(base * 1.25).toFixed(0),
-            priceGrande:  data.priceGrande  ?? +(base * 1.50).toFixed(0),
+            icon:    data.icon    || '',
+            color:   data.color   || 'blue',
+            popular: data.popular || false,
+            // Los 6 rangos reales — si vienen del form se usan tal cual,
+            // si no, se cae al precio base (no a multiplicadores inventados)
+            priceMini:    Number(data.priceMini)    || base,
+            priceChico:   Number(data.priceChico)   || base,
+            priceMediano: Number(data.priceMediano) || base,
+            priceGrande:  Number(data.priceGrande)  || base,
+            priceExtra:   Number(data.priceExtra)   || base,
+            priceJumbo:   Number(data.priceJumbo)   || base,
+            // price = priceMini para compatibilidad con POS y legacy
+            price: base,
             ...data,
         });
     },
     update: (id, data) => {
-        const base = Number(data.price) || 0;
+        const base = Number(data.priceMini || data.price) || 0;
         return api.put(`/services/${idStr(id)}`, {
-            icon:         data.icon    || '',
-            color:        data.color   || 'blue',
-            popular:      data.popular || false,
-            priceChico:   data.priceChico   ?? base,
-            priceMediano: data.priceMediano ?? +(base * 1.25).toFixed(0),
-            priceGrande:  data.priceGrande  ?? +(base * 1.50).toFixed(0),
+            icon:    data.icon    || '',
+            color:   data.color   || 'blue',
+            popular: data.popular || false,
+            priceMini:    Number(data.priceMini)    || base,
+            priceChico:   Number(data.priceChico)   || base,
+            priceMediano: Number(data.priceMediano) || base,
+            priceGrande:  Number(data.priceGrande)  || base,
+            priceExtra:   Number(data.priceExtra)   || base,
+            priceJumbo:   Number(data.priceJumbo)   || base,
+            price: base,
             ...data,
             id,
         });
@@ -142,39 +149,28 @@ export const productsApi = {
 };
 
 // ── Citas ─────────────────────────────────────────────────────────────────────
-// FIX CRÍTICO: update ahora hace GET + merge + PUT en vez de PATCH.
-// Razón: PATCH falla intermitentemente en json-server cuando el documento
-// original tiene shape inconsistente (ej. cita 1005 del db.json que se creó
-// con orden de propiedades distinto y le faltan campos). PUT con merge completo
-// siempre funciona porque envía el documento entero.
+// UPDATE robusto: GET + merge + PUT para evitar fallo de PATCH en json-server
+// cuando el documento tiene shape inconsistente o campos null.
 export const appointmentsApi = {
     getAll:      ()         => api.get('/appointments'),
     getByClient: (clientId) => api.get(`/appointments?clientId=${idStr(clientId)}`),
     getByDate:   (date)     => api.get(`/appointments?date=${idStr(date)}`),
     create:      (data)     => api.post('/appointments', { ...data, createdAt: today() }),
-
-    // Update robusto: lee el documento actual, hace merge y manda PUT completo.
     update: async (id, partialData) => {
         try {
-            // 1. Traer el documento actual
             const current = await api.get(`/appointments/${idStr(id)}`);
-            // 2. Merge: mantener todos los campos, sobrescribir solo los nuevos
-            //    Conservar el id original (puede ser number o string)
-            const merged = { ...current, ...partialData, id: current.id };
-            // 3. PUT con el documento completo
+            const merged  = { ...current, ...partialData, id: current.id };
             return await api.put(`/appointments/${idStr(id)}`, merged);
         } catch (err) {
-            // Fallback: si el GET previo falla por 404, intentamos PATCH directo
             console.warn('[appointmentsApi.update] GET previo falló, intentando PATCH:', err.message);
             return api.patch(`/appointments/${idStr(id)}`, partialData);
         }
     },
-
     delete: (id) => api.delete(`/appointments/${idStr(id)}`),
 };
 
 // ── Ventas ────────────────────────────────────────────────────────────────────
-// FIX: preserva el `type` ('product' | 'service') que pasa el caller.
+// Preserva el `type` ('product' | 'service') que pasa el caller.
 export const salesApi = {
     getAll: ()     => api.get('/sales'),
     create: (data) => api.post('/sales', { date: today(), ...data }),

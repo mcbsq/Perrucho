@@ -1,6 +1,5 @@
 /* src/components/shared/DashboardShared.css
-   Importar en index.css o en ambos dashboards CSS:
-   @import '../../components/shared/DashboardShared.css';
+   CAMBIOS v2: estilos para la tabla de 6 rangos de precios en ServiceCard y ServiceFormModal
    ════════════════════════════════════════════════════════════════════ */
 
 /* ══ FAB ══════════════════════════════════════════════════════════════ */
@@ -120,6 +119,131 @@
     margin-top: 4px;
 }
 
+/* ══ TABLA DE PRECIOS (6 rangos) — ServiceFormModal ══════════════════ */
+.ds-price-table-label {
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #636e72;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f2f6;
+}
+
+.ds-price-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 14px;
+    border: 1.5px solid #f1f2f6;
+}
+
+.ds-price-table-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ds-price-table-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+}
+
+.ds-price-range-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #1e272e;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.ds-price-range-desc {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.ds-price-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: white;
+    border: 1.5px solid #e0e4ea;
+    border-radius: 10px;
+    padding: 0 10px;
+    transition: all 0.2s;
+    width: 110px;
+    flex-shrink: 0;
+}
+.ds-price-input-wrap:focus-within {
+    border-color: #74b9ff;
+    box-shadow: 0 0 0 3px rgba(116,185,255,0.12);
+}
+
+.ds-price-prefix {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #636e72;
+}
+
+.ds-price-input {
+    border: none !important;
+    background: transparent !important;
+    padding: 8px 4px !important;
+    width: 100% !important;
+    font-size: 0.9rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    color: #1e272e;
+    box-shadow: none !important;
+    outline: none;
+}
+
+/* ══ SERVICE CARD — PRECIOS 6 RANGOS ══════════════════════════════════ */
+/* Reemplaza .ds-service-prices */
+.ds-service-prices-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.ds-service-price-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 5px 4px;
+    gap: 1px;
+}
+
+.ds-service-price-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #1e272e;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.ds-service-price-desc {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.ds-service-price-value {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #74b9ff;
+    font-family: 'Montserrat', sans-serif;
+}
+
 /* ══ BUTTONS ══════════════════════════════════════════════════════════ */
 .ds-btn {
     display: inline-flex; align-items: center; gap: 6px;
@@ -142,21 +266,13 @@
     background: #f1f2f6; color: #636e72;
 }
 .ds-btn--secondary:hover { background: #e0e4ea; }
-.ds-btn--danger {
-    background: #ff7675; color: white;
-}
+.ds-btn--danger  { background: #ff7675; color: white; }
 .ds-btn--danger:hover { background: #d63031; }
-.ds-btn--confirm {
-    background: #dbeafe; color: #1e3a8a;
-}
+.ds-btn--confirm { background: #dbeafe; color: #1e3a8a; }
 .ds-btn--confirm:hover { background: #74b9ff; color: white; }
-.ds-btn--process {
-    background: #fef3c7; color: #78350f;
-}
+.ds-btn--process { background: #fef3c7; color: #78350f; }
 .ds-btn--process:hover { background: #f59e0b; color: white; }
-.ds-btn--finish {
-    background: #d1fae5; color: #064e3b;
-}
+.ds-btn--finish  { background: #d1fae5; color: #064e3b; }
 .ds-btn--finish:hover { background: #10b981; color: white; }
 
 .ds-btn-icon {
@@ -183,16 +299,12 @@
 }
 
 /* ══ STATUS SELECTOR ══════════════════════════════════════════════════ */
-.ds-status-selector {
-    position: relative; display: inline-block;
-}
+.ds-status-selector { position: relative; display: inline-block; }
 .ds-status-trigger {
     display: inline-flex; align-items: center; gap: 6px;
     background: none; border: none; cursor: pointer; padding: 0;
 }
-.ds-status-arrow {
-    font-size: 0.65rem; color: #636e72;
-}
+.ds-status-arrow { font-size: 0.65rem; color: #636e72; }
 .ds-status-dropdown {
     position: absolute; top: calc(100% + 6px); left: 0;
     background: white; border-radius: 12px;
@@ -225,7 +337,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
     gap: 14px;
-    padding-bottom: 88px; /* espacio para FAB */
+    padding-bottom: 88px;
 }
 .ds-cards-grid--compact {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -251,7 +363,6 @@
 .ds-card--low  { border-left: 4px solid #f59e0b; }
 .ds-card--out  { border-left: 4px solid #ff7675; opacity: 0.8; }
 
-/* Avatar genérico */
 .ds-card-avatar {
     width: 48px; height: 48px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -259,8 +370,6 @@
     font-size: 1.2rem; font-weight: 800;
     flex-shrink: 0;
 }
-
-/* Body */
 .ds-card-body { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .ds-card-name {
     font-family: 'Montserrat', sans-serif;
@@ -276,8 +385,6 @@
     padding: 3px 8px; border-radius: 0 4px 4px 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-/* Actions column */
 .ds-card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 
 /* ══ TAGS ══════════════════════════════════════════════════════════════ */
@@ -292,16 +399,13 @@
 .ds-tag--gray   { background: #f3f4f6; color: #4b5563; }
 .ds-tag--red    { background: #fee2e2; color: #b91c1c; }
 
-/* ══ PET CARD SPECIFIC ════════════════════════════════════════════════ */
+/* ══ PET CARD ═════════════════════════════════════════════════════════ */
 .ds-pet-avatar {
     width: 52px; height: 52px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; position: relative;
 }
-.ds-pet-initial {
-    font-family: 'Montserrat', sans-serif;
-    font-size: 1.25rem; font-weight: 800; color: white;
-}
+.ds-pet-initial { font-family: 'Montserrat', sans-serif; font-size: 1.25rem; font-weight: 800; color: white; }
 .ds-pet-emoji-badge {
     position: absolute; bottom: -3px; right: -3px;
     font-size: 0.95rem;
@@ -311,22 +415,19 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.12); line-height: 1;
 }
 
-/* ══ SERVICE CARD SPECIFIC ════════════════════════════════════════════ */
+/* ══ SERVICE CARD ═════════════════════════════════════════════════════ */
 .ds-service-icon {
     font-size: 2rem; width: 52px; height: 52px;
     background: #f8fafc; border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
-.ds-service-prices {
-    display: flex; gap: 10px; flex-wrap: wrap;
-}
-.ds-service-prices span {
-    font-size: 0.72rem; color: #636e72;
-}
+/* Mantener legacy por si hay servicios que aún usen el campo viejo */
+.ds-service-prices { display: flex; gap: 10px; flex-wrap: wrap; }
+.ds-service-prices span { font-size: 0.72rem; color: #636e72; }
 .ds-service-prices strong { color: #1e272e; }
 
-/* ══ PRODUCT CARD SPECIFIC ════════════════════════════════════════════ */
+/* ══ PRODUCT CARD ═════════════════════════════════════════════════════ */
 .ds-product-icon {
     font-size: 2rem; width: 52px; height: 52px;
     background: #f8fafc; border-radius: 14px;
@@ -342,12 +443,10 @@
 .ds-stock-badge.low { background: #fef3c7; color: #78350f; }
 .ds-stock-badge.out { background: #fee2e2; color: #b91c1c; }
 
-/* ══ USER CARD SPECIFIC ═══════════════════════════════════════════════ */
-.ds-user-card .ds-card-avatar {
-    font-size: 1.1rem;
-}
+/* ══ USER CARD ════════════════════════════════════════════════════════ */
+.ds-user-card .ds-card-avatar { font-size: 1.1rem; }
 
-/* ══ PAGE HEADER with button ══════════════════════════════════════════ */
+/* ══ PAGE HEADER ══════════════════════════════════════════════════════ */
 .ds-page-header {
     display: flex;
     justify-content: space-between;
@@ -363,15 +462,12 @@
 .ds-page-header-left p { font-size: 0.88rem; color: #636e72; font-weight: 500; }
 .ds-page-header-actions { display: flex; gap: 8px; align-items: center; }
 
-/* Responsive */
+/* ══ RESPONSIVE ═══════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
-    .ds-form-grid {
-        grid-template-columns: 1fr;
-    }
-    .ds-form-grid label {
-        text-align: left;
-    }
-    .ds-cards-grid {
-        grid-template-columns: 1fr;
-    }
+    .ds-form-grid { grid-template-columns: 1fr; }
+    .ds-form-grid label { text-align: left; }
+    .ds-cards-grid { grid-template-columns: 1fr; }
+    .ds-service-prices-grid { grid-template-columns: repeat(2, 1fr); }
+    .ds-price-table-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .ds-price-input-wrap { width: 100%; }
 }

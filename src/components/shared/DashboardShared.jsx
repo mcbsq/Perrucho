@@ -1,7 +1,9 @@
 // src/components/shared/DashboardShared.jsx
-// ─── Componentes reutilizables por AdminDashboard y EmployeeDashboard ─────────
-// Patrón: FAB + Modal para todos los formularios, cards para todos los listados
-// ─────────────────────────────────────────────────────────────────────────────
+// CAMBIOS v2 según catálogo de servicios real:
+// 1. ServiceCard ahora muestra los 6 rangos de peso (Mini→Jumbo) en lugar de 3
+// 2. ServiceFormModal ahora tiene campos para los 6 precios (priceMini→priceJumbo)
+// 3. Se importa pricingRules para labels y rangos consistentes
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
     FaTimes, FaEdit, FaTrash, FaUser, FaPaw, FaCut, FaBoxOpen,
@@ -12,6 +14,7 @@ import {
 import { formatMexPhone } from '../../utils/formatPhone';
 import BreedCombobox from '../BreedCombobox/BreedCombobox';
 import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
+import { WEIGHT_RANGES, PRICE_FIELD } from '../../utils/pricingRules';
 
 // ─── Emoji por especie ────────────────────────────────────────────────────────
 export const speciesEmoji = (sp) => {
@@ -65,7 +68,7 @@ export const StatusBadge = ({ status }) => {
     );
 };
 
-// ─── Status Selector — dropdown de cambio de estado ──────────────────────────
+// ─── Status Selector ─────────────────────────────────────────────────────────
 export const StatusSelector = ({ current, transitions, onSelect }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
@@ -181,7 +184,7 @@ export const PetCard = ({ pet, owner, onEdit, onDelete }) => {
                 <div className="ds-card-meta">
                     <span className="ds-tag ds-tag--purple">{emoji} {pet.species || 'mascota'}</span>
                     {pet.breed  && <span className="ds-tag ds-tag--gray">{pet.breed}</span>}
-                    {pet.weight && <span className="ds-tag ds-tag--gray"><FaWeight/> {pet.weight} kg</span>}
+                    {pet.weight && <span className="ds-tag ds-tag--gray"><FaWeight/> ~{pet.weight} kg</span>}
                 </div>
                 {owner && <div className="ds-card-owner">👤 {owner.name}</div>}
                 {pet.notes && <div className="ds-card-notes">📌 {pet.notes}</div>}
@@ -228,7 +231,7 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
                     <BreedCombobox value={form.breed}
                         onChange={v => setForm({ ...form, breed: v })}
                         species={form.species} />
-                    <label>Peso (kg)</label>
+                    <label>Peso aprox. (kg)</label>
                     <input type="number" placeholder="Ej: 5" value={form.weight}
                         onChange={e => setForm({ ...form, weight: e.target.value })} required />
                     <label>Dueño</label>
@@ -254,6 +257,7 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
 };
 
 // ─── SERVICE CARD ─────────────────────────────────────────────────────────────
+// CAMBIO: ahora muestra los 6 rangos de peso en lugar de 3
 export const ServiceCard = ({ service, onEdit, onDelete }) => (
     <div className="ds-card ds-service-card">
         <div className="ds-service-icon">{service.icon || '✂️'}</div>
@@ -261,12 +265,20 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
             <div className="ds-card-name">{service.title}</div>
             <div className="ds-card-meta">
                 <span className="ds-tag ds-tag--blue">{service.category}</span>
-                {service.duration && <span className="ds-tag ds-tag--gray">⏱ {service.duration}</span>}
             </div>
-            <div className="ds-service-prices">
-                <span>Chico <strong>${service.priceChico || service.price}</strong></span>
-                <span>Mediano <strong>${service.priceMediano || service.price}</strong></span>
-                <span>Grande <strong>${service.priceGrande || service.price}</strong></span>
+            {/* Tabla de precios con los 6 rangos */}
+            <div className="ds-service-prices-grid">
+                {WEIGHT_RANGES.map(range => {
+                    const field = PRICE_FIELD[range.key];
+                    const price = service[field] ?? service.price ?? 0;
+                    return (
+                        <div key={range.key} className="ds-service-price-item">
+                            <span className="ds-service-price-label">{range.label}</span>
+                            <span className="ds-service-price-desc">{range.desc}</span>
+                            <strong className="ds-service-price-value">${price}</strong>
+                        </div>
+                    );
+                })}
             </div>
         </div>
         <div className="ds-card-actions">
@@ -277,10 +289,12 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
 );
 
 // ─── SERVICE FORM MODAL ───────────────────────────────────────────────────────
+// CAMBIO: ahora tiene los 6 campos de precio (priceMini→priceJumbo)
 export const ServiceFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
-        title: '', price: '', duration: '', category: 'Estética', description: '',
-        icon: '', color: 'blue', popular: false
+        title: '', category: 'Estética', description: '', icon: '', color: 'blue', popular: false,
+        priceMini: '', priceChico: '', priceMediano: '', priceGrande: '', priceExtra: '', priceJumbo: '',
+        price: '', // precio base (se usará como fallback y para el POS)
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -288,23 +302,19 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
-        try { await onSave(form); }
+        // price base = priceMini para mantener compatibilidad con POS y ServiceCard legacy
+        const payload = { ...form, price: form.priceMini || form.price };
+        try { await onSave(payload); }
         finally { setSaving(false); }
     };
 
     return (
-        <DSModal title={isEdit ? `✏️ Editar — ${initial.title}` : '✂️ Nuevo servicio'} onClose={onClose}>
+        <DSModal title={isEdit ? `✏️ Editar — ${initial.title}` : '✂️ Nuevo servicio'} onClose={onClose} wide>
             <form onSubmit={handleSubmit} className="ds-form">
                 <div className="ds-form-grid">
                     <label>Nombre</label>
                     <input placeholder="Nombre del servicio" value={form.title}
                         onChange={e => setForm({ ...form, title: e.target.value })} required />
-                    <label>Precio base</label>
-                    <input type="number" placeholder="$" value={form.price}
-                        onChange={e => setForm({ ...form, price: e.target.value })} required />
-                    <label>Duración</label>
-                    <input placeholder="Ej: 60 min" value={form.duration}
-                        onChange={e => setForm({ ...form, duration: e.target.value })} required />
                     <label>Categoría</label>
                     <select value={form.category}
                         onChange={e => setForm({ ...form, category: e.target.value })}>
@@ -320,6 +330,37 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                         onChange={e => setForm({ ...form, description: e.target.value })}
                         style={{ gridColumn: '1 / -1' }} />
                 </div>
+
+                {/* Tabla de precios por rango de peso */}
+                <div className="ds-price-table-label">
+                    💲 Precios por tamaño
+                </div>
+                <div className="ds-price-table">
+                    {WEIGHT_RANGES.map(range => {
+                        const field = PRICE_FIELD[range.key];
+                        return (
+                            <div key={range.key} className="ds-price-table-row">
+                                <div className="ds-price-table-info">
+                                    <span className="ds-price-range-name">{range.label}</span>
+                                    <span className="ds-price-range-desc">{range.desc}</span>
+                                </div>
+                                <div className="ds-price-input-wrap">
+                                    <span className="ds-price-prefix">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="0"
+                                        value={form[field] ?? ''}
+                                        onChange={e => setForm({ ...form, [field]: e.target.value })}
+                                        required
+                                        className="ds-price-input"
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
                     <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
@@ -411,7 +452,7 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
     );
 };
 
-// ─── USER CARD (solo admin) ───────────────────────────────────────────────────
+// ─── USER CARD ────────────────────────────────────────────────────────────────
 export const UserCard = ({ user, onEdit, onDelete, currentUserId }) => (
     <div className="ds-card ds-user-card">
         <div className="ds-card-avatar" style={{
@@ -439,7 +480,7 @@ export const UserCard = ({ user, onEdit, onDelete, currentUserId }) => (
     </div>
 );
 
-// ─── USER FORM MODAL (solo admin) ─────────────────────────────────────────────
+// ─── USER FORM MODAL ──────────────────────────────────────────────────────────
 export const UserFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
         name: '', email: '', password: '', role: 'empleado', capacity: 1

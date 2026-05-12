@@ -1,7 +1,5 @@
-/* src/components/ServiceCard/ServiceCard.css */
-/* ==========================================================================
-   Estilos de la tarjeta de servicio — compartidos por Home y Services.
-   Antes estaban duplicados en Home.css y en Services.css.
+/* src/components/ServiceCard/ServiceCard.css
+   CAMBIOS v2: selector de talla con 6 rangos, badge de descripción de rango
    ========================================================================== */
 
 .svc-card {
@@ -11,7 +9,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     position: relative;
     box-shadow: var(--shadow-card, 0 12px 32px rgba(0,0,0,0.06));
     border: 1px solid var(--color-border-light, rgba(0,0,0,0.04));
@@ -57,7 +55,6 @@
 .svc-card:hover .svc-icon-wrap {
     transform: scale(1.12) rotate(6deg);
 }
-
 .svc-icon-wrap--blue     { background: var(--color-surface-blue, #e6f1fb); }
 .svc-icon-wrap--lavender { background: var(--color-surface-lavender, #f0eeff); }
 .svc-icon-wrap--mint     { background: var(--color-surface-mint, #e1f5ee); }
@@ -81,20 +78,12 @@
     margin: 0;
 }
 
-.svc-duration {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--color-text-hint, #aaa);
-    background: var(--color-bg-page, #f8f9fc);
-    padding: 4px 14px;
-    border-radius: var(--radius-pill, 999px);
-    letter-spacing: 0.3px;
-}
-
-/* Selector de talla */
+/* ── Selector de talla — 6 rangos ────────────────────────────────────────── */
+/* Ahora tiene 6 botones en lugar de 3, usamos grid en lugar de flex */
 .svc-size-selector {
-    display: flex;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
     background: #f4f5f8;
     padding: 4px;
     border-radius: 14px;
@@ -102,16 +91,16 @@
 }
 
 .svc-size-btn {
-    flex: 1;
-    padding: 8px 0;
+    padding: 7px 4px;
     border: none;
     border-radius: 10px;
-    font-size: 0.82rem;
+    font-size: 0.75rem;
     font-weight: 700;
     cursor: pointer;
     background: transparent;
     color: var(--color-text-muted, #888);
     transition: var(--transition-base, all 0.25s);
+    white-space: nowrap;
 }
 .svc-size-btn:hover {
     background: rgba(255,255,255,0.7);
@@ -122,6 +111,17 @@
 .svc-card--blue     .svc-size-btn.active { background: var(--color-accent, #74b9ff);    color: white; box-shadow: 0 4px 12px rgba(116,185,255,0.35); }
 .svc-card--lavender .svc-size-btn.active { background: var(--color-lavender, #a29bfe);  color: white; box-shadow: 0 4px 12px rgba(162,155,254,0.35); }
 .svc-card--mint     .svc-size-btn.active { background: var(--color-mint, #55efc4);      color: #04342C; box-shadow: 0 4px 12px rgba(85,239,196,0.35); }
+
+/* Badge de rango de kg del tamaño seleccionado */
+.svc-range-desc {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-hint, #aaa);
+    background: var(--color-bg-page, #f8f9fc);
+    padding: 3px 12px;
+    border-radius: var(--radius-pill, 999px);
+    letter-spacing: 0.3px;
+}
 
 /* Display de precio */
 .svc-price-display {
@@ -155,7 +155,7 @@
 .svc-price-display--lavender .svc-price-amount { color: var(--color-lavender, #a29bfe); }
 .svc-price-display--mint     .svc-price-amount { color: var(--color-mint-dark, #1D9E75); }
 
-/* Botón CTA de la card */
+/* Botón CTA */
 .svc-cta-btn {
     width: 100%;
     padding: 16px;
@@ -176,9 +176,7 @@
 .svc-cta-btn--lavender:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(162,155,254,0.4); }
 .svc-cta-btn--mint:hover     { background: var(--color-mint-dark, #1D9E75); color: white; transform: translateY(-3px); box-shadow: 0 12px 28px rgba(85,239,196,0.4); }
 
-/* ==========================================================================
-   Grid de cards — usado en Home y Services
-   ========================================================================== */
+/* Grid de cards */
 .svc-cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -186,15 +184,12 @@
     max-width: 1100px;
     margin: 0 auto;
 }
-
-/* Variante para página completa (Services.jsx — sin max-width restrictivo) */
 .svc-cards-grid--page {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 32px;
     max-width: 1300px;
 }
 
-/* Mensaje vacío */
 .svc-empty-msg {
     grid-column: 1 / -1;
     text-align: center;
@@ -206,9 +201,7 @@
     font-size: 1.1rem;
 }
 
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
+/* Responsive */
 @media (max-width: 768px) {
     .svc-cards-grid { grid-template-columns: 1fr; max-width: 420px; }
 }
@@ -217,4 +210,6 @@
     .svc-card { padding: 32px 20px; }
     .svc-icon-wrap { width: 72px; height: 72px; }
     .svc-icon { font-size: 2.2rem; }
+    /* En pantallas pequeñas mostrar 2 columnas en el selector */
+    .svc-size-selector { grid-template-columns: repeat(2, 1fr); }
 }

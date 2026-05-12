@@ -1,17 +1,14 @@
-// src/pages/admin/AdminDashboard.jsx  ── RONDA 5
+// src/pages/admin/AdminDashboard.jsx  ── RONDA 6
 //
-// CAMBIOS v5:
-// FIX CRÍTICO de timezone — el calendario estaba desfasado 1 día.
-// Causa: dayDate.toISOString().split('T')[0] convierte la fecha LOCAL a UTC.
-// En México (UTC-6), el 7 de abril 00:00 local → 6 de abril 18:00 UTC →
-// quedaba como "2026-04-06" en el grid, pero el popup (que usa appt.date
-// directamente) mostraba "2026-04-07".
-// Solución: helper toLocalISO() que construye el string YYYY-MM-DD sin
-// pasar por UTC. Se aplica en WeekView, DayView y donde se navegue al day.
+// CAMBIOS v6 (cierre de checklist):
+// #22 — useConfirm / ConfirmDialog propio reemplazado por useNotify (NotifyDialog)
+//        para consistencia visual con el EmployeeDashboard.
+// #27 — calcPrice local eliminado. Ahora se usa calcServicePrice() de pricingRules.js
+//        en CalendarModal al crear/editar citas desde el calendario admin.
+//        El precio estimado ahora refleja los precios exactos del catálogo.
 //
-// Mantiene de v4: todos los módulos con FAB + Modal + Cards, estados de cita
-// con transiciones, validación de concurrencia, pop-up de detalle, búsqueda
-// global cross-tab, CalendarModal con vistas mes/semana/día.
+// Mantiene de v5: toLocalISO() para fix de timezone, todos los módulos CRUD,
+// CalendarModal completo con vistas mes/semana/día.
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
@@ -24,7 +21,7 @@ import {
     FaSearch, FaBoxOpen, FaCartPlus, FaReceipt, FaTrashAlt,
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaExclamationTriangle, FaDollarSign, FaSync,
-    FaNotesMedical, FaCheckCircle, FaChevronLeft, FaChevronRight,
+    FaNotesMedical, FaChevronLeft, FaChevronRight,
     FaUserTie, FaExternalLinkAlt, FaPlus
 } from 'react-icons/fa';
 import {
@@ -35,21 +32,18 @@ import {
     ProductCard, ProductFormModal,
     UserCard, UserFormModal
 } from '../../components/shared/DashboardShared';
+import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/DashboardShared.css';
-import { APPT_STATUS, STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
-import { formatMexPhone } from '../../utils/formatPhone';
+import '../../components/shared/NotifyDialog.css';
+import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
+import { calcServicePrice } from '../../utils/pricingRules';
 import './AdminDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// FIX timezone: construye YYYY-MM-DD desde una fecha LOCAL, sin pasar por UTC.
-// Esto evita el desfase de un día cuando estás en zonas horarias negativas
-// (México UTC-6: el 7 de abril 00:00 local = 6 de abril 18:00 UTC).
+// FIX timezone: construye YYYY-MM-DD desde fecha LOCAL, sin pasar por UTC.
 const toLocalISO = (d) => {
     if (!d) return '';
-    const year  = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day   = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
 
 const todayISO = () => toLocalISO(new Date());
@@ -59,12 +53,12 @@ const isSameDay   = (d,o)   => { const p=parseDate(d); return p&&!isNaN(p)&&p.ge
 const parseTime   = (t)     => { if(!t)return 8*60; const[h,m]=t.split(':').map(Number); return h*60+(m||0); };
 const formatDateLong = (s)  => { if(!s)return''; return new Date(s+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}); };
 const hueFromId = (id) => { const n=typeof id==='string'?id.split('').reduce((a,c)=>a+c.charCodeAt(0),0):Number(id); return(n*137)%360; };
-const buildGCalLink = (a) => { const ds=(a.date||todayISO()).replace(/-/g,'');const ts=(a.time||'09:00').replace(':','');const s=`${ds}T${ts}00`;const eh=String(Number((a.time||'09:00').split(':')[0])+1).padStart(2,'0');const e=`${ds}T${eh}${(a.time||'09:00').split(':')[1]}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${a.petName} — ${a.serviceName}`)}&dates=${s}/${e}&details=${encodeURIComponent(`Servicio: ${a.serviceName}\nMascota: ${a.petName}\nImporte: $${a.finalPrice}`)}`; };
+const buildGCalLink = (a) => { const ds=(a.date||todayISO()).replace(/-/g,'');const ts=(a.time||'10:15').replace(':','');const s=`${ds}T${ts}00`;const eh=String(Number((a.time||'10:15').split(':')[0])+1).padStart(2,'0');const e=`${ds}T${eh}${(a.time||'10:15').split(':')[1]}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${a.petName} — ${a.serviceName}`)}&dates=${s}/${e}&details=${encodeURIComponent(`Servicio: ${a.serviceName}\nMascota: ${a.petName}\nImporte: $${a.finalPrice}`)}`; };
 
 const MONTH_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MONTH_SHORT=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const DAYS_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const HOURS=Array.from({length:12},(_,i)=>i+8);
+const HOURS=Array.from({length:9},(_,i)=>i+9); // 9am-5pm aprox
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({message,type,onClose}) => {
@@ -73,42 +67,9 @@ const Toast = ({message,type,onClose}) => {
 };
 const useToast = () => {
     const [toasts,setToasts]=useState([]);
-    const addToast    = useCallback((m,t='info')=>setToasts(p=>[...p,{id:Date.now(),message:m,type:t}]),[]);
+    const addToast    = useCallback((m,t='info')=>setToasts(p=>[...p,{id:Date.now()+Math.random(),message:m,type:t}]),[]);
     const removeToast = useCallback((id)=>setToasts(p=>p.filter(t=>t.id!==id)),[]);
     return {toasts,addToast,removeToast};
-};
-
-// ─── Confirm ──────────────────────────────────────────────────────────────────
-const ConfirmDialog = ({message,onConfirm,onCancel}) => (
-    <div className="modal-overlay" onClick={onCancel}>
-        <div className="modal-box confirm-dialog" onClick={e=>e.stopPropagation()}>
-            <div className="modal-header"><h3><FaExclamationTriangle style={{color:'#ff7675',marginRight:8}}/>Confirmar</h3><button className="modal-close" onClick={onCancel}><FaTimes/></button></div>
-            <div className="modal-body"><p className="confirm-message">{message}</p>
-                <div className="form-actions form-actions--end" style={{marginTop:16}}><button className="btn-secondary" onClick={onCancel}>Cancelar</button><button className="btn-danger" onClick={onConfirm}>Confirmar</button></div>
-            </div>
-        </div>
-    </div>
-);
-const useConfirm = () => {
-    const [dlg,setDlg]=useState(null);
-    const confirm=useCallback((m)=>new Promise(r=>setDlg({m,r})),[]);
-    const ConfirmNode=dlg?<ConfirmDialog message={dlg.m} onConfirm={()=>{dlg.r(true);setDlg(null);}} onCancel={()=>{dlg.r(false);setDlg(null);}}/>:null;
-    return {confirm,ConfirmNode};
-};
-
-// ─── Gráficas ─────────────────────────────────────────────────────────────────
-const ServiceChart = ({sales,services}) => {
-    const cats=useMemo(()=>{const now=new Date(),map={};sales.forEach(s=>{if(!isSameMonth(s.date,now.getFullYear(),now.getMonth()))return;const svc=services.find(sv=>String(s.item).toLowerCase().includes(sv.title?.toLowerCase()));map[svc?.category||'Otros']=(map[svc?.category||'Otros']||0)+Number(s.price);});return Object.entries(map).sort((a,b)=>b[1]-a[1]);},[sales,services]);
-    const max=Math.max(...cats.map(c=>c[1]),1);
-    const COLORS=['#74b9ff','#a29bfe','#55efc4','#fdcb6e','#ff7675'];
-    return <div className="service-chart">{cats.length===0?<p className="empty-chart">Sin datos</p>:cats.map(([cat,total],i)=><div key={cat} className="svc-bar-row"><span className="svc-bar-label">{cat}</span><div className="svc-bar-track"><div className="svc-bar-fill" style={{width:`${(total/max)*100}%`,background:COLORS[i%5]}}/></div><span className="svc-bar-val">${total.toLocaleString()}</span></div>)}</div>;
-};
-const WeeklyChart = ({sales}) => {
-    const tod=new Date().getDay();
-    const totals=useMemo(()=>{const m=[0,0,0,0,0,0,0],now=new Date();sales.forEach(s=>{const d=parseDate(s.date);if(!d||isNaN(d))return;const diff=Math.floor((now-d)/86400000);if(diff>=0&&diff<7)m[d.getDay()]+=Number(s.price)||0;});return m;},[sales]);
-    const max=Math.max(...totals,1);
-    const DAYS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-    return <div className="weekly-chart-wrap"><div className="chart-bars">{totals.map((v,i)=><div key={i} className="chart-col"><span className="chart-val">{v>0?`$${v}`:''}</span><div className={`chart-bar ${i===tod?'today':''}`} style={{height:`${Math.max((v/max)*80,4)}px`}}/><span className="chart-day">{DAYS[i]}</span></div>)}</div></div>;
 };
 
 // ─── Modal genérico admin ─────────────────────────────────────────────────────
@@ -129,8 +90,8 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
     const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
     const emp=users.find(u=>String(u.id)===String(appt.assignedTo));
     const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
-    const transitions=STATUS_TRANSITIONS[role]||STATUS_TRANSITIONS.empleado;
-    const actionDef=(STATUS_ACTION_LABEL[role]||STATUS_ACTION_LABEL.empleado)[appt.status];
+    const transitions=STATUS_TRANSITIONS[role]||STATUS_TRANSITIONS.admin;
+    const actionDef=(STATUS_ACTION_LABEL[role]||STATUS_ACTION_LABEL.admin)[appt.status];
 
     useEffect(()=>{
         if(!anchor||!ref.current)return;
@@ -141,19 +102,13 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
         if(top+PH>H-12)top=anchor.top-PH-8;
         setPos({top:Math.max(12,top),left});
     },[anchor]);
-
-    useEffect(()=>{
-        const h=(e)=>{if(ref.current&&!ref.current.contains(e.target))onClose();};
-        const t=setTimeout(()=>document.addEventListener('mousedown',h),80);
-        return()=>{clearTimeout(t);document.removeEventListener('mousedown',h);};
-    },[onClose]);
-
+    useEffect(()=>{const h=(e)=>{if(ref.current&&!ref.current.contains(e.target))onClose();};const t=setTimeout(()=>document.addEventListener('mousedown',h),80);return()=>{clearTimeout(t);document.removeEventListener('mousedown',h);};},[onClose]);
     useEffect(()=>{const h=(e)=>{if(e.key==='Escape')onClose();};document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h);},[onClose]);
 
     const handleAction = () => {
         if(!actionDef)return;
-        if(actionDef.style==='finish') { onFinalize(appt); onClose(); }
-        else { onStatusChange(appt, transitions[appt.status]?.[0]); onClose(); }
+        if(actionDef.style==='finish'){onFinalize(appt);onClose();}
+        else{onStatusChange(appt,transitions[appt.status]?.[0]);onClose();}
     };
 
     return <>
@@ -164,7 +119,7 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
                 <div className="appt-popup-avatar" style={{background:`hsl(${hueFromId(appt.petId)},65%,60%)`}}>{pet?.petName?.[0]?.toUpperCase()||'?'}</div>
                 <div className="appt-popup-title">
                     <strong>{pet?.petName||'Mascota'}</strong>
-                    <span>{pet?.breed||'—'} · {pet?.weight} kg</span>
+                    <span>{pet?.breed||'—'} · {pet?.weight ? `~${pet.weight} kg` : 'peso por verificar'}</span>
                     {owner&&<span className="appt-popup-owner">{owner.name}{owner.phone?` · ${owner.phone}`:''}</span>}
                     {emp&&<span className="appt-popup-assigned"><FaUserTie/> {emp.name}</span>}
                 </div>
@@ -172,13 +127,10 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
             </div>
             <div className="adp-body">
                 <div className="adp-row"><FaClock className="adp-icon"/><span>{appt.time||'—'} · {appt.date}</span></div>
-                <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{appt.serviceName||'—'}</span><strong className="adp-price">${appt.finalPrice||0}</strong></div>
+                <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{appt.serviceName||'—'}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
                 <div className="adp-row">
-                    <StatusSelector
-                        current={appt.status||'Pendiente'}
-                        transitions={transitions}
-                        onSelect={(newStatus) => { onStatusChange(appt, newStatus); onClose(); }}
-                    />
+                    <StatusSelector current={appt.status||'Pendiente'} transitions={transitions}
+                        onSelect={(newStatus)=>{onStatusChange(appt,newStatus);onClose();}}/>
                 </div>
                 {pet?.notes&&<div className="appt-popup-notes"><span className="appt-popup-notes-label">Notas</span><p>{pet.notes}</p></div>}
             </div>
@@ -195,6 +147,21 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
     </>;
 };
 
+// ─── Gráficas ─────────────────────────────────────────────────────────────────
+const ServiceChart = ({sales,services}) => {
+    const cats=useMemo(()=>{const now=new Date(),map={};sales.forEach(s=>{if(!isSameMonth(s.date,now.getFullYear(),now.getMonth()))return;const svc=services.find(sv=>String(s.item).toLowerCase().includes(sv.title?.toLowerCase()));map[svc?.category||'Otros']=(map[svc?.category||'Otros']||0)+Number(s.price);});return Object.entries(map).sort((a,b)=>b[1]-a[1]);},[sales,services]);
+    const max=Math.max(...cats.map(c=>c[1]),1);
+    const COLORS=['#74b9ff','#a29bfe','#55efc4','#fdcb6e','#ff7675'];
+    return <div className="service-chart">{cats.length===0?<p className="empty-chart">Sin datos</p>:cats.map(([cat,total],i)=><div key={cat} className="svc-bar-row"><span className="svc-bar-label">{cat}</span><div className="svc-bar-track"><div className="svc-bar-fill" style={{width:`${(total/max)*100}%`,background:COLORS[i%5]}}/></div><span className="svc-bar-val">${total.toLocaleString()}</span></div>)}</div>;
+};
+const WeeklyChart = ({sales}) => {
+    const tod=new Date().getDay();
+    const totals=useMemo(()=>{const m=[0,0,0,0,0,0,0],now=new Date();sales.forEach(s=>{const d=parseDate(s.date);if(!d||isNaN(d))return;const diff=Math.floor((now-d)/86400000);if(diff>=0&&diff<7)m[d.getDay()]+=Number(s.price)||0;});return m;},[sales]);
+    const max=Math.max(...totals,1);
+    const DAYS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    return <div className="weekly-chart-wrap"><div className="chart-bars">{totals.map((v,i)=><div key={i} className="chart-col"><span className="chart-val">{v>0?`$${v}`:''}</span><div className={`chart-bar ${i===tod?'today':''}`} style={{height:`${Math.max((v/max)*80,4)}px`}}/><span className="chart-day">{DAYS[i]}</span></div>)}</div></div>;
+};
+
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
 const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,onRefresh,onAddAppointment,onStatusChange,onFinalize,onDeleteAppt}) => {
     const now=new Date();
@@ -209,8 +176,18 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const empleados=users.filter(u=>u.role==='empleado');
     const [newAppt,setNewAppt]=useState({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
 
-    const calcPrice=(base,w)=>{const weight=Number(w),p=Number(base);if(weight<=5)return p;if(weight<=12)return+(p*1.25).toFixed(2);if(weight<=25)return+(p*1.50).toFixed(2);return+(p*2).toFixed(2);};
-    useEffect(()=>{if(newAppt.petId&&newAppt.serviceId){const pet=pets.find(p=>String(p.id)===String(newAppt.petId));const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));if(pet&&svc)setNewAppt(f=>({...f,finalPrice:calcPrice(svc.price,pet.weight)}));}setSlotError('');},[newAppt.petId,newAppt.serviceId,newAppt.date,newAppt.time]);
+    // FIX #27: usar calcServicePrice en lugar del multiplicador genérico
+    useEffect(()=>{
+        if(newAppt.petId && newAppt.serviceId){
+            const pet = pets.find(p=>String(p.id)===String(newAppt.petId));
+            const svc = services.find(s=>String(s.id)===String(newAppt.serviceId));
+            if(pet && svc){
+                const price = calcServicePrice(svc, pet.weight);
+                setNewAppt(f=>({...f, finalPrice: price}));
+            }
+        }
+        setSlotError('');
+    },[newAppt.petId, newAppt.serviceId, newAppt.date, newAppt.time]);
 
     const apptsByDate=useMemo(()=>{const m={};appointments.forEach(a=>{if(!m[a.date])m[a.date]=[];m[a.date].push(a);});return m;},[appointments]);
 
@@ -218,7 +195,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const goNext=()=>{if(calView==='month'){setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1));}else{const d=new Date(dayDate);d.setDate(d.getDate()+(calView==='week'?7:1));setDayDate(d);}};
     const goToday=()=>{setViewDate(new Date(now.getFullYear(),now.getMonth(),1));setDayDate(new Date(now));};
     const switchView=(v)=>{const c=new Date(viewDate.getFullYear(),viewDate.getMonth(),1);const isCur=viewDate.getFullYear()===now.getFullYear()&&viewDate.getMonth()===now.getMonth();if(v!=='month')setDayDate(isCur?new Date(now):c);setCalView(v);};
-    // FIX timezone: usar toLocalISO en lugar de toISOString
     const headerLabel=()=>{if(calView==='month')return`${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getFullYear()}`;if(calView==='day')return formatDateLong(toLocalISO(dayDate));const s=new Date(dayDate);s.setDate(s.getDate()-s.getDay());const e=new Date(s);e.setDate(e.getDate()+6);return`${s.getDate()} — ${e.getDate()} ${MONTH_NAMES[e.getMonth()]}`;};
 
     const openPopup=(appt,e)=>{e.stopPropagation();setAnchor(e.currentTarget.getBoundingClientRect());setSelAppt(appt);};
@@ -239,22 +215,16 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
         }finally{setSaving(false);}
     };
 
-    const EventChip = ({appt,style='chip'}) => {
+    const EventChip=({appt,style='chip'})=>{
         const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
         const cls=style==='block'?'admin-cal-event-block':'admin-cal-event-chip';
-        return <div className={cls}
-            style={{background:sc.bg,borderLeft:`3px solid ${sc.border}`,color:sc.text}}
-            onClick={ev=>openPopup(appt,ev)}
-            title={`${appt.petName} · ${appt.serviceName} · ${STATUS_EMOJI[appt.status]} ${appt.status}`}>
+        return <div className={cls} style={{background:sc.bg,borderLeft:`3px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)} title={`${appt.petName} · ${appt.serviceName} · ${STATUS_EMOJI[appt.status]} ${appt.status}`}>
             {style==='block'&&<><strong>{appt.time}</strong><span>{appt.petName}</span><span>{appt.serviceName}</span></>}
             {style==='chip'&&<>{appt.time} {appt.petName}</>}
-            <span className="cal-status-dot-mini" style={{background:sc.dot,display:'inline-block',width:6,height:6,borderRadius:'50%',marginLeft:4}}/>
+            <span style={{background:sc.dot,display:'inline-block',width:6,height:6,borderRadius:'50%',marginLeft:4}}/>
         </div>;
     };
 
-    // ── Vista Mes ──────────────────────────────────────────────────────────────
-    // Esta vista ya construía el ds manualmente sin toISOString, así que estaba
-    // bien. La incluyo igual para mantener consistencia.
     const MonthView=()=>{
         const y=viewDate.getFullYear(),m=viewDate.getMonth();
         const first=new Date(y,m,1).getDay();
@@ -269,8 +239,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                     const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                     const da=apptsByDate[ds]||[];
                     const isToday=day===now.getDate()&&m===now.getMonth()&&y===now.getFullYear();
-                    return <div key={i} className={`admin-cal-cell ${isToday?'admin-cal-cell--today':''}`}
-                        onClick={()=>{setDayDate(new Date(y,m,day));switchView('day');}}>
+                    return <div key={i} className={`admin-cal-cell ${isToday?'admin-cal-cell--today':''}`} onClick={()=>{setDayDate(new Date(y,m,day));switchView('day');}}>
                         <span className="admin-cal-cell-num">{day}</span>
                         {da.slice(0,3).map(a=><EventChip key={a.id} appt={a} style='chip'/>)}
                         {da.length>3&&<div className="admin-cal-more">+{da.length-3} más</div>}
@@ -280,7 +249,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
         </div>;
     };
 
-    // ── Vista Semana ───────────────────────────────────────────────────────────
     const WeekView=()=>{
         const s=new Date(dayDate);s.setDate(s.getDate()-s.getDay());
         const wd=Array.from({length:7},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return d;});
@@ -296,22 +264,17 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                 {HOURS.map(h=><div key={h} className="admin-cal-hour-row">
                     <div className="admin-cal-time-label">{h}:00</div>
                     {wd.map((d,di)=>{
-                        // FIX timezone: usar toLocalISO en lugar de toISOString
-                        const ds=toLocalISO(d);
+                        const ds=toLocalISO(d); // FIX timezone
                         const slot=(apptsByDate[ds]||[]).filter(a=>{const min=parseTime(a.time);return min>=h*60&&min<(h+1)*60;});
-                        return <div key={di} className="admin-cal-hour-cell">
-                            {slot.map(a=><EventChip key={a.id} appt={a} style='block'/>)}
-                        </div>;
+                        return <div key={di} className="admin-cal-hour-cell">{slot.map(a=><EventChip key={a.id} appt={a} style='block'/>)}</div>;
                     })}
                 </div>)}
             </div>
         </div>;
     };
 
-    // ── Vista Día ──────────────────────────────────────────────────────────────
     const DayView=()=>{
-        // FIX timezone: usar toLocalISO en lugar de toISOString
-        const ds=toLocalISO(dayDate);
+        const ds=toLocalISO(dayDate); // FIX timezone
         const da=(apptsByDate[ds]||[]).sort((a,b)=>parseTime(a.time)-parseTime(b.time));
         return <div className="admin-cal-day">
             <div className="admin-cal-day-label">{formatDateLong(ds)}<span className="admin-cal-day-count">{da.length} cita{da.length!==1?'s':''}</span></div>
@@ -326,17 +289,12 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                                 const pet=pets.find(p=>String(p.id)===String(a.petId));
                                 const owner=pet?clients.find(cl=>String(cl.id)===String(pet.ownerId)):null;
                                 const emp=users.find(u=>String(u.id)===String(a.assignedTo));
-                                return <div key={a.id} className="admin-cal-day-event"
-                                    style={{background:sc.bg,borderLeft:`5px solid ${sc.border}`,color:sc.text}}
-                                    onClick={ev=>openPopup(a,ev)}>
-                                    <div className="admin-cal-day-event-top">
-                                        <strong>{a.time} — {a.petName}</strong>
-                                        <StatusBadge status={a.status}/>
-                                    </div>
+                                return <div key={a.id} className="admin-cal-day-event" style={{background:sc.bg,borderLeft:`5px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(a,ev)}>
+                                    <div className="admin-cal-day-event-top"><strong>{a.time} — {a.petName}</strong><StatusBadge status={a.status}/></div>
                                     <span>{a.serviceName}</span>
                                     {owner&&<span className="admin-cal-owner">{owner.name}</span>}
                                     {emp&&<span className="admin-cal-emp"><FaUserTie/> {emp.name}</span>}
-                                    <span className="admin-cal-price">${a.finalPrice}</span>
+                                    <span className="admin-cal-price">~${a.finalPrice}</span>
                                 </div>;
                             })}
                         </div>
@@ -373,15 +331,29 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
 
             {showForm&&<form className="admin-cal-appt-form" onSubmit={handleCreate}>
                 <div className="admin-cal-form-grid">
-                    <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required><option value="">Paciente...</option>{pets.map(p=><option key={p.id} value={p.id}>{p.petName}</option>)}</select>
-                    <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value})} required><option value="">Servicio...</option>{services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select>
-                    <select value={newAppt.assignedTo} onChange={e=>setNewAppt({...newAppt,assignedTo:e.target.value})}><option value="">¿Quién atiende?</option>{empleados.map(u=><option key={u.id} value={u.id}>{u.name} (cap.{u.capacity||1})</option>)}</select>
+                    <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
+                        <option value="">Paciente...</option>
+                        {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
+                    </select>
+                    <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value})} required>
+                        <option value="">Servicio...</option>
+                        {services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
+                    </select>
+                    <select value={newAppt.assignedTo} onChange={e=>setNewAppt({...newAppt,assignedTo:e.target.value})}>
+                        <option value="">¿Quién atiende?</option>
+                        {empleados.map(u=><option key={u.id} value={u.id}>{u.name} (cap.{u.capacity||1})</option>)}
+                    </select>
                     <input type="date" value={newAppt.date} onChange={e=>setNewAppt({...newAppt,date:e.target.value})} required/>
                     <input type="time" value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})} required/>
-                    {newAppt.finalPrice>0&&<div className="appo-price-preview" style={{gridColumn:'span 2'}}>Estimado: <strong>${newAppt.finalPrice}</strong></div>}
+                    {newAppt.finalPrice>0&&<div className="appo-price-preview" style={{gridColumn:'span 2'}}>
+                        Estimado según catálogo: <strong>~${newAppt.finalPrice}</strong>
+                    </div>}
                 </div>
                 {slotError&&<div className="cal-slot-error"><FaExclamationTriangle/> {slotError}</div>}
-                <div className="form-actions form-actions--end"><button type="button" className="btn-secondary" onClick={()=>{setShowForm(false);setSlotError('');}}>Cancelar</button><button type="submit" className="btn-primary" disabled={saving}>{saving?'Guardando...':'Confirmar cita'}</button></div>
+                <div className="form-actions form-actions--end">
+                    <button type="button" className="btn-secondary" onClick={()=>{setShowForm(false);setSlotError('');}}>Cancelar</button>
+                    <button type="submit" className="btn-primary" disabled={saving}>{saving?'Guardando...':'Confirmar cita'}</button>
+                </div>
             </form>}
 
             <div className="admin-cal-view">
@@ -390,19 +362,15 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                 {calView==='day'&&<DayView/>}
             </div>
         </Modal>
-        {selAppt&&anchor&&<ApptDetailPopup
-            appt={selAppt} anchor={anchor}
-            pets={pets} clients={clients} users={users}
-            role={role||'admin'}
+        {selAppt&&anchor&&<ApptDetailPopup appt={selAppt} anchor={anchor} pets={pets} clients={clients} users={users} role={role||'admin'}
             onStatusChange={(a,s)=>{onStatusChange(a,s);closePopup();}}
             onFinalize={(a)=>{onFinalize(a);closePopup();}}
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
-            onClose={closePopup}
-        />}
+            onClose={closePopup}/>}
     </>;
 };
 
-// ─── SalesModal ───────────────────────────────────────────────────────────────
+// ─── Modales de reporte ───────────────────────────────────────────────────────
 const SalesModal = ({sales,onClose}) => {
     const now=new Date();
     const months=Array.from({length:4},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-i,1);return{label:`${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`,year:d.getFullYear(),month:d.getMonth()};});
@@ -454,10 +422,10 @@ const AdminDashboard = () => {
     const {services,products,pets,clients,sales,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
-    const {confirm,ConfirmNode}=useConfirm();
+    // FIX #22: usar useNotify en lugar de useConfirm propio
+    const {notify, NotifyNode} = useNotify();
 
     const [tab,setTab]=useState('control');
-
     const [searchTerm,setSearchTerm]=useState('');
     const [searchFocus,setSearchFocus]=useState(false);
     const searchRef=useRef(null);
@@ -466,7 +434,6 @@ const AdminDashboard = () => {
 
     const [activeModal,setActiveModal]=useState(null);
     const [showCalendar,setShowCalendar]=useState(false);
-
     const [clientModal,setClientModal]=useState(null);
     const [petModal,setPetModal]=useState(null);
     const [serviceModal,setServiceModal]=useState(null);
@@ -497,21 +464,41 @@ const AdminDashboard = () => {
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
     const processCheckout=async()=>{if(!cart.length)return;try{const sum=cart.map(i=>`${i.qty}x ${i.name||i.title}`).join(', ');await addSale(sum,+cartTotal.toFixed(2),posClientId||null);for(const item of cart){if(item.type==='product'){const o=products.find(p=>p.id===item.id);if(o)await updateProduct(item.id,{...o,stock:o.stock-item.qty});}}setCart([]);setPosClientId('');setShowCheckout(false);addToast('¡Venta procesada!','success');}catch{addToast('Error al procesar','error');}};
 
-    // ── CRUD genérico ─────────────────────────────────────────────────────────
-    const handleSaveClient=async(form)=>{try{if(form.id){await updateClient(form.id,form);}else{await addClient(form);}addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
-    const handleSavePet=async(form)=>{try{if(form.id){await updatePet(form.id,form);}else{await addPet(form);}addToast(form.id?'Paciente actualizado':'Paciente registrado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
-    const handleSaveService=async(form)=>{try{if(form.id){await updateService(form.id,form);}else{await addService(form);}addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
-    const handleSaveProduct=async(form)=>{try{if(form.id){await updateProduct(form.id,form);}else{await addProduct(form);}addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    // ── CRUD con NotifyDialog ─────────────────────────────────────────────────
+    const handleSaveClient=async(form)=>{try{form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Paciente actualizado':'Paciente registrado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveService=async(form)=>{try{form.id?await updateService(form.id,form):await addService(form);addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveProduct=async(form)=>{try{form.id?await updateProduct(form.id,form):await addProduct(form);addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);}addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
-    const handleDelete=async(type,id,label)=>{const ok=await confirm(`¿Eliminar "${label}"?`);if(!ok)return;try{if(type==='client')await deleteClient(id);if(type==='pet')await deletePet(id);if(type==='service')await deleteService(id);if(type==='product')await deleteProduct(id);if(type==='user'){await usersApi.delete(id);setUsers(p=>p.filter(u=>u.id!==id));}addToast('Eliminado','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
+    // FIX #22: handleDelete usa notify() en lugar de confirm() propio
+    const handleDelete=async(type,id,label)=>{
+        const ok=await notify({
+            type: 'confirm',
+            icon: '🗑️',
+            accent: 'red',
+            title: `¿Eliminar "${label}"?`,
+            message: 'Esta acción no se puede deshacer.',
+            confirmLabel: 'Sí, eliminar',
+            cancelLabel:  'Cancelar',
+        });
+        if(!ok)return;
+        try{
+            if(type==='client')  await deleteClient(id);
+            if(type==='pet')     await deletePet(id);
+            if(type==='service') await deleteService(id);
+            if(type==='product') await deleteProduct(id);
+            if(type==='user')    { await usersApi.delete(id); setUsers(p=>p.filter(u=>u.id!==id)); }
+            addToast('Eliminado','info');
+        }catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
 
-    // ── Appointments ─────────────────────────────────────────────────────────
+    // ── Appointments con notify() ─────────────────────────────────────────────
     const handleAddAppointment=useCallback(async(formData)=>{
         const check=validateSlot(appointments,formData.date,formData.time,empleados);
         if(!check.ok){addToast(check.message,'error');throw new Error(check.message);}
         const pet=pets.find(p=>String(p.id)===String(formData.petId));
-        const dataWithClient={...formData, clientId: pet?.ownerId||formData.clientId||null};
+        const dataWithClient={...formData,clientId:pet?.ownerId||formData.clientId||null};
         try{const c=await appointmentsApi.create(dataWithClient);setAppointments(p=>[...p,c]);addToast('Cita agendada','success');}
         catch(err){addToast(`Error al agendar: ${err.message}`,'error');throw err;}
     },[appointments,empleados,pets,addToast]);
@@ -523,27 +510,24 @@ const AdminDashboard = () => {
             setAppointments(p=>p.map(a=>a.id===appt.id?{...a,...updated}:a));
             if(newStatus==='Finalizada'){
                 const pet=pets.find(p=>String(p.id)===String(appt.petId));
-                await addSale(
-                    `Servicio: ${appt.serviceName} (${appt.petName})`,
-                    Number(appt.finalPrice),
-                    pet?.ownerId||null,
-                    'service'
-                );
-                if(pet)await updatePet(pet.id,{
-                    ...pet,
-                    history:[...(pet.history||[]),{
-                        date:todayStr_,
-                        detail:`${appt.serviceName} finalizado — $${appt.finalPrice}`,
-                        author:user?.name||'Admin'
-                    }]
-                });
+                await addSale(`Servicio: ${appt.serviceName} (${appt.petName})`,Number(appt.finalPrice),pet?.ownerId||null,'service');
+                if(pet)await updatePet(pet.id,{...pet,history:[...(pet.history||[]),{date:todayStr_,detail:`${appt.serviceName} finalizado — $${appt.finalPrice}`,author:user?.name||'Admin'}]});
             }
             addToast(`Estado → ${newStatus}`,'success');
         }catch(err){addToast(`Error: ${err.message}`,'error');}
     },[addToast,pets,addSale,updatePet,todayStr_,user]);
 
+    // FIX #22: handleFinalize usa notify()
     const handleFinalize=useCallback(async(appo)=>{
-        const ok=await confirm(`¿Finalizar y cobrar "${appo.serviceName}" de ${appo.petName} por $${appo.finalPrice}?`);
+        const ok=await notify({
+            type: 'confirm',
+            icon: '🏁',
+            accent: 'mint',
+            title: '¿Finalizar y cobrar?',
+            message: `"${appo.serviceName}" de ${appo.petName} — $${appo.finalPrice}`,
+            confirmLabel: `Cobrar $${appo.finalPrice}`,
+            cancelLabel:  'Cancelar',
+        });
         if(!ok)return;
         try{
             const pet=pets.find(p=>String(p.id)===String(appo.petId));
@@ -553,14 +537,24 @@ const AdminDashboard = () => {
             setAppointments(p=>p.map(a=>a.id===appo.id?{...a,...upd}:a));
             addToast('Servicio finalizado y cobrado','success');
         }catch(err){addToast(`Error: ${err.message}`,'error');}
-    },[confirm,pets,addSale,updatePet,todayStr_,addToast]);
+    },[notify,pets,addSale,updatePet,todayStr_,addToast]);
 
+    // FIX #22: handleDeleteAppt usa notify()
     const handleDeleteAppt=useCallback(async(id)=>{
-        const ok=await confirm('¿Eliminar esta cita?');if(!ok)return;
+        const ok=await notify({
+            type: 'confirm',
+            icon: '🗑️',
+            accent: 'red',
+            title: '¿Eliminar esta cita?',
+            message: 'Esta acción no se puede deshacer.',
+            confirmLabel: 'Sí, eliminar',
+            cancelLabel:  'Mantener',
+        });
+        if(!ok)return;
         setAppointments(p=>p.filter(a=>a.id!==id));
         try{await appointmentsApi.delete(id);}catch{}
         addToast('Cita eliminada','info');
-    },[confirm,addToast]);
+    },[notify,addToast]);
 
     // ── Filtros ───────────────────────────────────────────────────────────────
     const q=searchTerm.toLowerCase();
@@ -577,22 +571,17 @@ const AdminDashboard = () => {
     return (
         <div className="admin-layout">
             <div className="toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
-            {ConfirmNode}
+            {/* FIX #22: NotifyNode en lugar de ConfirmNode */}
+            {NotifyNode}
 
             {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='clientes' &&<ClientsReportModal sales={sales} clients={clients} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='stock'    &&<StockModal products={products} onClose={()=>setActiveModal(null)}/>}
 
-            {showCalendar&&<CalendarModal
-                appointments={appointments} pets={pets} clients={clients}
-                services={services} users={users} role="admin"
-                onClose={()=>setShowCalendar(false)}
-                onRefresh={loadAppointments}
-                onAddAppointment={handleAddAppointment}
-                onStatusChange={handleStatusChange}
-                onFinalize={handleFinalize}
-                onDeleteAppt={handleDeleteAppt}
-            />}
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} role="admin"
+                onClose={()=>setShowCalendar(false)} onRefresh={loadAppointments}
+                onAddAppointment={handleAddAppointment} onStatusChange={handleStatusChange}
+                onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}/>}
 
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
@@ -656,7 +645,7 @@ const AdminDashboard = () => {
                             </div>
                             <div className="pos-grid">
                                 {(posCategory==='Todos'||posCategory==='Productos')&&posProducts.map(p=><div key={p.id} className={`pos-card ${p.stock<=0?'pos-card--disabled':''}`} onClick={()=>addToCart(p,'product')}><div className="pos-card-icon product-icon"><FaBoxOpen/></div><h5>{p.name}</h5><p className="pos-price">${p.price}</p><span className={p.stock<5?'low-stock':'in-stock'}>{p.stock<=0?'Sin stock':`Stock: ${p.stock}`}</span></div>)}
-                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}><div className="pos-card-icon service-icon"><FaCut/></div><h5>{s.title}</h5><p className="pos-price">${s.price}</p><span className="in-stock">Base*</span></div>)}
+                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}><div className="pos-card-icon service-icon"><FaCut/></div><h5>{s.title}</h5><p className="pos-price">${s.price} base*</p><span className="in-stock">Precio según talla</span></div>)}
                             </div>
                         </div>
                         <aside className="pos-cart">
@@ -668,75 +657,32 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">
-                    <div className="ds-page-header">
-                        <div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div>
-                    </div>
-                    <div className="ds-cards-grid">
-                        {filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}
-                        {filteredClients.map(c=><ClientCard key={c.id} client={c}
-                            petsCount={pets.filter(p=>String(p.ownerId)===String(c.id)).length}
-                            onEdit={cl=>setClientModal(cl)}
-                            onDelete={(id,name)=>handleDelete('client',id,name)}/>)}
-                    </div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div></div>
+                    <div className="ds-cards-grid">{filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} petsCount={pets.filter(p=>String(p.ownerId)===String(c.id)).length} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)}/>)}</div>
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
                 {tab==='pacientes'&&<div className="fade-in">
-                    <div className="ds-page-header">
-                        <div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div>
-                        <div className="ds-page-header-actions">
-                            <button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}>
-                                <FaCalendarAlt/> Agenda
-                            </button>
-                        </div>
-                    </div>
-                    <div className="ds-cards-grid">
-                        {filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}
-                        {filteredPets.map(p=><PetCard key={p.id} pet={p}
-                            owner={clients.find(c=>String(c.id)===String(p.ownerId))}
-                            onEdit={pet=>setPetModal(pet)}
-                            onDelete={(id,name)=>handleDelete('pet',id,name)}/>)}
-                    </div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
+                    <div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)}/>)}</div>
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 
                 {tab==='servicios'&&<div className="fade-in">
-                    <div className="ds-page-header">
-                        <div className="ds-page-header-left"><h2>Servicios</h2><p>{services.length} en catálogo</p></div>
-                    </div>
-                    <div className="ds-cards-grid">
-                        {filteredServices.length===0&&<p className="empty-td">Sin resultados</p>}
-                        {filteredServices.map(s=><DSServiceCard key={s.id} service={s}
-                            onEdit={svc=>setServiceModal(svc)}
-                            onDelete={(id,name)=>handleDelete('service',id,name)}/>)}
-                    </div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Servicios</h2><p>{services.length} en catálogo</p></div></div>
+                    <div className="ds-cards-grid">{filteredServices.length===0&&<p className="empty-td">Sin resultados</p>}{filteredServices.map(s=><DSServiceCard key={s.id} service={s} onEdit={svc=>setServiceModal(svc)} onDelete={(id,name)=>handleDelete('service',id,name)}/>)}</div>
                     <FAB onClick={()=>setServiceModal({})} title="Nuevo servicio" color="#a29bfe"/>
                 </div>}
 
                 {tab==='productos'&&<div className="fade-in">
-                    <div className="ds-page-header">
-                        <div className="ds-page-header-left"><h2>Inventario</h2><p>{products.length} productos</p></div>
-                    </div>
-                    <div className="ds-cards-grid">
-                        {filteredProducts.length===0&&<p className="empty-td">Sin resultados</p>}
-                        {filteredProducts.map(p=><ProductCard key={p.id} product={p}
-                            onEdit={prod=>setProductModal(prod)}
-                            onDelete={(id,name)=>handleDelete('product',id,name)}/>)}
-                    </div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>{products.length} productos</p></div></div>
+                    <div className="ds-cards-grid">{filteredProducts.length===0&&<p className="empty-td">Sin resultados</p>}{filteredProducts.map(p=><ProductCard key={p.id} product={p} onEdit={prod=>setProductModal(prod)} onDelete={(id,name)=>handleDelete('product',id,name)}/>)}</div>
                     <FAB onClick={()=>setProductModal({})} title="Nuevo producto" color="#55efc4"/>
                 </div>}
 
                 {tab==='usuarios'&&<div className="fade-in">
-                    <div className="ds-page-header">
-                        <div className="ds-page-header-left"><h2>Usuarios</h2><p>{users.length} registrados</p></div>
-                    </div>
-                    <div className="ds-cards-grid ds-cards-grid--compact">
-                        {filteredUsers.length===0&&<p className="empty-td">Sin resultados</p>}
-                        {filteredUsers.map(u=><UserCard key={u.id} user={u}
-                            currentUserId={user?.id}
-                            onEdit={usr=>setUserModal(usr)}
-                            onDelete={(id,name)=>handleDelete('user',id,name)}/>)}
-                    </div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Usuarios</h2><p>{users.length} registrados</p></div></div>
+                    <div className="ds-cards-grid ds-cards-grid--compact">{filteredUsers.length===0&&<p className="empty-td">Sin resultados</p>}{filteredUsers.map(u=><UserCard key={u.id} user={u} currentUserId={user?.id} onEdit={usr=>setUserModal(usr)} onDelete={(id,name)=>handleDelete('user',id,name)}/>)}</div>
                     <FAB onClick={()=>setUserModal({})} title="Nuevo usuario" color="#636e72"/>
                 </div>}
 
