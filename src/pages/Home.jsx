@@ -4,13 +4,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
 import bannerImage from '../assets/1.jpg';
 import heroVideo   from '../assets/hero.mp4';
-// Logo: pon tu archivo como src/assets/logo.png para activarlo
-// import logoTPS from '../assets/logo.png';
-const logoTPS = null; // cambia a: import logoTPS from '../assets/logo.png' cuando tengas el archivo
-
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
+// Logo: pon tu archivo como src/assets/logo.png para activarlo
+// import logoTPS from '../assets/logo.png';
+const logoTPS = null;
 
 // ─── Número WhatsApp del negocio ──────────────────────────────────────────────
 const WA_NUMBER = '5215633252525';
