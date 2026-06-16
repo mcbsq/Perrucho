@@ -1,14 +1,8 @@
-// src/pages/admin/AdminDashboard.jsx  ── RONDA 6
-//
-// CAMBIOS v6 (cierre de checklist):
-// #22 — useConfirm / ConfirmDialog propio reemplazado por useNotify (NotifyDialog)
-//        para consistencia visual con el EmployeeDashboard.
-// #27 — calcPrice local eliminado. Ahora se usa calcServicePrice() de pricingRules.js
-//        en CalendarModal al crear/editar citas desde el calendario admin.
-//        El precio estimado ahora refleja los precios exactos del catálogo.
-//
-// Mantiene de v5: toLocalISO() para fix de timezone, todos los módulos CRUD,
-// CalendarModal completo con vistas mes/semana/día.
+// src/pages/admin/AdminDashboard.jsx
+// Fix backend PostgreSQL + Prisma:
+// - addSale ahora recibe objeto { items, total, clientId, type, paymentMethod, status }
+// - Las respuestas de appointments incluyen objetos anidados (pet, service, client, employee)
+// - Helpers para extraer petName/serviceName de objetos anidados
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
@@ -37,15 +31,15 @@ import '../../components/shared/DashboardShared.css';
 import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
 import { calcServicePrice } from '../../utils/pricingRules';
+import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
+import '../../components/shared/ExtrasPanel.css';
 import './AdminDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// FIX timezone: construye YYYY-MM-DD desde fecha LOCAL, sin pasar por UTC.
 const toLocalISO = (d) => {
     if (!d) return '';
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
-
 const todayISO = () => toLocalISO(new Date());
 const parseDate = (s) => { if(!s)return null; const str=String(s); if(/^\d{4}-\d{2}-\d{2}$/.test(str))return new Date(str+'T12:00:00'); const p=str.split(/[\/\-T]/); if(p[0].length===4)return new Date(str); return new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}T12:00:00`); };
 const isSameMonth = (d,y,m) => { const p=parseDate(d); return p&&!isNaN(p)&&p.getFullYear()===y&&p.getMonth()===m; };
@@ -53,12 +47,26 @@ const isSameDay   = (d,o)   => { const p=parseDate(d); return p&&!isNaN(p)&&p.ge
 const parseTime   = (t)     => { if(!t)return 8*60; const[h,m]=t.split(':').map(Number); return h*60+(m||0); };
 const formatDateLong = (s)  => { if(!s)return''; return new Date(s+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}); };
 const hueFromId = (id) => { const n=typeof id==='string'?id.split('').reduce((a,c)=>a+c.charCodeAt(0),0):Number(id); return(n*137)%360; };
-const buildGCalLink = (a) => { const ds=(a.date||todayISO()).replace(/-/g,'');const ts=(a.time||'10:15').replace(':','');const s=`${ds}T${ts}00`;const eh=String(Number((a.time||'10:15').split(':')[0])+1).padStart(2,'0');const e=`${ds}T${eh}${(a.time||'10:15').split(':')[1]}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${a.petName} — ${a.serviceName}`)}&dates=${s}/${e}&details=${encodeURIComponent(`Servicio: ${a.serviceName}\nMascota: ${a.petName}\nImporte: $${a.finalPrice}`)}`; };
+const buildGCalLink = (a) => { const ds=(a.date||todayISO()).replace(/-/g,'');const ts=(getApptTime(a)).replace(':','');const s=`${ds}T${ts}00`;const eh=String(Number((getApptTime(a)).split(':')[0])+1).padStart(2,'0');const e=`${ds}T${eh}${(getApptTime(a)).split(':')[1]}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cita: ${getApptPetName(a)} — ${getApptServiceName(a)}`)}&dates=${s}/${e}&details=${encodeURIComponent(`Servicio: ${getApptServiceName(a)}\nMascota: ${getApptPetName(a)}\nImporte: $${a.finalPrice}`)}`; };
+
+// Helpers para objetos anidados del nuevo backend
+const getApptPetName     = (a) => a.pet?.petName     || a.petName     || 'Mascota';
+const getApptServiceName = (a) => a.service?.title   || a.serviceName || 'Servicio';
+const getApptClientName  = (a) => a.client?.name     || '';
+const getApptClientPhone = (a) => a.client?.phone    || '';
+const getApptEmpName     = (a) => a.employee?.name   || '';
+const getApptTime        = (a) => a.time || '10:15';
+const getApptPetId       = (a) => a.petId   || a.pet?.id;
+const getApptClientId    = (a) => a.clientId || a.client?.id;
+
+// Helper para ventas — nuevo formato con items[]
+const getSaleLabel  = (s) => s.items?.[0]?.name || s.item || 'Venta';
+const getSaleAmount = (s) => s.total || s.price || 0;
 
 const MONTH_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MONTH_SHORT=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const DAYS_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const HOURS=Array.from({length:9},(_,i)=>i+9); // 9am-5pm aprox
+const HOURS=Array.from({length:9},(_,i)=>i+9);
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({message,type,onClose}) => {
@@ -83,12 +91,13 @@ const Modal = ({title,onClose,children,wide,fullscreen}) => (
 );
 
 // ─── Appt Detail Popup ────────────────────────────────────────────────────────
-const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onFinalize,onDelete,onClose}) => {
+const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onFinalize,onDelete,onClose,services=[],onAddExtra,onRemoveExtra}) => {
     const ref=useRef(null);
     const [pos,setPos]=useState({top:0,left:0});
-    const pet=pets.find(p=>String(p.id)===String(appt.petId));
+    const petId = getApptPetId(appt);
+    const pet=pets.find(p=>String(p.id)===String(petId));
     const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
-    const emp=users.find(u=>String(u.id)===String(appt.assignedTo));
+    const empName = getApptEmpName(appt) || users.find(u=>String(u.id)===String(appt.employeeId||appt.assignedTo))?.name;
     const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
     const transitions=STATUS_TRANSITIONS[role]||STATUS_TRANSITIONS.admin;
     const actionDef=(STATUS_ACTION_LABEL[role]||STATUS_ACTION_LABEL.admin)[appt.status];
@@ -116,23 +125,32 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
         <div ref={ref} className="adp" style={{position:'fixed',top:pos.top,left:pos.left,zIndex:3000}}>
             <div className="adp-bar" style={{background:sc.border}}/>
             <div className="adp-header">
-                <div className="appt-popup-avatar" style={{background:`hsl(${hueFromId(appt.petId)},65%,60%)`}}>{pet?.petName?.[0]?.toUpperCase()||'?'}</div>
+                <div className="appt-popup-avatar" style={{background:`hsl(${hueFromId(petId)},65%,60%)`}}>{pet?.petName?.[0]?.toUpperCase()||getApptPetName(appt)?.[0]?.toUpperCase()||'?'}</div>
                 <div className="appt-popup-title">
-                    <strong>{pet?.petName||'Mascota'}</strong>
+                    <strong>{getApptPetName(appt)}</strong>
                     <span>{pet?.breed||'—'} · {pet?.weight ? `~${pet.weight} kg` : 'peso por verificar'}</span>
-                    {owner&&<span className="appt-popup-owner">{owner.name}{owner.phone?` · ${owner.phone}`:''}</span>}
-                    {emp&&<span className="appt-popup-assigned"><FaUserTie/> {emp.name}</span>}
+                    {(owner||getApptClientName(appt))&&<span className="appt-popup-owner">{owner?.name||getApptClientName(appt)}{(owner?.phone||getApptClientPhone(appt))?` · ${owner?.phone||getApptClientPhone(appt)}`:''}</span>}
+                    {empName&&<span className="appt-popup-assigned"><FaUserTie/> {empName}</span>}
                 </div>
                 <button className="appt-popup-close" onClick={onClose}><FaTimes/></button>
             </div>
             <div className="adp-body">
-                <div className="adp-row"><FaClock className="adp-icon"/><span>{appt.time||'—'} · {appt.date}</span></div>
-                <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{appt.serviceName||'—'}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
+                <div className="adp-row"><FaClock className="adp-icon"/><span>{getApptTime(appt)} · {appt.date}</span></div>
+                <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{getApptServiceName(appt)}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
                 <div className="adp-row">
                     <StatusSelector current={appt.status||'Pendiente'} transitions={transitions}
                         onSelect={(newStatus)=>{onStatusChange(appt,newStatus);onClose();}}/>
                 </div>
                 {pet?.notes&&<div className="appt-popup-notes"><span className="appt-popup-notes-label">Notas</span><p>{pet.notes}</p></div>}
+                {onAddExtra&&onRemoveExtra&&(
+                    <ExtrasPanel
+                        appt={appt}
+                        services={services}
+                        pets={pets}
+                        onAdd={onAddExtra}
+                        onRemove={onRemoveExtra}
+                    />
+                )}
             </div>
             <div className="adp-footer">
                 {actionDef&&<button className={`ds-btn ds-btn--${actionDef.style} adp-action-btn`} onClick={handleAction}>
@@ -149,21 +167,21 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
 
 // ─── Gráficas ─────────────────────────────────────────────────────────────────
 const ServiceChart = ({sales,services}) => {
-    const cats=useMemo(()=>{const now=new Date(),map={};sales.forEach(s=>{if(!isSameMonth(s.date,now.getFullYear(),now.getMonth()))return;const svc=services.find(sv=>String(s.item).toLowerCase().includes(sv.title?.toLowerCase()));map[svc?.category||'Otros']=(map[svc?.category||'Otros']||0)+Number(s.price);});return Object.entries(map).sort((a,b)=>b[1]-a[1]);},[sales,services]);
+    const cats=useMemo(()=>{const now=new Date(),map={};sales.forEach(s=>{if(!isSameMonth(s.date||s.createdAt,now.getFullYear(),now.getMonth()))return;const label=getSaleLabel(s);const svc=services.find(sv=>String(label).toLowerCase().includes(sv.title?.toLowerCase()));map[svc?.category||'Otros']=(map[svc?.category||'Otros']||0)+Number(getSaleAmount(s));});return Object.entries(map).sort((a,b)=>b[1]-a[1]);},[sales,services]);
     const max=Math.max(...cats.map(c=>c[1]),1);
     const COLORS=['#74b9ff','#a29bfe','#55efc4','#fdcb6e','#ff7675'];
-    return <div className="service-chart">{cats.length===0?<p className="empty-chart">Sin datos</p>:cats.map(([cat,total],i)=><div key={cat} className="svc-bar-row"><span className="svc-bar-label">{cat}</span><div className="svc-bar-track"><div className="svc-bar-fill" style={{width:`${(total/max)*100}%`,background:COLORS[i%5]}}/></div><span className="svc-bar-val">${total.toLocaleString()}</span></div>)}</div>;
+    return <div className="service-chart">{cats.length===0?<p className="empty-chart">Sin datos este mes</p>:cats.map(([cat,total],i)=><div key={cat} className="svc-bar-row"><span className="svc-bar-label">{cat}</span><div className="svc-bar-track"><div className="svc-bar-fill" style={{width:`${(total/max)*100}%`,background:COLORS[i%5]}}/></div><span className="svc-bar-val">${total.toLocaleString()}</span></div>)}</div>;
 };
 const WeeklyChart = ({sales}) => {
     const tod=new Date().getDay();
-    const totals=useMemo(()=>{const m=[0,0,0,0,0,0,0],now=new Date();sales.forEach(s=>{const d=parseDate(s.date);if(!d||isNaN(d))return;const diff=Math.floor((now-d)/86400000);if(diff>=0&&diff<7)m[d.getDay()]+=Number(s.price)||0;});return m;},[sales]);
+    const totals=useMemo(()=>{const m=[0,0,0,0,0,0,0],now=new Date();sales.forEach(s=>{const d=parseDate(s.date||s.createdAt);if(!d||isNaN(d))return;const diff=Math.floor((now-d)/86400000);if(diff>=0&&diff<7)m[d.getDay()]+=Number(getSaleAmount(s))||0;});return m;},[sales]);
     const max=Math.max(...totals,1);
     const DAYS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     return <div className="weekly-chart-wrap"><div className="chart-bars">{totals.map((v,i)=><div key={i} className="chart-col"><span className="chart-val">{v>0?`$${v}`:''}</span><div className={`chart-bar ${i===tod?'today':''}`} style={{height:`${Math.max((v/max)*80,4)}px`}}/><span className="chart-day">{DAYS[i]}</span></div>)}</div></div>;
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,onRefresh,onAddAppointment,onStatusChange,onFinalize,onDeleteAppt}) => {
+const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,onRefresh,onAddAppointment,onStatusChange,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
     const now=new Date();
     const [viewDate,setViewDate]=useState(new Date(now.getFullYear(),now.getMonth(),1));
     const [calView,setCalView]=useState('week');
@@ -176,15 +194,11 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const empleados=users.filter(u=>u.role==='empleado');
     const [newAppt,setNewAppt]=useState({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
 
-    // FIX #27: usar calcServicePrice en lugar del multiplicador genérico
     useEffect(()=>{
         if(newAppt.petId && newAppt.serviceId){
             const pet = pets.find(p=>String(p.id)===String(newAppt.petId));
             const svc = services.find(s=>String(s.id)===String(newAppt.serviceId));
-            if(pet && svc){
-                const price = calcServicePrice(svc, pet.weight);
-                setNewAppt(f=>({...f, finalPrice: price}));
-            }
+            if(pet && svc){ setNewAppt(f=>({...f, finalPrice: calcServicePrice(svc, pet.weight)})); }
         }
         setSlotError('');
     },[newAppt.petId, newAppt.serviceId, newAppt.date, newAppt.time]);
@@ -208,7 +222,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
         try{
             const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));
             const pet=pets.find(p=>String(p.id)===String(newAppt.petId));
-            await onAddAppointment({...newAppt,serviceName:svc?.title,petName:pet?.petName});
+            await onAddAppointment({...newAppt,serviceName:svc?.title,petName:pet?.petName,clientId:pet?.ownerId||null});
             setShowForm(false);
             setNewAppt({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
             setSlotError('');
@@ -218,9 +232,9 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const EventChip=({appt,style='chip'})=>{
         const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
         const cls=style==='block'?'admin-cal-event-block':'admin-cal-event-chip';
-        return <div className={cls} style={{background:sc.bg,borderLeft:`3px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)} title={`${appt.petName} · ${appt.serviceName} · ${STATUS_EMOJI[appt.status]} ${appt.status}`}>
-            {style==='block'&&<><strong>{appt.time}</strong><span>{appt.petName}</span><span>{appt.serviceName}</span></>}
-            {style==='chip'&&<>{appt.time} {appt.petName}</>}
+        return <div className={cls} style={{background:sc.bg,borderLeft:`3px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)} title={`${getApptPetName(appt)} · ${getApptServiceName(appt)} · ${STATUS_EMOJI[appt.status]} ${appt.status}`}>
+            {style==='block'&&<><strong>{getApptTime(appt)}</strong><span>{getApptPetName(appt)}</span><span>{getApptServiceName(appt)}</span></>}
+            {style==='chip'&&<>{getApptTime(appt)} {getApptPetName(appt)}</>}
             <span style={{background:sc.dot,display:'inline-block',width:6,height:6,borderRadius:'50%',marginLeft:4}}/>
         </div>;
     };
@@ -264,8 +278,8 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                 {HOURS.map(h=><div key={h} className="admin-cal-hour-row">
                     <div className="admin-cal-time-label">{h}:00</div>
                     {wd.map((d,di)=>{
-                        const ds=toLocalISO(d); // FIX timezone
-                        const slot=(apptsByDate[ds]||[]).filter(a=>{const min=parseTime(a.time);return min>=h*60&&min<(h+1)*60;});
+                        const ds=toLocalISO(d);
+                        const slot=(apptsByDate[ds]||[]).filter(a=>{const min=parseTime(getApptTime(a));return min>=h*60&&min<(h+1)*60;});
                         return <div key={di} className="admin-cal-hour-cell">{slot.map(a=><EventChip key={a.id} appt={a} style='block'/>)}</div>;
                     })}
                 </div>)}
@@ -274,26 +288,27 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     };
 
     const DayView=()=>{
-        const ds=toLocalISO(dayDate); // FIX timezone
-        const da=(apptsByDate[ds]||[]).sort((a,b)=>parseTime(a.time)-parseTime(b.time));
+        const ds=toLocalISO(dayDate);
+        const da=(apptsByDate[ds]||[]).sort((a,b)=>parseTime(getApptTime(a))-parseTime(getApptTime(b)));
         return <div className="admin-cal-day">
             <div className="admin-cal-day-label">{formatDateLong(ds)}<span className="admin-cal-day-count">{da.length} cita{da.length!==1?'s':''}</span></div>
             <div className="admin-cal-day-scroll">
                 {HOURS.map(h=>{
-                    const slot=da.filter(a=>{const min=parseTime(a.time);return min>=h*60&&min<(h+1)*60;});
+                    const slot=da.filter(a=>{const min=parseTime(getApptTime(a));return min>=h*60&&min<(h+1)*60;});
                     return <div key={h} className="admin-cal-day-row">
                         <div className="admin-cal-time-label">{h}:00</div>
                         <div className="admin-cal-day-events">
                             {slot.map(a=>{
                                 const sc=STATUS_COLORS[a.status]||STATUS_COLORS['Pendiente'];
-                                const pet=pets.find(p=>String(p.id)===String(a.petId));
+                                const petId=getApptPetId(a);
+                                const pet=pets.find(p=>String(p.id)===String(petId));
                                 const owner=pet?clients.find(cl=>String(cl.id)===String(pet.ownerId)):null;
-                                const emp=users.find(u=>String(u.id)===String(a.assignedTo));
+                                const empName=getApptEmpName(a)||users.find(u=>String(u.id)===String(a.employeeId||a.assignedTo))?.name;
                                 return <div key={a.id} className="admin-cal-day-event" style={{background:sc.bg,borderLeft:`5px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(a,ev)}>
-                                    <div className="admin-cal-day-event-top"><strong>{a.time} — {a.petName}</strong><StatusBadge status={a.status}/></div>
-                                    <span>{a.serviceName}</span>
-                                    {owner&&<span className="admin-cal-owner">{owner.name}</span>}
-                                    {emp&&<span className="admin-cal-emp"><FaUserTie/> {emp.name}</span>}
+                                    <div className="admin-cal-day-event-top"><strong>{getApptTime(a)} — {getApptPetName(a)}</strong><StatusBadge status={a.status}/></div>
+                                    <span>{getApptServiceName(a)}</span>
+                                    {(owner||getApptClientName(a))&&<span className="admin-cal-owner">{owner?.name||getApptClientName(a)}</span>}
+                                    {empName&&<span className="admin-cal-emp"><FaUserTie/> {empName}</span>}
                                     <span className="admin-cal-price">~${a.finalPrice}</span>
                                 </div>;
                             })}
@@ -319,7 +334,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                     <button className="btn-primary btn-sm" onClick={()=>setShowForm(v=>!v)}><FaPlus/> Nueva cita</button>
                 </div>
             </div>
-
             <div className="cal-legend">
                 {Object.entries(STATUS_COLORS).map(([s,c])=>(
                     <span key={s} className="cal-legend-item">
@@ -328,7 +342,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                     </span>
                 ))}
             </div>
-
             {showForm&&<form className="admin-cal-appt-form" onSubmit={handleCreate}>
                 <div className="admin-cal-form-grid">
                     <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
@@ -355,17 +368,17 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                     <button type="submit" className="btn-primary" disabled={saving}>{saving?'Guardando...':'Confirmar cita'}</button>
                 </div>
             </form>}
-
             <div className="admin-cal-view">
                 {calView==='month'&&<MonthView/>}
                 {calView==='week'&&<WeekView/>}
                 {calView==='day'&&<DayView/>}
             </div>
         </Modal>
-        {selAppt&&anchor&&<ApptDetailPopup appt={selAppt} anchor={anchor} pets={pets} clients={clients} users={users} role={role||'admin'}
+        {selAppt&&anchor&&<ApptDetailPopup appt={selAppt} anchor={anchor} pets={pets} clients={clients} users={users} role={role||'admin'} services={services}
             onStatusChange={(a,s)=>{onStatusChange(a,s);closePopup();}}
             onFinalize={(a)=>{onFinalize(a);closePopup();}}
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
+            onAddExtra={onAddExtra} onRemoveExtra={onRemoveExtra}
             onClose={closePopup}/>}
     </>;
 };
@@ -376,26 +389,27 @@ const SalesModal = ({sales,onClose}) => {
     const months=Array.from({length:4},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-i,1);return{label:`${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`,year:d.getFullYear(),month:d.getMonth()};});
     const [sel,setSel]=useState(0);
     const {year,month}=months[sel];
-    const filtered=sales.filter(s=>isSameMonth(s.date,year,month));
-    const total=filtered.reduce((a,s)=>a+Number(s.price),0);
-    const exportExcel=()=>{const ws=XLSX.utils.json_to_sheet(filtered.map(s=>({Fecha:s.date,Descripción:s.item,Monto:s.price})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');XLSX.writeFile(wb,`Ventas_${months[sel].label}.xlsx`);};
+    const filtered=sales.filter(s=>isSameMonth(s.date||s.createdAt,year,month));
+    const total=filtered.reduce((a,s)=>a+Number(getSaleAmount(s)),0);
+    const exportExcel=()=>{const ws=XLSX.utils.json_to_sheet(filtered.map(s=>({Fecha:s.date,Descripción:getSaleLabel(s),Monto:getSaleAmount(s),Método:s.paymentMethod||'—',Estado:s.status||'—'})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');XLSX.writeFile(wb,`Ventas_${months[sel].label}.xlsx`);};
     return <Modal title="Ventas del mes" onClose={onClose} wide>
         <div className="modal-filters">{months.map((m,i)=><button key={i} className={`pill-btn ${sel===i?'active':''}`} onClick={()=>setSel(i)}>{m.label}</button>)}<button className="pill-btn export-btn" onClick={exportExcel}><FaFileExcel/> Exportar</button></div>
         <div className="modal-summary-row"><span>Total</span><span className="modal-total">${total.toLocaleString()}</span></div>
-        <table className="modal-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th></tr></thead><tbody>{filtered.length===0?<tr><td colSpan="3" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=><tr key={s.id}><td>{s.date}</td><td>{s.item}</td><td className="td-amount">${Number(s.price).toLocaleString()}</td></tr>)}</tbody></table>
+        <table className="modal-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Método</th><th>Estado</th><th>Monto</th></tr></thead>
+        <tbody>{filtered.length===0?<tr><td colSpan="5" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=><tr key={s.id}><td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.paymentMethod||'efectivo'}</td><td>{s.status||'pagado'}</td><td className="td-amount">${Number(getSaleAmount(s)).toLocaleString()}</td></tr>)}</tbody></table>
     </Modal>;
 };
 
 const ClientsReportModal = ({sales,clients,onClose}) => {
     const [date,setDate]=useState(todayISO());
     const dObj=new Date(date+'T12:00:00');
-    const daySales=sales.filter(s=>isSameDay(s.date,dObj));
-    const total=daySales.reduce((a,s)=>a+Number(s.price),0);
+    const daySales=sales.filter(s=>isSameDay(s.date||s.createdAt,dObj));
+    const total=daySales.reduce((a,s)=>a+Number(getSaleAmount(s)),0);
     const byC=daySales.reduce((acc,s)=>{const k=s.clientId||'__';if(!acc[k])acc[k]=[];acc[k].push(s);return acc;},{});
     return <Modal title="Reporte por día" onClose={onClose} wide>
         <div className="modal-filters"><input type="date" value={date} onChange={e=>setDate(e.target.value)} className="date-input"/></div>
         <div className="modal-summary-row"><span>Total del día</span><span className="modal-total">${total.toLocaleString()}</span></div>
-        {Object.keys(byC).length===0?<p className="empty-td">Sin ventas</p>:Object.entries(byC).map(([cid,cs])=>{const c=clients.find(cl=>String(cl.id)===String(cid));const sub=cs.reduce((a,s)=>a+Number(s.price),0);return<div key={cid} className="client-report-block"><div className="client-report-header"><div className="pet-avatar-sm" style={{background:'#eef2ff',color:'#3730a3'}}>{c?.name?.[0]?.toUpperCase()||'?'}</div><strong>{c?.name||'Sin cliente'}</strong><span className="td-amount">${sub.toLocaleString()}</span></div><div className="client-report-items">{cs.map(s=><div key={s.id} className="client-report-item"><span>{s.item}</span><span className="muted-text">${Number(s.price).toLocaleString()}</span></div>)}</div></div>;})}
+        {Object.keys(byC).length===0?<p className="empty-td">Sin ventas</p>:Object.entries(byC).map(([cid,cs])=>{const c=clients.find(cl=>String(cl.id)===String(cid));const sub=cs.reduce((a,s)=>a+Number(getSaleAmount(s)),0);return<div key={cid} className="client-report-block"><div className="client-report-header"><div className="pet-avatar-sm" style={{background:'#eef2ff',color:'#3730a3'}}>{c?.name?.[0]?.toUpperCase()||'?'}</div><strong>{c?.name||'Sin cliente'}</strong><span className="td-amount">${sub.toLocaleString()}</span></div><div className="client-report-items">{cs.map(s=><div key={s.id} className="client-report-item"><span>{getSaleLabel(s)}</span><span className="muted-text">${Number(getSaleAmount(s)).toLocaleString()}</span></div>)}</div></div>;})}
     </Modal>;
 };
 
@@ -419,10 +433,9 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale}=useData();
+    const {services,products,pets,clients,sales,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
-    // FIX #22: usar useNotify en lugar de useConfirm propio
     const {notify, NotifyNode} = useNotify();
 
     const [tab,setTab]=useState('control');
@@ -453,35 +466,72 @@ const AdminDashboard = () => {
     const [posSearch,setPosSearch]=useState('');
     const [posCategory,setPosCategory]=useState('Todos');
     const [posClientId,setPosClientId]=useState('');
+    const [posPaymentMethod,setPosPaymentMethod]=useState('efectivo');
+    const [posSaleStatus,setPosSaleStatus]=useState('pagado');
     const [showCheckout,setShowCheckout]=useState(false);
 
     const now=new Date(),todayStr_=todayISO();
-    const stats=useMemo(()=>{const ms=sales.filter(s=>isSameMonth(s.date,now.getFullYear(),now.getMonth()));const ta=appointments.filter(a=>a.date===todayStr_);return{monthSales:ms.reduce((a,s)=>a+Number(s.price),0),appointmentsCount:ta.length,totalClients:clients.length,lowStock:products.filter(p=>Number(p.stock)<5).length};},[sales,appointments,clients,products,todayStr_]);
+    const stats=useMemo(()=>{
+        const ms=sales.filter(s=>isSameMonth(s.date||s.createdAt,now.getFullYear(),now.getMonth()));
+        const ta=appointments.filter(a=>a.date===todayStr_);
+        return{
+            monthSales:ms.reduce((a,s)=>a+Number(getSaleAmount(s)),0),
+            appointmentsCount:ta.length,
+            totalClients:clients.length,
+            lowStock:products.filter(p=>Number(p.stock)<5).length
+        };
+    },[sales,appointments,clients,products,todayStr_]);
 
-    // ── POS ───────────────────────────────────────────────────────────────────
-    const addToCart=(item,type)=>{if(type==='product'&&item.stock<=0){addToast('Sin stock','error');return;}const ex=cart.find(c=>c.id===item.id&&c.type===type);if(ex)setCart(cart.map(c=>c.id===item.id&&c.type===type?{...c,qty:c.qty+1}:c));else setCart([...cart,{...item,qty:1,type}]);};
+    // ── POS con nuevo formato de addSale ──────────────────────────────────────
+    const addToCart=(item,type)=>{
+        if(type==='product'&&item.stock<=0){addToast('Sin stock','error');return;}
+        const ex=cart.find(c=>c.id===item.id&&c.type===type);
+        if(ex)setCart(cart.map(c=>c.id===item.id&&c.type===type?{...c,qty:c.qty+1}:c));
+        else setCart([...cart,{...item,qty:1,type}]);
+    };
     const removeFromCart=(id,type)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type)));
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
-    const processCheckout=async()=>{if(!cart.length)return;try{const sum=cart.map(i=>`${i.qty}x ${i.name||i.title}`).join(', ');await addSale(sum,+cartTotal.toFixed(2),posClientId||null);for(const item of cart){if(item.type==='product'){const o=products.find(p=>p.id===item.id);if(o)await updateProduct(item.id,{...o,stock:o.stock-item.qty});}}setCart([]);setPosClientId('');setShowCheckout(false);addToast('¡Venta procesada!','success');}catch{addToast('Error al procesar','error');}};
 
-    // ── CRUD con NotifyDialog ─────────────────────────────────────────────────
+    // FIX: addSale con nuevo formato { items, total, clientId, type, paymentMethod, status }
+    const processCheckout=async()=>{
+        if(!cart.length)return;
+        try{
+            const allProducts = cart.every(i=>i.type==='product');
+            const allServices = cart.every(i=>i.type==='service');
+            await addSale({
+                items: cart.map(i=>({
+                    name:      i.name||i.title,
+                    price:     i.price,
+                    quantity:  i.qty,
+                    productId: i.type==='product' ? i.id : undefined,
+                })),
+                total:         +cartTotal.toFixed(2),
+                clientId:      posClientId||null,
+                type:          allProducts?'product':allServices?'service':'mixed',
+                paymentMethod: posPaymentMethod,
+                status:        posSaleStatus,
+            });
+            // Descontar stock de productos
+            for(const item of cart){
+                if(item.type==='product'){
+                    const o=products.find(p=>p.id===item.id);
+                    if(o)await updateProduct(item.id,{...o,stock:o.stock-item.qty});
+                }
+            }
+            setCart([]);setPosClientId('');setShowCheckout(false);
+            addToast('¡Venta procesada!','success');
+        }catch(err){addToast(`Error al procesar: ${err.message}`,'error');}
+    };
+
+    // ── CRUD ─────────────────────────────────────────────────────────────────
     const handleSaveClient=async(form)=>{try{form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Paciente actualizado':'Paciente registrado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveService=async(form)=>{try{form.id?await updateService(form.id,form):await addService(form);addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveProduct=async(form)=>{try{form.id?await updateProduct(form.id,form):await addProduct(form);addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);}addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
-    // FIX #22: handleDelete usa notify() en lugar de confirm() propio
     const handleDelete=async(type,id,label)=>{
-        const ok=await notify({
-            type: 'confirm',
-            icon: '🗑️',
-            accent: 'red',
-            title: `¿Eliminar "${label}"?`,
-            message: 'Esta acción no se puede deshacer.',
-            confirmLabel: 'Sí, eliminar',
-            cancelLabel:  'Cancelar',
-        });
+        const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:`¿Eliminar "${label}"?`,message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
         if(!ok)return;
         try{
             if(type==='client')  await deleteClient(id);
@@ -493,63 +543,68 @@ const AdminDashboard = () => {
         }catch(err){addToast(`Error: ${err.message}`,'error');}
     };
 
-    // ── Appointments con notify() ─────────────────────────────────────────────
+    // ── Appointments ──────────────────────────────────────────────────────────
     const handleAddAppointment=useCallback(async(formData)=>{
         const check=validateSlot(appointments,formData.date,formData.time,empleados);
         if(!check.ok){addToast(check.message,'error');throw new Error(check.message);}
         const pet=pets.find(p=>String(p.id)===String(formData.petId));
         const dataWithClient={...formData,clientId:pet?.ownerId||formData.clientId||null};
-        try{const c=await appointmentsApi.create(dataWithClient);setAppointments(p=>[...p,c]);addToast('Cita agendada','success');}
-        catch(err){addToast(`Error al agendar: ${err.message}`,'error');throw err;}
+        try{
+            const c=await appointmentsApi.create(dataWithClient);
+            setAppointments(p=>[...p,c]);
+            addToast('Cita agendada','success');
+        }catch(err){addToast(`Error al agendar: ${err.message}`,'error');throw err;}
     },[appointments,empleados,pets,addToast]);
 
+    // FIX: addSale con nuevo formato al finalizar cita
     const handleStatusChange=useCallback(async(appt,newStatus)=>{
         if(!newStatus)return;
         try{
             const updated=await appointmentsApi.update(appt.id,{status:newStatus});
             setAppointments(p=>p.map(a=>a.id===appt.id?{...a,...updated}:a));
-            if(newStatus==='Finalizada'){
-                const pet=pets.find(p=>String(p.id)===String(appt.petId));
-                await addSale(`Servicio: ${appt.serviceName} (${appt.petName})`,Number(appt.finalPrice),pet?.ownerId||null,'service');
-                if(pet)await updatePet(pet.id,{...pet,history:[...(pet.history||[]),{date:todayStr_,detail:`${appt.serviceName} finalizado — $${appt.finalPrice}`,author:user?.name||'Admin'}]});
+            if(newStatus==='Finalizada'||newStatus==='Completada'){
+                const petId=getApptPetId(appt);
+                const pet=pets.find(p=>String(p.id)===String(petId));
+                await addSale({
+                    items:[{name:`Servicio: ${getApptServiceName(appt)} (${getApptPetName(appt)})`,price:Number(appt.finalPrice),quantity:1}],
+                    total:Number(appt.finalPrice),
+                    clientId:pet?.ownerId||getApptClientId(appt)||null,
+                    appointmentId:appt.id,
+                    type:'service',
+                    paymentMethod:'efectivo',
+                    status:'pagado',
+                });
+                if(pet)await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:todayStr_,detail:`${getApptServiceName(appt)} finalizado — $${appt.finalPrice}`,author:user?.name||'Admin'}]});
             }
             addToast(`Estado → ${newStatus}`,'success');
         }catch(err){addToast(`Error: ${err.message}`,'error');}
     },[addToast,pets,addSale,updatePet,todayStr_,user]);
 
-    // FIX #22: handleFinalize usa notify()
     const handleFinalize=useCallback(async(appo)=>{
-        const ok=await notify({
-            type: 'confirm',
-            icon: '🏁',
-            accent: 'mint',
-            title: '¿Finalizar y cobrar?',
-            message: `"${appo.serviceName}" de ${appo.petName} — $${appo.finalPrice}`,
-            confirmLabel: `Cobrar $${appo.finalPrice}`,
-            cancelLabel:  'Cancelar',
-        });
+        const ok=await notify({type:'confirm',icon:'🏁',accent:'mint',title:'¿Finalizar y cobrar?',message:`"${getApptServiceName(appo)}" de ${getApptPetName(appo)} — $${appo.finalPrice}`,confirmLabel:`Cobrar $${appo.finalPrice}`,cancelLabel:'Cancelar'});
         if(!ok)return;
         try{
-            const pet=pets.find(p=>String(p.id)===String(appo.petId));
-            await addSale(`Servicio: ${appo.serviceName} (${appo.petName})`,Number(appo.finalPrice),pet?.ownerId||null,'service');
-            if(pet)await updatePet(pet.id,{...pet,history:[...(pet.history||[]),{date:todayStr_,detail:`${appo.serviceName} finalizado — $${appo.finalPrice}`}]});
-            const upd=await appointmentsApi.update(appo.id,{status:'Finalizada'});
+            const petId=getApptPetId(appo);
+            const pet=pets.find(p=>String(p.id)===String(petId));
+            // FIX: addSale con nuevo formato
+            await addSale({
+                items:[{name:`Servicio: ${getApptServiceName(appo)} (${getApptPetName(appo)})`,price:Number(appo.finalPrice),quantity:1}],
+                total:Number(appo.finalPrice),
+                clientId:pet?.ownerId||getApptClientId(appo)||null,
+                appointmentId:appo.id,
+                type:'service',
+                paymentMethod:'efectivo',
+                status:'pagado',
+            });
+            if(pet)await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:todayStr_,detail:`${getApptServiceName(appo)} finalizado — $${appo.finalPrice}`}]});
+            const upd=await appointmentsApi.update(appo.id,{status:'Completada'});
             setAppointments(p=>p.map(a=>a.id===appo.id?{...a,...upd}:a));
             addToast('Servicio finalizado y cobrado','success');
         }catch(err){addToast(`Error: ${err.message}`,'error');}
     },[notify,pets,addSale,updatePet,todayStr_,addToast]);
 
-    // FIX #22: handleDeleteAppt usa notify()
     const handleDeleteAppt=useCallback(async(id)=>{
-        const ok=await notify({
-            type: 'confirm',
-            icon: '🗑️',
-            accent: 'red',
-            title: '¿Eliminar esta cita?',
-            message: 'Esta acción no se puede deshacer.',
-            confirmLabel: 'Sí, eliminar',
-            cancelLabel:  'Mantener',
-        });
+        const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:'¿Eliminar esta cita?',message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Mantener'});
         if(!ok)return;
         setAppointments(p=>p.filter(a=>a.id!==id));
         try{await appointmentsApi.delete(id);}catch{}
@@ -566,12 +621,19 @@ const AdminDashboard = () => {
     const posProducts=products.filter(p=>p.name?.toLowerCase().includes(posSearch.toLowerCase()));
     const posServices=services.filter(s=>s.title?.toLowerCase().includes(posSearch.toLowerCase()));
 
-    const NAV=[{id:'control',icon:<FaTachometerAlt/>,label:'Panel'},{id:'pos',icon:<FaCashRegister/>,label:'Venta'},{id:'clientes',icon:<FaUsers/>,label:'Clientes'},{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'},{id:'servicios',icon:<FaCut/>,label:'Servicios'},{id:'productos',icon:<FaBoxOpen/>,label:'Inventario'},{id:'usuarios',icon:<FaUserCog/>,label:'Usuarios'}];
+    const NAV=[
+        {id:'control',icon:<FaTachometerAlt/>,label:'Panel'},
+        {id:'pos',icon:<FaCashRegister/>,label:'Venta'},
+        {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
+        {id:'pacientes',icon:<FaPaw/>,label:'Pacientes'},
+        {id:'servicios',icon:<FaCut/>,label:'Servicios'},
+        {id:'productos',icon:<FaBoxOpen/>,label:'Inventario'},
+        {id:'usuarios',icon:<FaUserCog/>,label:'Usuarios'},
+    ];
 
     return (
         <div className="admin-layout">
             <div className="toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
-            {/* FIX #22: NotifyNode en lugar de ConfirmNode */}
             {NotifyNode}
 
             {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)}/>}
@@ -581,7 +643,8 @@ const AdminDashboard = () => {
             {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} role="admin"
                 onClose={()=>setShowCalendar(false)} onRefresh={loadAppointments}
                 onAddAppointment={handleAddAppointment} onStatusChange={handleStatusChange}
-                onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}/>}
+                onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}
+                onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}/>}
 
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
@@ -590,16 +653,42 @@ const AdminDashboard = () => {
             {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)}/>}
 
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
-                <p className="checkout-modal-note">Selecciona el cliente (opcional).</p>
-                <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select"><option value="">Sin cliente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                <div className="checkout-items-preview">{cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}</div>
+                <p className="checkout-modal-note">Configura los detalles de la venta.</p>
+                <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
+                    <option value="">Sin cliente</option>
+                    {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                {/* Forma de pago */}
+                <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
+                    {['efectivo','tarjeta','transferencia'].map(m=>(
+                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
+                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
+                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
+                        </button>
+                    ))}
+                </div>
+                {/* Estado de venta */}
+                <div style={{display:'flex',gap:8,marginBottom:12}}>
+                    {['pagado','pendiente'].map(s=>(
+                        <button key={s} className={`checkout-pay-btn ${posSaleStatus===s?'active':''}`}
+                            onClick={()=>setPosSaleStatus(s)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posSaleStatus===s?'#55efc4':'#e2e8f0',background:posSaleStatus===s?'#d1fae5':'white',color:posSaleStatus===s?'#065f46':'#64748b'}}>
+                            {s==='pagado'?'✅ Pagado':'⏳ Pendiente'}
+                        </button>
+                    ))}
+                </div>
+                <div className="checkout-items-preview">
+                    {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
+                </div>
                 <div className="checkout-total-row"><span>Total</span><strong>${cartTotal.toFixed(2)}</strong></div>
-                <div className="form-actions form-actions--end" style={{marginTop:16}}><button className="btn-secondary" onClick={()=>setShowCheckout(false)}>Cancelar</button><button className="btn-primary" onClick={processCheckout}><FaReceipt/> Confirmar</button></div>
+                <div className="form-actions form-actions--end" style={{marginTop:16}}>
+                    <button className="btn-secondary" onClick={()=>setShowCheckout(false)}>Cancelar</button>
+                    <button className="btn-primary" onClick={processCheckout}><FaReceipt/> Confirmar</button>
+                </div>
             </Modal>}
 
             <header className="admin-top-bar">
                 <div className="topbar-left">
-                    <span className="admin-logo">perrucho<span>.</span></span>
+                    <span className="admin-logo">Taylor's<span>.</span></span>
                     {tab!=='pos'&&<div className="search-bar-wrapper" ref={searchRef}>
                         <div className={`search-bar-global ${showSearchPanel?'focused':''}`}>
                             <FaSearch/><input type="text" placeholder="Buscar en todo el sistema..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} onFocus={()=>setSearchFocus(true)}/>
@@ -643,6 +732,13 @@ const AdminDashboard = () => {
                                 <div className="search-input-wrapper"><FaSearch/><input type="text" placeholder="Buscar..." value={posSearch} onChange={e=>setPosSearch(e.target.value)}/></div>
                                 <div className="pos-filters">{['Todos','Productos','Servicios'].map(cat=><button key={cat} className={posCategory===cat?'active':''} onClick={()=>setPosCategory(cat)}>{cat}</button>)}</div>
                             </div>
+                            {services.length===0&&products.length===0&&(
+                                <div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8'}}>
+                                    <p style={{fontSize:'2rem',marginBottom:8}}>🛍️</p>
+                                    <p>Aún no hay servicios ni productos en catálogo.</p>
+                                    <p style={{fontSize:'0.85rem',marginTop:4}}>Agrégalos desde las pestañas <strong>Servicios</strong> e <strong>Inventario</strong>.</p>
+                                </div>
+                            )}
                             <div className="pos-grid">
                                 {(posCategory==='Todos'||posCategory==='Productos')&&posProducts.map(p=><div key={p.id} className={`pos-card ${p.stock<=0?'pos-card--disabled':''}`} onClick={()=>addToCart(p,'product')}><div className="pos-card-icon product-icon"><FaBoxOpen/></div><h5>{p.name}</h5><p className="pos-price">${p.price}</p><span className={p.stock<5?'low-stock':'in-stock'}>{p.stock<=0?'Sin stock':`Stock: ${p.stock}`}</span></div>)}
                                 {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}><div className="pos-card-icon service-icon"><FaCut/></div><h5>{s.title}</h5><p className="pos-price">${s.price} base*</p><span className="in-stock">Precio según talla</span></div>)}
@@ -670,13 +766,23 @@ const AdminDashboard = () => {
 
                 {tab==='servicios'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Servicios</h2><p>{services.length} en catálogo</p></div></div>
-                    <div className="ds-cards-grid">{filteredServices.length===0&&<p className="empty-td">Sin resultados</p>}{filteredServices.map(s=><DSServiceCard key={s.id} service={s} onEdit={svc=>setServiceModal(svc)} onDelete={(id,name)=>handleDelete('service',id,name)}/>)}</div>
+                    {services.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8',background:'white',borderRadius:20,border:'2px dashed #e2e8f0'}}>
+                        <p style={{fontSize:'2.5rem',marginBottom:8}}>✂️</p>
+                        <p style={{fontWeight:700,marginBottom:4}}>Sin servicios todavía</p>
+                        <p style={{fontSize:'0.9rem'}}>Usa el botón + para agregar el primer servicio al catálogo.</p>
+                    </div>}
+                    <div className="ds-cards-grid">{filteredServices.map(s=><DSServiceCard key={s.id} service={s} onEdit={svc=>setServiceModal(svc)} onDelete={(id,name)=>handleDelete('service',id,name)}/>)}</div>
                     <FAB onClick={()=>setServiceModal({})} title="Nuevo servicio" color="#a29bfe"/>
                 </div>}
 
                 {tab==='productos'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>{products.length} productos</p></div></div>
-                    <div className="ds-cards-grid">{filteredProducts.length===0&&<p className="empty-td">Sin resultados</p>}{filteredProducts.map(p=><ProductCard key={p.id} product={p} onEdit={prod=>setProductModal(prod)} onDelete={(id,name)=>handleDelete('product',id,name)}/>)}</div>
+                    {products.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8',background:'white',borderRadius:20,border:'2px dashed #e2e8f0'}}>
+                        <p style={{fontSize:'2.5rem',marginBottom:8}}>📦</p>
+                        <p style={{fontWeight:700,marginBottom:4}}>Sin productos todavía</p>
+                        <p style={{fontSize:'0.9rem'}}>Usa el botón + para agregar productos al inventario.</p>
+                    </div>}
+                    <div className="ds-cards-grid">{filteredProducts.map(p=><ProductCard key={p.id} product={p} onEdit={prod=>setProductModal(prod)} onDelete={(id,name)=>handleDelete('product',id,name)}/>)}</div>
                     <FAB onClick={()=>setProductModal({})} title="Nuevo producto" color="#55efc4"/>
                 </div>}
 

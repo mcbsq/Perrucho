@@ -1,0 +1,179 @@
+/* src/pages/SobreNosotros.css */
+
+.sobre-container {
+    width: 100%;
+    overflow-x: hidden;
+    font-family: 'Quicksand', sans-serif;
+}
+
+/* ── Hero ── */
+.sobre-hero {
+    min-height: 70vh;
+    background:
+        linear-gradient(160deg, rgba(15,20,40,0.82) 0%, rgba(30,58,95,0.75) 50%, rgba(15,20,40,0.88) 100%),
+        url('https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1600&q=80') center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 140px 8% 80px;
+    position: relative; overflow: hidden;
+}
+.sobre-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+        radial-gradient(circle at 20% 50%, rgba(116,185,255,0.18), transparent 55%),
+        radial-gradient(circle at 80% 30%, rgba(162,155,254,0.12), transparent 50%);
+    pointer-events: none;
+}
+.sobre-hero-content { position: relative; z-index: 1; max-width: 700px; }
+
+/* Logo en hero — sin fondo, grande y con sombra para destacar */
+.sobre-logo {
+    width: 710px;
+    max-width: 100vw;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: none;
+    filter: brightness(0) invert(1) drop-shadow(0 4px 24px rgba(0,0,0,0.4));
+}
+.sobre-hero-brand { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; color: white; margin-bottom: 8px; }
+.sobre-hero-tagline { font-size: 0.85rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 24px; }
+.sobre-hero-desc { font-size: 1.1rem; color: rgba(255,255,255,0.8); line-height: 1.7; margin-bottom: 36px; }
+.sobre-hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+/* ── Botones ── */
+.sobre-btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 16px 36px; border-radius: 999px;
+    background: #74b9ff; color: white; font-weight: 800; font-size: 0.95rem;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    box-shadow: 0 10px 28px rgba(116,185,255,0.3);
+}
+.sobre-btn-primary:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 16px 36px rgba(116,185,255,0.45); }
+
+.sobre-btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 16px 36px; border-radius: 999px;
+    background: rgba(255,255,255,0.1); color: white; font-weight: 700; font-size: 0.95rem;
+    text-decoration: none; border: 2px solid rgba(255,255,255,0.25);
+    transition: all 0.3s;
+}
+.sobre-btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Secciones ── */
+.sobre-section-inner { max-width: 1100px; margin: 0 auto; }
+.sobre-eyebrow {
+    display: block; font-size: 0.78rem; font-weight: 800; letter-spacing: 3px;
+    text-transform: uppercase; color: #74b9ff; margin-bottom: 10px;
+}
+.sobre-mision h2,
+.sobre-valores h2,
+.sobre-servicios h2,
+.sobre-ubicacion h2,
+.sobre-redes h2 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 900;
+    color: #2d3446; margin-bottom: 20px; letter-spacing: -0.02em;
+}
+
+/* ── Misión ── */
+.sobre-mision {
+    padding: 80px 8%;
+    background: white;
+}
+.sobre-mision-text { margin-bottom: 48px; }
+.sobre-mision-text p { font-size: 1rem; color: #636e72; line-height: 1.8; margin-bottom: 14px; }
+.sobre-mision-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+}
+.sobre-stat {
+    background: #f8fafc; border-radius: 20px; padding: 24px;
+    text-align: center; border: 1px solid rgba(116,185,255,0.15);
+    display: flex; flex-direction: column; gap: 6px;
+}
+.sobre-stat-num { font-size: 2.2rem; font-weight: 900; color: #74b9ff; font-family: 'Montserrat', sans-serif; }
+.sobre-stat-label { font-size: 0.8rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Valores ── */
+.sobre-valores { padding: 80px 8%; background: #f8fafc; text-align: center; }
+.sobre-valores-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin-top: 40px; }
+.sobre-valor-card {
+    background: white; border-radius: 28px; padding: 36px 24px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+    transition: all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+.sobre-valor-card:hover { transform: translateY(-8px); box-shadow: 0 24px 48px rgba(116,185,255,0.12); }
+.sobre-valor-icon { font-size: 2.4rem; display: block; margin-bottom: 12px; }
+.sobre-valor-card h3 { font-size: 1rem; font-weight: 800; color: #2d3446; margin-bottom: 8px; }
+.sobre-valor-card p  { font-size: 0.88rem; color: #94a3b8; line-height: 1.6; }
+
+/* ── Servicios ── */
+.sobre-servicios { padding: 80px 8%; background: white; text-align: center; }
+.sobre-servicios-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 32px; }
+.sobre-servicio-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 999px;
+    background: #f0f4f8; color: #2d3446;
+    font-weight: 700; font-size: 0.9rem;
+    border: 1.5px solid rgba(116,185,255,0.2);
+    transition: all 0.25s;
+}
+.sobre-servicio-chip:hover { background: #74b9ff; color: white; border-color: #74b9ff; transform: translateY(-2px); }
+
+/* ── Contacto ── */
+.sobre-contacto { padding: 80px 8%; background: #f8fafc; }
+.sobre-contacto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+.sobre-ubicacion p { color: #636e72; font-size: 0.95rem; margin-bottom: 16px; display: flex; align-items: center; }
+.sobre-btn-maps {
+    display: inline-block; padding: 12px 24px; border-radius: 12px;
+    background: #2d3446; color: white; text-decoration: none;
+    font-weight: 700; font-size: 0.88rem;
+    transition: background 0.2s;
+}
+.sobre-btn-maps:hover { background: #74b9ff; }
+
+.sobre-social-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.sobre-social-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px; border-radius: 16px;
+    text-decoration: none; font-size: 1.4rem;
+    transition: all 0.25s;
+}
+.sobre-social-item div { display: flex; flex-direction: column; }
+.sobre-social-item strong { font-size: 0.9rem; font-weight: 800; }
+.sobre-social-item span  { font-size: 0.78rem; opacity: 0.7; }
+.sobre-social--ig { background: #fef2f7; color: #e1306c; }
+.sobre-social--ig:hover { background: #e1306c; color: white; transform: translateX(4px); }
+.sobre-social--fb { background: #eff4ff; color: #1877f2; }
+.sobre-social--fb:hover { background: #1877f2; color: white; transform: translateX(4px); }
+.sobre-social--tt { background: #f1f1f1; color: #000; }
+.sobre-social--tt:hover { background: #010101; color: white; transform: translateX(4px); }
+.sobre-social--wa { background: #edfff5; color: #25d366; }
+.sobre-social--wa:hover { background: #25d366; color: white; transform: translateX(4px); }
+
+/* ── CTA ── */
+.sobre-cta {
+    padding: 80px 8%; background: linear-gradient(135deg, #1a2035, #2d3446);
+    text-align: center; position: relative; overflow: hidden;
+}
+.sobre-cta::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 60% 50%, rgba(116,185,255,0.12), transparent 60%);
+}
+.sobre-cta-icon { font-size: 2.5rem; color: #74b9ff; margin-bottom: 16px; position: relative; z-index: 1; }
+.sobre-cta h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 900; color: white; margin-bottom: 12px; position: relative; z-index: 1; }
+.sobre-cta p  { font-size: 1rem; color: rgba(255,255,255,0.7); margin-bottom: 32px; position: relative; z-index: 1; }
+.sobre-cta-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .sobre-mision-stats   { grid-template-columns: repeat(2, 1fr); }
+    .sobre-contacto-grid  { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+    .sobre-mision-stats   { grid-template-columns: repeat(2, 1fr); }
+    .sobre-hero           { padding: 120px 5% 60px; }
+    .sobre-mision,
+    .sobre-valores,
+    .sobre-servicios,
+    .sobre-contacto,
+    .sobre-cta            { padding: 60px 5%; }
+}

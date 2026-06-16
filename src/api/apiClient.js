@@ -1,179 +1,201 @@
 // src/api/apiClient.js
 //
-// CAMBIOS v3 (cierre de checklist):
-// - servicesApi.create/update: ya NO inyecta multiplicadores genéricos
-//   (priceChico = base*1.25, etc.). Ahora los 6 campos de precio vienen
-//   directamente del ServiceFormModal con los valores reales del catálogo.
-//   Si un campo está vacío, hace fallback al precio base (price), no a un
-//   multiplicador inventado.
-// - Se eliminan los campos legacy priceChico/priceMediano/priceGrande
-//   que generaban confusión con los nuevos priceMini/priceExtra/priceJumbo.
+// Cliente HTTP del frontend de Perrucho.
+// Ahora apunta al backend Express+Prisma (en lugar de json-server).
 //
-// Mantiene de v2: GET+merge+PUT en appointmentsApi.update, retries para
-// cold starts de Render, normalización de IDs con encodeURIComponent.
+// Local dev:   REACT_APP_API_URL no definida → http://localhost:3001/api
+// Producción:  REACT_APP_API_URL=https://perrucho.vercel.app/api
+//
+// Cambio clave vs json-server:
+//   - Todas las rutas llevan el prefijo /api/
+//   - Las respuestas de appointments/clients incluyen objetos anidados (join)
+//   - El token JWT se adjunta automáticamente en cada request
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
+// ── Token helpers ─────────────────────────────────────────────────────────────
+const getToken = () => localStorage.getItem('perrucho_token');
+
+const authHeaders = () => {
+  const token = getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+// ── handleResponse robusto ────────────────────────────────────────────────────
 const handleResponse = async (res) => {
-    if (!res.ok) {
-        let body = '';
-        try { body = await res.text(); } catch {}
-        const err = new Error(body || `HTTP ${res.status} ${res.statusText}`);
-        err.status = res.status;
-        throw err;
-    }
-    const text = await res.text();
-    return text ? JSON.parse(text) : {};
+  if (!res.ok) {
+    let body = '';
+    try { body = await res.text(); } catch {}
+    let message = body;
+    try { message = JSON.parse(body).error || body; } catch {}
+    const err = new Error(message || `HTTP ${res.status} ${res.statusText}`);
+    err.status = res.status;
+    throw err;
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
 };
 
-// Retries para cold starts de Render free tier
-const fetchWithRetry = async (url, options = {}, retries = 2) => {
-    let lastErr;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            const res = await fetch(url, options);
-            if (res.status >= 500 && attempt < retries) {
-                await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
-                continue;
-            }
-            return res;
-        } catch (err) {
-            lastErr = err;
-            if (attempt < retries) {
-                await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
-                continue;
-            }
-            throw lastErr;
-        }
-    }
-    throw lastErr;
-};
-
+// ── api base ──────────────────────────────────────────────────────────────────
 const api = {
-    get:    (endpoint)       => fetchWithRetry(`${BASE_URL}${endpoint}`).then(handleResponse),
-    post:   (endpoint, body) => fetchWithRetry(`${BASE_URL}${endpoint}`, { method: 'POST',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(handleResponse),
-    put:    (endpoint, body) => fetchWithRetry(`${BASE_URL}${endpoint}`, { method: 'PUT',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(handleResponse),
-    patch:  (endpoint, body) => fetchWithRetry(`${BASE_URL}${endpoint}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(handleResponse),
-    delete: (endpoint)       => fetchWithRetry(`${BASE_URL}${endpoint}`, { method: 'DELETE' }).then(handleResponse),
+  get:    (endpoint) =>
+    fetch(`${BASE_URL}${endpoint}`, { headers: authHeaders() }).then(handleResponse),
+
+  post:   (endpoint, body) =>
+    fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }).then(handleResponse),
+
+  put:    (endpoint, body) =>
+    fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }).then(handleResponse),
+
+  patch:  (endpoint, body) =>
+    fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    }).then(handleResponse),
+
+  delete: (endpoint) =>
+    fetch(`${BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    }).then(handleResponse),
 };
 
-const today = () => new Date().toISOString().split('T')[0];
-const idStr = (id) => encodeURIComponent(String(id));
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────────────────────────────────────
+export const authApi = {
+  login: (email, password) =>
+    api.post('/login', { email, password }),
 
-// ── Usuarios ──────────────────────────────────────────────────────────────────
+  signup: (data) =>
+    api.post('/signup', data),
+
+  me: () =>
+    api.get('/me'),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────────────────────────────────────
 export const usersApi = {
-    getAll:  ()         => api.get('/users'),
-    getById: (id)       => api.get(`/users/${idStr(id)}`),
-    create:  (data)     => api.post('/users', data),
-    update:  (id, data) => api.put(`/users/${idStr(id)}`, data),
-    delete:  (id)       => api.delete(`/users/${idStr(id)}`),
-    login: async (email, password) => {
-        const users = await api.get(`/users?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
-        return users.length > 0 ? users[0] : null;
-    },
+  getAll:  ()         => api.get('/users'),
+  getById: (id)       => api.get(`/users/${encodeURIComponent(id)}`),
+  create:  (data)     => api.post('/users', data),
+  update:  (id, data) => api.put(`/users/${encodeURIComponent(id)}`, data),
+  delete:  (id)       => api.delete(`/users/${encodeURIComponent(id)}`),
+
+  // Login — devuelve { token, user }
+  login: (email, password) => api.post('/login', { email, password }),
 };
 
-// ── Clientes ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENTS
+// ─────────────────────────────────────────────────────────────────────────────
 export const clientsApi = {
-    getAll:  ()         => api.get('/clients'),
-    getById: (id)       => api.get(`/clients/${idStr(id)}`),
-    create:  (data)     => api.post('/clients', { ...data, createdAt: today() }),
-    update:  (id, data) => api.put(`/clients/${idStr(id)}`, data),
-    delete:  (id)       => api.delete(`/clients/${idStr(id)}`),
+  getAll:  ()         => api.get('/clients'),
+  getById: (id)       => api.get(`/clients/${encodeURIComponent(id)}`),
+  create:  (data)     => api.post('/clients', data),
+  update:  (id, data) => api.put(`/clients/${encodeURIComponent(id)}`, data),
+  delete:  (id)       => api.delete(`/clients/${encodeURIComponent(id)}`),
 };
 
-// ── Mascotas ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PETS
+// ─────────────────────────────────────────────────────────────────────────────
 export const petsApi = {
-    getAll:     ()         => api.get('/pets'),
-    getByOwner: (ownerId)  => api.get(`/pets?ownerId=${idStr(ownerId)}`),
-    getById:    (id)       => api.get(`/pets/${idStr(id)}`),
-    create:     (data)     => api.post('/pets', { ...data, createdAt: today() }),
-    update:     (id, data) => api.put(`/pets/${idStr(id)}`, data),
-    delete:     (id)       => api.delete(`/pets/${idStr(id)}`),
+  getAll:       ()         => api.get('/pets'),
+  getByOwner:   (ownerId)  => api.get(`/pets?ownerId=${encodeURIComponent(ownerId)}`),
+  getById:      (id)       => api.get(`/pets/${encodeURIComponent(id)}`),
+  create:       (data)     => api.post('/pets', data),
+  update:       (id, data) => api.put(`/pets/${encodeURIComponent(id)}`, data),
+  patch:        (id, data) => api.patch(`/pets/${encodeURIComponent(id)}`, data),
+  delete:       (id)       => api.delete(`/pets/${encodeURIComponent(id)}`),
 };
 
-// ── Servicios ─────────────────────────────────────────────────────────────────
-// FIX: ya no se inyectan multiplicadores genéricos (base*1.25, base*1.50, etc.)
-// Los 6 campos de precio vienen del ServiceFormModal con los valores reales.
-// El campo `price` se usa como precio base para el POS (precio de la variante mini
-// o el más bajo del catálogo) y como fallback si algún campo no viene.
+// ─────────────────────────────────────────────────────────────────────────────
+// SERVICES
+// ─────────────────────────────────────────────────────────────────────────────
 export const servicesApi = {
-    getAll:  ()         => api.get('/services'),
-    getById: (id)       => api.get(`/services/${idStr(id)}`),
-    create: (data) => {
-        const base = Number(data.priceMini || data.price) || 0;
-        return api.post('/services', {
-            icon:    data.icon    || '',
-            color:   data.color   || 'blue',
-            popular: data.popular || false,
-            // Los 6 rangos reales — si vienen del form se usan tal cual,
-            // si no, se cae al precio base (no a multiplicadores inventados)
-            priceMini:    Number(data.priceMini)    || base,
-            priceChico:   Number(data.priceChico)   || base,
-            priceMediano: Number(data.priceMediano) || base,
-            priceGrande:  Number(data.priceGrande)  || base,
-            priceExtra:   Number(data.priceExtra)   || base,
-            priceJumbo:   Number(data.priceJumbo)   || base,
-            // price = priceMini para compatibilidad con POS y legacy
-            price: base,
-            ...data,
-        });
-    },
-    update: (id, data) => {
-        const base = Number(data.priceMini || data.price) || 0;
-        return api.put(`/services/${idStr(id)}`, {
-            icon:    data.icon    || '',
-            color:   data.color   || 'blue',
-            popular: data.popular || false,
-            priceMini:    Number(data.priceMini)    || base,
-            priceChico:   Number(data.priceChico)   || base,
-            priceMediano: Number(data.priceMediano) || base,
-            priceGrande:  Number(data.priceGrande)  || base,
-            priceExtra:   Number(data.priceExtra)   || base,
-            priceJumbo:   Number(data.priceJumbo)   || base,
-            price: base,
-            ...data,
-            id,
-        });
-    },
-    delete: (id) => api.delete(`/services/${idStr(id)}`),
+  getAll:  ()         => api.get('/services'),
+  getById: (id)       => api.get(`/services/${encodeURIComponent(id)}`),
+  create:  (data)     => api.post('/services', data),
+  update:  (id, data) => api.put(`/services/${encodeURIComponent(id)}`, data),
+  delete:  (id)       => api.delete(`/services/${encodeURIComponent(id)}`),
 };
 
-// ── Productos ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTS
+// ─────────────────────────────────────────────────────────────────────────────
 export const productsApi = {
-    getAll:  ()         => api.get('/products'),
-    getById: (id)       => api.get(`/products/${idStr(id)}`),
-    create:  (data)     => api.post('/products', data),
-    update:  (id, data) => api.put(`/products/${idStr(id)}`, data),
-    delete:  (id)       => api.delete(`/products/${idStr(id)}`),
+  getAll:  ()         => api.get('/products'),
+  getById: (id)       => api.get(`/products/${encodeURIComponent(id)}`),
+  create:  (data)     => api.post('/products', data),
+  update:  (id, data) => api.put(`/products/${encodeURIComponent(id)}`, data),
+  patch:   (id, data) => api.patch(`/products/${encodeURIComponent(id)}`, data),
+  delete:  (id)       => api.delete(`/products/${encodeURIComponent(id)}`),
 };
 
-// ── Citas ─────────────────────────────────────────────────────────────────────
-// UPDATE robusto: GET + merge + PUT para evitar fallo de PATCH en json-server
-// cuando el documento tiene shape inconsistente o campos null.
+// ─────────────────────────────────────────────────────────────────────────────
+// APPOINTMENTS
+// ─────────────────────────────────────────────────────────────────────────────
 export const appointmentsApi = {
-    getAll:      ()         => api.get('/appointments'),
-    getByClient: (clientId) => api.get(`/appointments?clientId=${idStr(clientId)}`),
-    getByDate:   (date)     => api.get(`/appointments?date=${idStr(date)}`),
-    create:      (data)     => api.post('/appointments', { ...data, createdAt: today() }),
-    update: async (id, partialData) => {
-        try {
-            const current = await api.get(`/appointments/${idStr(id)}`);
-            const merged  = { ...current, ...partialData, id: current.id };
-            return await api.put(`/appointments/${idStr(id)}`, merged);
-        } catch (err) {
-            console.warn('[appointmentsApi.update] GET previo falló, intentando PATCH:', err.message);
-            return api.patch(`/appointments/${idStr(id)}`, partialData);
-        }
-    },
-    delete: (id) => api.delete(`/appointments/${idStr(id)}`),
+  getAll:       (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api.get(`/appointments${qs ? `?${qs}` : ''}`);
+  },
+  getById:      (id)          => api.get(`/appointments/${encodeURIComponent(id)}`),
+  getByClient:  (clientId)    => api.get(`/appointments?clientId=${encodeURIComponent(clientId)}`),
+  getByDate:    (date)        => api.get(`/appointments?date=${encodeURIComponent(date)}`),
+  create:       (data)        => api.post('/appointments', data),
+  update:       (id, data)    => api.put(`/appointments/${encodeURIComponent(id)}`, data),
+  patch:        (id, data)    => api.patch(`/appointments/${encodeURIComponent(id)}`, data),
+  delete:       (id)          => api.delete(`/appointments/${encodeURIComponent(id)}`),
+
+  // Servicios adicionales
+  addExtra:     (id, data)        => api.post(`/appointments/${encodeURIComponent(id)}/extras`, data),
+  removeExtra:  (id, extraId)     => api.delete(`/appointments/${encodeURIComponent(id)}/extras/${encodeURIComponent(extraId)}`),
 };
 
-// ── Ventas ────────────────────────────────────────────────────────────────────
-// Preserva el `type` ('product' | 'service') que pasa el caller.
+// ─────────────────────────────────────────────────────────────────────────────
+// SALES
+// ─────────────────────────────────────────────────────────────────────────────
 export const salesApi = {
-    getAll: ()     => api.get('/sales'),
-    create: (data) => api.post('/sales', { date: today(), ...data }),
+  getAll:  (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return api.get(`/sales${qs ? `?${qs}` : ''}`);
+  },
+  getById: (id)          => api.get(`/sales/${encodeURIComponent(id)}`),
+  create:  (data)        => api.post('/sales', data),
+  update:  (id, data)    => api.put(`/sales/${encodeURIComponent(id)}`, data),
+  patch:   (id, data)    => api.patch(`/sales/${encodeURIComponent(id)}`, data),
+  delete:  (id)          => api.delete(`/sales/${encodeURIComponent(id)}`),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  get:    ()     => api.get('/settings'),
+  update: (data) => api.put('/settings', data),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEALTH CHECK
+// ─────────────────────────────────────────────────────────────────────────────
+export const healthApi = {
+  check: () => api.get('/health'),
 };
 
 export default api;

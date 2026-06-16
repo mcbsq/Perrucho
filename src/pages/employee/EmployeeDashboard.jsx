@@ -1,18 +1,9 @@
 // src/pages/employee/EmployeeDashboard.jsx
-//
-// CAMBIOS v5 (cierre de checklist):
-// #27 — calcPrice() local eliminado. Se usa calcServicePrice() de pricingRules.js
-//        para calcular el precio estimado al crear citas desde el calendario.
-//        El precio refleja los valores reales del catálogo (6 rangos).
-//
-// Mantiene de versiones anteriores:
-// - toLocalISO() para fix de timezone (desfase de 1 día en calendario)
-// - useNotify / NotifyDialog en lugar de window.confirm
-// - Polling protegido con updatingIds (evita race conditions)
-// - Optimistic update con rollback si el server falla
-// - GET+merge+PUT via appointmentsApi.update
-// - Notificación al cliente por email (mailto:) al confirmar/finalizar
-// - Expediente con "Última visita destacada"
+// Fix backend PostgreSQL + Prisma:
+// - addSale ahora recibe objeto { items, total, clientId, type, paymentMethod, status }
+// - Las respuestas de appointments incluyen objetos anidados (pet, service, client)
+// - Helpers para extraer datos de objetos anidados
+// - Notificación al cliente por WhatsApp (punto 2 del cliente) en lugar de email
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
@@ -22,7 +13,7 @@ import {
     FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt,
     FaNotesMedical, FaClock, FaTimes, FaSave,
     FaHistory, FaBoxOpen, FaExclamationTriangle, FaClipboardList,
-    FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaEnvelope
+    FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp
 } from 'react-icons/fa';
 import {
     FAB, StatusBadge, StatusSelector,
@@ -34,24 +25,35 @@ import '../../components/shared/DashboardShared.css';
 import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
 import { calcServicePrice, weightRangeLabel } from '../../utils/pricingRules';
-import { shopToClientOnConfirmation, shopToClientOnFinished, openEmail } from '../../utils/emailNotify';
+import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
+import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
+import '../../components/shared/ExtrasPanel.css';
 import './EmployeeDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// FIX timezone: construye YYYY-MM-DD desde fecha LOCAL, sin pasar por UTC.
 const toLocalISO = (d) => {
     if (!d) return '';
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
-
 const todayStr  = () => toLocalISO(new Date());
 const parseTime = (t) => { if(!t)return 8*60; const[h,m]=t.split(':').map(Number); return h*60+(m||0); };
 const formatDateLong = (s) => { if(!s)return''; return new Date(s+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}); };
 const hueFromId = (id) => { const n=typeof id==='string'?id.split('').reduce((a,c)=>a+c.charCodeAt(0),0):Number(id); return(n*137)%360; };
+
+// Helpers para objetos anidados del nuevo backend
+const getApptPetName     = (a) => a.pet?.petName   || a.petName     || 'Mascota';
+const getApptServiceName = (a) => a.service?.title || a.serviceName || 'Servicio';
+const getApptClientName  = (a) => a.client?.name   || '';
+const getApptClientPhone = (a) => a.client?.phone  || '';
+const getApptPetId       = (a) => a.petId  || a.pet?.id;
+const getApptClientId    = (a) => a.clientId || a.client?.id;
+const getApptTime        = (a) => a.time || '10:15';
+
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAYS_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-// Horario según catálogo: 10:15am a 5pm
 const HOURS = [10, 11, 12, 13, 14, 15, 16, 17];
+
+const WA_BUSINESS = '5215633252525';
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({message,type,onClose}) => {
@@ -65,7 +67,7 @@ const useToast = () => {
     return {toasts,addToast,removeToast};
 };
 
-// ─── Modal genérico empleado ──────────────────────────────────────────────────
+// ─── Modal genérico ───────────────────────────────────────────────────────────
 const Modal = ({title,onClose,children,wide,full}) => (
     <div className="emp-modal-overlay" onClick={onClose}>
         <div className={`emp-modal-box ${wide?'modal-wide':''} ${full?'modal-full':''}`} onClick={e=>e.stopPropagation()}>
@@ -76,10 +78,11 @@ const Modal = ({title,onClose,children,wide,full}) => (
 );
 
 // ─── Appt Detail Popup ────────────────────────────────────────────────────────
-const ApptDetailPopup = ({appt,anchor,pets,clients,onStatusChange,onOpenExp,onDelete,onClose,isUpdating}) => {
+const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,onOpenExp,onDelete,onClose,isUpdating,onAddExtra,onRemoveExtra}) => {
     const ref=useRef(null);
     const [pos,setPos]=useState({top:0,left:0});
-    const pet=pets.find(p=>String(p.id)===String(appt.petId));
+    const petId=getApptPetId(appt);
+    const pet=pets.find(p=>String(p.id)===String(petId));
     const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
     const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
     const transitions=STATUS_TRANSITIONS.empleado;
@@ -94,22 +97,31 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,onStatusChange,onOpenExp,onDe
         <div ref={ref} className="adp" style={{position:'fixed',top:pos.top,left:pos.left,zIndex:3000}}>
             <div className="adp-bar" style={{background:sc.border}}/>
             <div className="adp-header">
-                <div className="appt-popup-avatar" style={{background:`hsl(${hueFromId(appt.petId)},65%,60%)`}}>{pet?.petName?.[0]?.toUpperCase()||'?'}</div>
+                <div className="appt-popup-avatar" style={{background:`hsl(${hueFromId(petId)},65%,60%)`}}>{pet?.petName?.[0]?.toUpperCase()||getApptPetName(appt)?.[0]?.toUpperCase()||'?'}</div>
                 <div className="appt-popup-title">
-                    <strong>{pet?.petName||'Mascota'}</strong>
+                    <strong>{getApptPetName(appt)}</strong>
                     <span>{pet?.breed||'—'} · {pet?.weight ? `~${pet.weight} kg (${weightRangeLabel(pet.weight)})` : 'peso por verificar'}</span>
-                    {owner&&<span className="appt-popup-owner">{owner.name}{owner.email?` · ${owner.email}`:''}</span>}
+                    {(owner||getApptClientName(appt))&&<span className="appt-popup-owner">{owner?.name||getApptClientName(appt)}{(owner?.phone||getApptClientPhone(appt))?` · ${owner?.phone||getApptClientPhone(appt)}`:''}</span>}
                 </div>
                 <button className="appt-popup-close" onClick={onClose}><FaTimes/></button>
             </div>
             <div className="adp-body">
-                <div className="adp-row"><FaClock className="adp-icon"/><span>{appt.time||'—'} · {appt.date}</span></div>
-                <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{appt.serviceName||'—'}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
+                <div className="adp-row"><FaClock className="adp-icon"/><span>{getApptTime(appt)} · {appt.date}</span></div>
+                <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{getApptServiceName(appt)}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
                 <div className="adp-row">
                     <StatusSelector current={appt.status||'Pendiente'} transitions={transitions}
                         onSelect={(newStatus)=>{onStatusChange(appt,newStatus);onClose();}}/>
                 </div>
                 {pet?.notes&&<div className="appt-popup-notes"><span className="appt-popup-notes-label">Notas</span><p>{pet.notes}</p></div>}
+                {onAddExtra&&onRemoveExtra&&(
+                    <ExtrasPanel
+                        appt={appt}
+                        services={services}
+                        pets={pets}
+                        onAdd={onAddExtra}
+                        onRemove={onRemoveExtra}
+                    />
+                )}
             </div>
             <div className="adp-footer">
                 {actionDef&&<button className={`ds-btn ds-btn--${actionDef.style} adp-action-btn`} disabled={isUpdating}
@@ -129,14 +141,13 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,onStatusChange,onOpenExp,onDe
 const MedicalModal = ({pet,clients,onSave,onClose}) => {
     const [notes,setNotes]=useState(pet.notes||'');
     const [sessionNote,setSessionNote]=useState('');
-    const [history,setHistory]=useState(pet.history||[]);
+    const [history,setHistory]=useState(Array.isArray(pet.history)?pet.history:[]);
     const [saving,setSaving]=useState(false);
     const [hasUnsaved,setHasUnsaved]=useState(false);
     const owner=clients.find(c=>String(c.id)===String(pet.ownerId));
 
     const addEntry=()=>{if(!sessionNote.trim())return;setHistory(p=>[...p,{date:new Date().toLocaleDateString('es-MX'),detail:sessionNote.trim(),author:'Empleado'}]);setSessionNote('');setHasUnsaved(true);};
     const handleSave=async()=>{setSaving(true);try{await onSave({...pet,notes,history});setHasUnsaved(false);}catch(err){console.error(err);}finally{setSaving(false);}};
-
     const lastVisit = history.length > 0 ? history[history.length - 1] : null;
 
     return <Modal title={`Expediente — ${pet.petName}`} onClose={onClose} wide>
@@ -145,11 +156,10 @@ const MedicalModal = ({pet,clients,onSave,onClose}) => {
             <div>
                 <h4>{pet.petName}</h4>
                 <span>{pet.breed||'—'} · {pet.weight ? `~${pet.weight} kg (${weightRangeLabel(pet.weight)})` : 'peso por verificar'}</span>
-                <span className="exp-owner">Dueño: {owner?.name||'Sin asignar'} {owner?.email?`· ${owner.email}`:''}</span>
+                <span className="exp-owner">Dueño: {owner?.name||'Sin asignar'} {owner?.phone?`· ${owner.phone}`:''}</span>
             </div>
         </div>
         {hasUnsaved&&<div className="emp-unsaved-warning"><FaExclamationTriangle/> Cambios sin guardar</div>}
-
         {lastVisit && (
             <div className="exp-last-visit-highlight">
                 <span className="exp-last-visit-label">📋 Última visita</span>
@@ -157,7 +167,6 @@ const MedicalModal = ({pet,clients,onSave,onClose}) => {
                 <p>{lastVisit.detail}</p>
             </div>
         )}
-
         <div className="exp-section">
             <label className="exp-label"><FaNotesMedical/> Notas generales / alergias</label>
             <textarea className="exp-textarea" rows={3} value={notes} onChange={e=>{setNotes(e.target.value);setHasUnsaved(true);}} placeholder="Alergias, condiciones crónicas..."/>
@@ -168,10 +177,7 @@ const MedicalModal = ({pet,clients,onSave,onClose}) => {
                 <textarea className="exp-textarea sm" rows={2} value={sessionNote} onChange={e=>setSessionNote(e.target.value)} placeholder="Servicio aplicado, condiciones en que llegó la mascota, observaciones..."/>
                 <button className="btn-add-entry" onClick={addEntry} disabled={!sessionNote.trim()}>Agregar</button>
             </div>
-            <small className="exp-session-hint">
-                💡 Tip: anota cómo llegó la mascota y en qué condiciones se va,
-                para tener referencia en próximas visitas.
-            </small>
+            <small className="exp-session-hint">💡 Anota cómo llegó la mascota y en qué condiciones se va.</small>
         </div>
         {history.length>0&&<div className="exp-section">
             <label className="exp-label"><FaHistory/> Historial completo</label>
@@ -181,8 +187,8 @@ const MedicalModal = ({pet,clients,onSave,onClose}) => {
     </Modal>;
 };
 
-// ─── Calendar Modal ────────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusChange,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds}) => {
+// ─── Calendar Modal ───────────────────────────────────────────────────────────
+const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusChange,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds,onAddExtra,onRemoveExtra}) => {
     const now=new Date();
     const [viewDate,setViewDate]=useState(new Date(now.getFullYear(),now.getMonth(),1));
     const [calView,setCalView]=useState('week');
@@ -195,15 +201,11 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
     const [newAppt,setNewAppt]=useState({petId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
     const empleados=(allUsers||[]).filter(u=>u.role==='empleado');
 
-    // FIX #27: usar calcServicePrice en lugar del multiplicador genérico local
     useEffect(()=>{
         if(newAppt.petId && newAppt.serviceId){
             const pet = pets.find(p=>String(p.id)===String(newAppt.petId));
             const svc = services.find(s=>String(s.id)===String(newAppt.serviceId));
-            if(pet && svc){
-                const price = calcServicePrice(svc, pet.weight);
-                setNewAppt(f=>({...f, finalPrice: price}));
-            }
+            if(pet && svc){ setNewAppt(f=>({...f, finalPrice: calcServicePrice(svc, pet.weight)})); }
         }
         setSlotError('');
     },[newAppt.petId, newAppt.serviceId, newAppt.date, newAppt.time]);
@@ -213,7 +215,7 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
     const goBack=()=>{if(calView==='month'){setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1));}else{const d=new Date(dayDate);d.setDate(d.getDate()-(calView==='week'?7:1));setDayDate(d);}};
     const goNext=()=>{if(calView==='month'){setViewDate(new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1));}else{const d=new Date(dayDate);d.setDate(d.getDate()+(calView==='week'?7:1));setDayDate(d);}};
     const goToday=()=>{setViewDate(new Date(now.getFullYear(),now.getMonth(),1));setDayDate(new Date(now));};
-    const switchView=(v)=>{const c=new Date(viewDate.getFullYear(),viewDate.getMonth(),1);const isCur=viewDate.getFullYear()===now.getFullYear()&&viewDate.getMonth()===now.getMonth();if(v!=='month')setDayDate(isCur?new Date(now):c);setCalView(v);};
+    const switchView=(v)=>{const isCur=viewDate.getFullYear()===now.getFullYear()&&viewDate.getMonth()===now.getMonth();if(v!=='month')setDayDate(isCur?new Date(now):new Date(viewDate.getFullYear(),viewDate.getMonth(),1));setCalView(v);};
     const headerLabel=()=>{if(calView==='month')return`${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`;if(calView==='day')return formatDateLong(toLocalISO(dayDate));const s=new Date(dayDate);s.setDate(s.getDate()-s.getDay());const e=new Date(s);e.setDate(e.getDate()+6);return`${s.getDate()} — ${e.getDate()} ${MONTHS[e.getMonth()]}`;};
 
     const openPopup=(appt,e)=>{e.stopPropagation();setAnchor(e.currentTarget.getBoundingClientRect());setSelAppt(appt);};
@@ -227,7 +229,7 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
         try{
             const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));
             const pet=pets.find(p=>String(p.id)===String(newAppt.petId));
-            await onAddAppt({...newAppt,serviceName:svc?.title,petName:pet?.petName,assignedTo:currentUser?.id||''});
+            await onAddAppt({...newAppt,serviceName:svc?.title,petName:pet?.petName,assignedTo:currentUser?.id||'',clientId:pet?.ownerId||null});
             setShowForm(false);
             setNewAppt({petId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
             setSlotError('');
@@ -236,8 +238,8 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
 
     const EventChip=({appt,style='chip'})=>{
         const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
-        if(style==='block')return<div className="cal-event-block" style={{background:sc.bg,borderLeft:`4px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)}><strong>{appt.time}</strong><span>{appt.petName}</span><span>{appt.serviceName}</span><span style={{fontSize:'0.65rem',opacity:0.8}}>{STATUS_EMOJI[appt.status]} {appt.status}</span></div>;
-        return<div className="cal-event-chip" style={{background:sc.bg,borderLeft:`3px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)}>{appt.time} {appt.petName}<span style={{display:'inline-block',width:6,height:6,background:sc.dot,borderRadius:'50%',marginLeft:4}}/></div>;
+        if(style==='block')return<div className="cal-event-block" style={{background:sc.bg,borderLeft:`4px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)}><strong>{getApptTime(appt)}</strong><span>{getApptPetName(appt)}</span><span>{getApptServiceName(appt)}</span><span style={{fontSize:'0.65rem',opacity:0.8}}>{STATUS_EMOJI[appt.status]} {appt.status}</span></div>;
+        return<div className="cal-event-chip" style={{background:sc.bg,borderLeft:`3px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(appt,ev)}>{getApptTime(appt)} {getApptPetName(appt)}<span style={{display:'inline-block',width:6,height:6,background:sc.dot,borderRadius:'50%',marginLeft:4}}/></div>;
     };
 
     const MonthView=()=>{
@@ -279,8 +281,8 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
                 {HOURS.map(h=><div key={h} className="cal-hour-row">
                     <div className="cal-time-label">{h}:00</div>
                     {wd.map((d,di)=>{
-                        const ds=toLocalISO(d); // FIX timezone
-                        const slot=(apptsByDate[ds]||[]).filter(a=>{const min=parseTime(a.time);return min>=h*60&&min<(h+1)*60;});
+                        const ds=toLocalISO(d);
+                        const slot=(apptsByDate[ds]||[]).filter(a=>{const min=parseTime(getApptTime(a));return min>=h*60&&min<(h+1)*60;});
                         return<div key={di} className="cal-hour-cell">{slot.map(a=><EventChip key={a.id} appt={a} style='block'/>)}</div>;
                     })}
                 </div>)}
@@ -289,24 +291,25 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
     };
 
     const DayView=()=>{
-        const ds=toLocalISO(dayDate); // FIX timezone
-        const da=(apptsByDate[ds]||[]).sort((a,b)=>parseTime(a.time)-parseTime(b.time));
+        const ds=toLocalISO(dayDate);
+        const da=(apptsByDate[ds]||[]).sort((a,b)=>parseTime(getApptTime(a))-parseTime(getApptTime(b)));
         return <div className="cal-day">
             <div className="cal-day-label">{formatDateLong(ds)}<span className="cal-day-count">{da.length} cita{da.length!==1?'s':''}</span></div>
             <div className="cal-day-scroll">
                 {HOURS.map(h=>{
-                    const slot=da.filter(a=>{const min=parseTime(a.time);return min>=h*60&&min<(h+1)*60;});
+                    const slot=da.filter(a=>{const min=parseTime(getApptTime(a));return min>=h*60&&min<(h+1)*60;});
                     return<div key={h} className="cal-day-row">
                         <div className="cal-time-label">{h}:00</div>
                         <div className="cal-day-events">
                             {slot.map(a=>{
                                 const sc=STATUS_COLORS[a.status]||STATUS_COLORS['Pendiente'];
-                                const pet=pets.find(p=>String(p.id)===String(a.petId));
+                                const petId=getApptPetId(a);
+                                const pet=pets.find(p=>String(p.id)===String(petId));
                                 const owner=pet?clients.find(cl=>String(cl.id)===String(pet.ownerId)):null;
                                 return<div key={a.id} className="cal-day-event" style={{background:sc.bg,borderLeft:`5px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(a,ev)}>
-                                    <div className="cal-day-event-top"><strong>{a.time} — {a.petName}</strong><StatusBadge status={a.status}/></div>
-                                    <span>{a.serviceName}</span>
-                                    {owner&&<span className="cal-day-owner">{owner.name}</span>}
+                                    <div className="cal-day-event-top"><strong>{getApptTime(a)} — {getApptPetName(a)}</strong><StatusBadge status={a.status}/></div>
+                                    <span>{getApptServiceName(a)}</span>
+                                    {(owner||getApptClientName(a))&&<span className="cal-day-owner">{owner?.name||getApptClientName(a)}</span>}
                                     <span className="cal-day-price">~${a.finalPrice}</span>
                                 </div>;
                             })}
@@ -368,18 +371,19 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
             </div>
         </Modal>
         {selAppt&&anchor&&<ApptDetailPopup
-            appt={selAppt} anchor={anchor} pets={pets} clients={clients}
+            appt={selAppt} anchor={anchor} pets={pets} clients={clients} services={services}
             isUpdating={updatingIds.has(String(selAppt.id))}
             onStatusChange={(a,s)=>{onStatusChange(a,s);closePopup();}}
             onOpenExp={(pet)=>{onOpenExp(pet);closePopup();}}
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
+            onAddExtra={onAddExtra} onRemoveExtra={onRemoveExtra}
             onClose={closePopup}/>}
     </>;
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const EmployeeDashboard = () => {
-    const {products,pets,clients,services,addClient,updateClient,addPet,updatePet,addSale}=useData();
+    const {products,pets,clients,services,addClient,updateClient,addPet,updatePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
     const {notify, NotifyNode} = useNotify();
@@ -400,7 +404,7 @@ const EmployeeDashboard = () => {
     updatingIdsRef.current = updatingIds;
 
     const [allUsers,setAllUsers]=useState([]);
-    useEffect(()=>{usersApi.getAll().then(setAllUsers).catch(err=>{console.error(err);addToast('No se pudieron cargar los empleados','error');});},[addToast]);
+    useEffect(()=>{usersApi.getAll().then(setAllUsers).catch(err=>addToast('No se pudieron cargar los empleados','error'));},[]);
     const empleados=allUsers.filter(u=>u.role==='empleado');
 
     const loadAppointments=useCallback(async()=>{
@@ -408,9 +412,8 @@ const EmployeeDashboard = () => {
         try{
             const fresh = await appointmentsApi.getAll();
             const inFlight = updatingIdsRef.current;
-            if(inFlight.size===0){
-                setAppointments(fresh);
-            } else {
+            if(inFlight.size===0){ setAppointments(fresh); }
+            else{
                 setAppointments(prev=>{
                     const localMap=new Map(prev.map(a=>[String(a.id),a]));
                     return fresh.map(a=>inFlight.has(String(a.id))?localMap.get(String(a.id))||a:a);
@@ -426,31 +429,61 @@ const EmployeeDashboard = () => {
         return()=>clearInterval(interval);
     },[loadAppointments]);
 
-    const todayAppts=useMemo(()=>appointments.filter(a=>a.date===todayStr()).sort((a,b)=>(a.time||'').localeCompare(b.time||'')),[appointments]);
+    const todayAppts=useMemo(()=>appointments.filter(a=>a.date===todayStr()).sort((a,b)=>(getApptTime(a)).localeCompare(getApptTime(b))),[appointments]);
     const kpis=useMemo(()=>({
         total:todayAppts.length,
         confirmadas:todayAppts.filter(a=>a.status==='Confirmada').length,
-        enProceso:todayAppts.filter(a=>a.status==='En proceso').length,
-        finalizadas:todayAppts.filter(a=>a.status==='Finalizada').length,
+        enProceso:todayAppts.filter(a=>a.status==='EnProceso'||a.status==='En proceso').length,
+        finalizadas:todayAppts.filter(a=>a.status==='Completada'||a.status==='Finalizada').length,
         stockBajo:products.filter(p=>Number(p.stock)<5).length
     }),[todayAppts,products]);
 
-    const notifyClientByEmail = async (appt, newStatus) => {
-        if(newStatus!=='Confirmada'&&newStatus!=='Finalizada')return;
-        const pet=pets.find(p=>String(p.id)===String(appt.petId));
+    // Notificación al cliente por WhatsApp (punto 2 del correo del cliente)
+    const notifyClientByWhatsApp = async (appt, newStatus) => {
+        if(newStatus!=='Confirmada'&&newStatus!=='Completada'&&newStatus!=='Finalizada')return;
+        const petId=getApptPetId(appt);
+        const pet=pets.find(p=>String(p.id)===String(petId));
         const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
-        if(!owner?.email){
-            await notify({type:'info',icon:'📧',accent:'amber',title:'Sin correo registrado',message:`${owner?.name||'El cliente'} no tiene email. Pídele que lo agregue en su perfil.`,confirmLabel:'Entendido'});
+        const clientPhone = owner?.phone || getApptClientPhone(appt);
+
+        if(!clientPhone){
+            addToast('El cliente no tiene teléfono registrado','info');
             return;
         }
-        const wants=await notify({type:'confirm',icon:'📧',accent:'blue',title:'¿Avisar al cliente por correo?',message:`Se abrirá tu cliente de correo con un mensaje para ${owner.name} (${owner.email}).`,confirmLabel:'Sí, redactar',cancelLabel:'Ahora no'});
+
+        const wants=await notify({
+            type:'confirm',icon:'💬',accent:'mint',
+            title:'¿Avisar al cliente por WhatsApp?',
+            message:`Se abrirá WhatsApp con un mensaje para ${owner?.name||getApptClientName(appt)||'el cliente'}.`,
+            confirmLabel:'Sí, enviar',cancelLabel:'Ahora no'
+        });
         if(!wants)return;
-        const baseInfo={clientName:owner.name,clientEmail:owner.email,petName:appt.petName,serviceName:appt.serviceName,date:appt.date,time:appt.time};
-        const url=newStatus==='Confirmada'?shopToClientOnConfirmation(baseInfo):shopToClientOnFinished(baseInfo);
-        if(openEmail(url))addToast('Correo abierto en tu app de email','info');
-        else addToast('No se pudo abrir el correo','error');
+
+        const baseInfo={
+            clientName:   owner?.name||getApptClientName(appt)||'Cliente',
+            clientPhone:  clientPhone,
+            petName:      getApptPetName(appt),
+            serviceName:  getApptServiceName(appt),
+            date:         appt.date,
+            time:         getApptTime(appt),
+            businessPhone:WA_BUSINESS,
+        };
+
+        // Usar whatsappNotify para generar el mensaje
+        const phone = clientPhone.replace(/\D/g,'');
+        const fullPhone = phone.startsWith('52') ? phone : `52${phone}`;
+        let msg = '';
+        if(newStatus==='Confirmada'){
+            msg = `Hola ${baseInfo.clientName}, te confirmamos tu cita para ${baseInfo.petName} el ${baseInfo.date} a las ${baseInfo.time} en Taylor's Pet Services. ¡Te esperamos! 🐾`;
+        } else {
+            msg = `Hola ${baseInfo.clientName}, tu servicio de ${baseInfo.serviceName} para ${baseInfo.petName} ha sido completado. ¡Gracias por visitarnos en Taylor's Pet Services! 🐾`;
+        }
+        const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+        addToast('WhatsApp abierto','info');
     };
 
+    // FIX: addSale con nuevo formato + objetos anidados
     const handleStatusChange=async(appt,newStatus)=>{
         if(!newStatus)return;
         const id=String(appt.id);
@@ -459,17 +492,34 @@ const EmployeeDashboard = () => {
         setAppointments(p=>p.map(a=>String(a.id)===id?{...a,status:newStatus}:a));
         if(selAppt?.id===appt.id)setSelAppt(prev=>({...prev,status:newStatus}));
         try{
-            const updated=await appointmentsApi.update(appt.id,{status:newStatus});
+            const updated=await appointmentsApi.patch(appt.id,{status:newStatus});
             setAppointments(p=>p.map(a=>String(a.id)===id?{...a,...updated}:a));
             if(selAppt?.id===appt.id)setSelAppt(prev=>({...prev,...updated}));
-            if(newStatus==='Finalizada'){
-                const pet=pets.find(p=>String(p.id)===String(appt.petId));
-                try{await addSale(`Servicio: ${appt.serviceName} (${appt.petName})`,Number(appt.finalPrice),pet?.ownerId||null,'service');}
-                catch(e){console.error(e);addToast('Cita finalizada pero falló registrar la venta','warning');}
-                if(pet){try{await updatePet(pet.id,{...pet,history:[...(pet.history||[]),{date:new Date().toLocaleDateString('es-MX'),detail:`${appt.serviceName} finalizado — $${appt.finalPrice}`,author:user?.name||'Empleado'}]});}catch(e){console.error(e);}}
+
+            if(newStatus==='Finalizada'||newStatus==='Completada'){
+                const petId=getApptPetId(appt);
+                const pet=pets.find(p=>String(p.id)===String(petId));
+                // FIX: nuevo formato addSale
+                try{
+                    await addSale({
+                        items:[{name:`Servicio: ${getApptServiceName(appt)} (${getApptPetName(appt)})`,price:Number(appt.finalPrice),quantity:1}],
+                        total:Number(appt.finalPrice),
+                        clientId:pet?.ownerId||getApptClientId(appt)||null,
+                        appointmentId:appt.id,
+                        type:'service',
+                        paymentMethod:'efectivo',
+                        status:'pagado',
+                    });
+                }catch(e){console.error(e);addToast('Cita finalizada pero falló registrar la venta','warning');}
+
+                if(pet){
+                    try{
+                        await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:new Date().toLocaleDateString('es-MX'),detail:`${getApptServiceName(appt)} finalizado — $${appt.finalPrice}`,author:user?.name||'Empleado'}]});
+                    }catch(e){console.error(e);}
+                }
             }
             addToast(`Estado → ${newStatus}`,'success');
-            await notifyClientByEmail(appt,newStatus);
+            await notifyClientByWhatsApp(appt, newStatus);
         }catch(err){
             setAppointments(prevAppts);
             if(selAppt?.id===appt.id)setSelAppt(appt);
@@ -485,8 +535,11 @@ const EmployeeDashboard = () => {
         if(!check.ok){addToast(check.message,'error');throw new Error(check.message);}
         const pet=pets.find(p=>String(p.id)===String(form.petId));
         const dataWithClient={...form,clientId:pet?.ownerId||form.clientId||null};
-        try{const c=await appointmentsApi.create(dataWithClient);setAppointments(p=>[...p,c]);addToast('Cita agendada','success');}
-        catch(err){addToast(`Error al agendar: ${err.message||'sin detalle'}`,'error');throw err;}
+        try{
+            const c=await appointmentsApi.create(dataWithClient);
+            setAppointments(p=>[...p,c]);
+            addToast('Cita agendada','success');
+        }catch(err){addToast(`Error al agendar: ${err.message||'sin detalle'}`,'error');throw err;}
     };
 
     const handleDeleteAppt=async(id)=>{
@@ -504,33 +557,39 @@ const EmployeeDashboard = () => {
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Actualizado':'Guardado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const saveMedicalFile=async(updatedPet)=>{try{await updatePet(updatedPet.id,updatedPet);setMedicalPet(null);addToast('Expediente guardado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
-    const confirmDeleteClient=async(id,name)=>{const ok=await notify({type:'confirm',icon:'⚠️',accent:'red',title:`¿Eliminar a "${name}"?`,message:'Solo el administrador puede eliminar clientes.',confirmLabel:'Solicitar',cancelLabel:'Cancelar'});if(!ok)return;addToast('Solo el admin puede eliminar clientes','warning');};
-    const confirmDeletePet=async(id,name)=>{const ok=await notify({type:'confirm',icon:'⚠️',accent:'red',title:`¿Eliminar a "${name}"?`,message:'Solo el administrador puede eliminar pacientes.',confirmLabel:'Solicitar',cancelLabel:'Cancelar'});if(!ok)return;addToast('Solo el admin puede eliminar pacientes','warning');};
+    // Empleado no puede eliminar — avisa que lo hace el admin
+    const confirmDeleteClient=async(id,name)=>{addToast('Solo el administrador puede eliminar clientes','warning');};
+    const confirmDeletePet=async(id,name)=>{addToast('Solo el administrador puede eliminar pacientes','warning');};
 
     const q=searchTerm.toLowerCase();
     const filteredClients=clients.filter(c=>c.name?.toLowerCase().includes(q)||c.phone?.includes(q));
     const filteredPets=pets.filter(p=>p.petName?.toLowerCase().includes(q)||p.breed?.toLowerCase().includes(q));
     const filteredProducts=products.filter(p=>p.name?.toLowerCase().includes(q)||p.category?.toLowerCase().includes(q));
 
-    const selectedPet=selAppt?pets.find(p=>String(p.id)===String(selAppt.petId)):null;
+    const selectedPet=selAppt?pets.find(p=>String(p.id)===String(getApptPetId(selAppt))):null;
     const selectedOwner=selectedPet?clients.find(c=>String(c.id)===String(selectedPet.ownerId)):null;
-    const lastVisitForSelected=useMemo(()=>{if(!selectedPet?.history?.length)return null;return selectedPet.history[selectedPet.history.length-1];},[selectedPet]);
+    const lastVisitForSelected=useMemo(()=>{if(!selectedPet?.history?.length)return null;const h=Array.isArray(selectedPet.history)?selectedPet.history:[];return h[h.length-1];},[selectedPet]);
 
-    const NAV=[{id:'agenda',icon:<FaCalendarAlt/>,label:'Agenda'},{id:'clientes',icon:<FaUsers/>,label:'Clientes'},{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'},{id:'inventario',icon:<FaBoxOpen/>,label:'Inventario'}];
+    const NAV=[
+        {id:'agenda',icon:<FaCalendarAlt/>,label:'Agenda'},
+        {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
+        {id:'pacientes',icon:<FaPaw/>,label:'Pacientes'},
+        {id:'inventario',icon:<FaBoxOpen/>,label:'Inventario'},
+    ];
 
     return (
         <div className="emp-layout">
             <div className="emp-toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {NotifyNode}
 
-            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onClose={()=>setShowCalendar(false)}/>}
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
             {medicalPet&&<MedicalModal pet={medicalPet} clients={clients} onSave={saveMedicalFile} onClose={()=>setMedicalPet(null)}/>}
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
 
             <header className="emp-topbar">
                 <div className="emp-topbar-left">
-                    <span className="emp-logo">perrucho<span>.</span></span>
+                    <span className="emp-logo">Taylor's<span>.</span></span>
                     <span className="emp-role-badge">Staff</span>
                     {tab!=='agenda'&&<div className="emp-search-bar">
                         <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
@@ -576,8 +635,8 @@ const EmployeeDashboard = () => {
                                 return<div key={appo.id} className={`emp-appt-card ${selAppt?.id===appo.id?'selected':''} ${isUpdating?'is-updating':''}`}
                                     style={{borderLeft:`4px solid ${sc.border}`}}
                                     onClick={e=>{if(selAppt?.id===appo.id){setSelAppt(null);setAgendaAnchor(null);}else{setAgendaAnchor(e.currentTarget.getBoundingClientRect());setSelAppt(appo);}}}>
-                                    <div className="emp-appt-time"><FaClock/> {appo.time||'—'}</div>
-                                    <div className="emp-appt-info"><strong>{appo.petName}</strong><span>{appo.serviceName}</span></div>
+                                    <div className="emp-appt-time"><FaClock/> {getApptTime(appo)}</div>
+                                    <div className="emp-appt-info"><strong>{getApptPetName(appo)}</strong><span>{getApptServiceName(appo)}</span></div>
                                     <div className="emp-appt-right"><StatusBadge status={appo.status}/><span className="emp-appt-price">~${appo.finalPrice}</span></div>
                                     {isUpdating&&<div className="emp-appt-spinner"/>}
                                 </div>;
@@ -593,7 +652,7 @@ const EmployeeDashboard = () => {
                                             <div>
                                                 <strong>{selectedPet.petName}</strong>
                                                 <span>{selectedPet.breed||'—'} · {selectedPet.weight?`~${selectedPet.weight} kg (${weightRangeLabel(selectedPet.weight)})`:'peso por verificar'}</span>
-                                                {selectedOwner&&<span className="emp-exp-owner-info">{selectedOwner.name} {selectedOwner.email&&`· ${selectedOwner.email}`}</span>}
+                                                {selectedOwner&&<span className="emp-exp-owner-info">{selectedOwner.name} {selectedOwner.phone&&`· ${selectedOwner.phone}`}</span>}
                                             </div>
                                         </div>
                                         {selectedPet.notes&&<div className="emp-notes-preview"><span className="emp-notes-label">Notas</span><p>{selectedPet.notes}</p></div>}
@@ -610,9 +669,11 @@ const EmployeeDashboard = () => {
                                                     ?'⏳ Guardando...'
                                                     :<>{STATUS_ACTION_LABEL.empleado[selAppt.status].icon} {STATUS_ACTION_LABEL.empleado[selAppt.status].label}</>}
                                             </button>}
-                                            {selectedOwner?.email&&(
-                                                <a href={`mailto:${selectedOwner.email}`} className="emp-btn-email">
-                                                    <FaEnvelope/> Contactar al cliente
+                                            {(selectedOwner?.phone||getApptClientPhone(selAppt))&&(
+                                                <a href={`https://wa.me/52${(selectedOwner?.phone||getApptClientPhone(selAppt)).replace(/\D/g,'')}`}
+                                                    target="_blank" rel="noopener noreferrer"
+                                                    className="emp-btn-email" style={{background:'#dcfce7',color:'#166534',border:'none',display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:12,fontWeight:700,textDecoration:'none',justifyContent:'center'}}>
+                                                    <FaWhatsapp/> Contactar al cliente
                                                 </a>
                                             )}
                                         </div>
@@ -622,11 +683,13 @@ const EmployeeDashboard = () => {
                         </aside>
                     </div>
                     {selAppt&&agendaAnchor&&<ApptDetailPopup
-                        appt={selAppt} anchor={agendaAnchor} pets={pets} clients={clients}
+                        appt={selAppt} anchor={agendaAnchor} pets={pets} clients={clients} services={services}
                         isUpdating={updatingIds.has(String(selAppt.id))}
                         onStatusChange={async(a,s)=>{await handleStatusChange(a,s);}}
                         onOpenExp={p=>{setMedicalPet(p);setSelAppt(null);setAgendaAnchor(null);}}
                         onDelete={(id)=>{handleDeleteAppt(id);setSelAppt(null);setAgendaAnchor(null);}}
+                        onAddExtra={addAppointmentExtra}
+                        onRemoveExtra={removeAppointmentExtra}
                         onClose={()=>{setSelAppt(null);setAgendaAnchor(null);}}/>}
                 </div>}
 
@@ -645,6 +708,7 @@ const EmployeeDashboard = () => {
                 {tab==='inventario'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>Solo lectura</p></div></div>
                     {kpis.stockBajo>0&&<div className="emp-stock-alert"><FaExclamationTriangle/><span>{kpis.stockBajo} producto(s) con stock crítico</span></div>}
+                    {products.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8'}}><p style={{fontSize:'2rem'}}>📦</p><p>Sin productos en inventario todavía.</p></div>}
                     <div className="ds-cards-grid">{filteredProducts.map(p=>{const isLow=Number(p.stock)<5&&Number(p.stock)>0;const isOut=Number(p.stock)===0;return<div key={p.id} className={`ds-card ${isOut?'ds-card--out':isLow?'ds-card--low':''}`}><div className="ds-product-icon">📦</div><div className="ds-card-body"><div className="ds-card-name">{p.name}</div><div className="ds-card-meta"><span className="ds-tag ds-tag--blue">{p.category}</span><span className="ds-tag ds-tag--green">${p.price}</span></div><span className={`ds-stock-badge ${isOut?'out':isLow?'low':'ok'}`}>{isOut?'❌ Agotado':isLow?`⚠️ ${p.stock} unid.`:`✓ ${p.stock} unid.`}</span></div></div>;})}</div>
                 </div>}
 
