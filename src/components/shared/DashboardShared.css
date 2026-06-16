@@ -1,4 +1,5 @@
 /* src/components/shared/DashboardShared.css
+   CAMBIOS v3: estilos para estado activo/inactivo en PetCard
    CAMBIOS v2: estilos para la tabla de 6 rangos de precios en ServiceCard y ServiceFormModal
    ════════════════════════════════════════════════════════════════════ */
 
@@ -206,7 +207,6 @@
 }
 
 /* ══ SERVICE CARD — PRECIOS 6 RANGOS ══════════════════════════════════ */
-/* Reemplaza .ds-service-prices */
 .ds-service-prices-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -286,6 +286,12 @@
 .ds-btn-icon--del  { background: #fff1f0; color: #ff7675; }
 .ds-btn-icon--del:hover  { background: #ff7675; color: white; }
 
+/* Toggle estado activo/inactivo (mascotas) */
+.ds-btn-icon--active   { background: #d1fae5; color: #059669; }
+.ds-btn-icon--active:hover   { background: #059669; color: white; }
+.ds-btn-icon--inactive { background: #fef3c7; color: #d97706; }
+.ds-btn-icon--inactive:hover { background: #d97706; color: white; }
+
 /* ══ STATUS BADGE ═════════════════════════════════════════════════════ */
 .ds-status-badge {
     display: inline-flex; align-items: center; gap: 5px;
@@ -362,6 +368,7 @@
 }
 .ds-card--low  { border-left: 4px solid #f59e0b; }
 .ds-card--out  { border-left: 4px solid #ff7675; opacity: 0.8; }
+.ds-card--inactive { opacity: 0.65; background: #fafafa; }
 
 .ds-card-avatar {
     width: 48px; height: 48px; border-radius: 50%;
@@ -376,6 +383,18 @@
     font-size: 0.95rem; font-weight: 700;
     color: #1e272e;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; gap: 8px;
+}
+.ds-pet-inactive-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #d97706;
+    background: #fef3c7;
+    padding: 2px 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
 }
 .ds-card-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .ds-card-owner { font-size: 0.78rem; color: #74b9ff; font-weight: 700; }
@@ -422,7 +441,6 @@
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
-/* Mantener legacy por si hay servicios que aún usen el campo viejo */
 .ds-service-prices { display: flex; gap: 10px; flex-wrap: wrap; }
 .ds-service-prices span { font-size: 0.72rem; color: #636e72; }
 .ds-service-prices strong { color: #1e272e; }

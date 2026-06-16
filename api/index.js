@@ -133,7 +133,11 @@ app.get('/api/me', verifyToken, async (req, res) => {
 // GET /api/users — solo admin/empleado
 app.get('/api/users', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
-    const users = await prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+    // Solo empleados y administradores — los clientes se gestionan vía /api/clients
+    const users = await prisma.user.findMany({
+      where: { role: { in: ['administrador', 'empleado'] } },
+      orderBy: { createdAt: 'desc' },
+    });
     res.json(users.map(safeUser));
   } catch (err) {
     res.status(500).json({ error: 'Error del servidor' });
@@ -168,12 +172,14 @@ app.put('/api/users/:id', verifyToken, requireOwnerOrRole('administrador'), asyn
   }
 });
 
-// POST /api/users — crear usuario (admin)
+// POST /api/users — crear usuario (admin) — solo empleado/administrador
 app.post('/api/users', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
-    const { password, ...data } = req.body;
+    const { password, role, ...data } = req.body;
+    // Forzar rol válido — esta ruta es solo para staff, no clientes
+    const validRole = ['administrador', 'empleado'].includes(role) ? role : 'empleado';
     const hash = await bcrypt.hash(password || 'perrucho123', 10);
-    const user = await prisma.user.create({ data: { ...data, password: hash } });
+    const user = await prisma.user.create({ data: { ...data, password: hash, role: validRole } });
     res.status(201).json(safeUser(user));
   } catch (err) {
     if (err.code === 'P2002') return res.status(409).json({ error: 'Email ya registrado' });

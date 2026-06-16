@@ -78,6 +78,7 @@ model Pet {
   breed     String?
   weight    String?
   notes     String?
+  status    String   @default("activo") // activo | inactivo
   history   Json     @default("[]")
   ownerId   Int
   createdAt DateTime @default(now())

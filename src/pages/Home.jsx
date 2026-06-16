@@ -377,7 +377,7 @@ const Home = () => {
                         : <p className="hero-brand-name">Taylor's Pet Services</p>
                     }
                     <p className="hero-tagline">Grooming · Tienda · Guardería · Paseos</p>
-                    <h1 className="hero-title">El servicio que tú y tu<br />mejor amigo merecen</h1>
+                    <h1 className="hero-title">El servicio que tú y tu mejor amigo merecen</h1>
                     <p className="hero-subtitle">
                         Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.
                     </p>
