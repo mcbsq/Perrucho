@@ -15,6 +15,7 @@ import Home              from './pages/Home';
 import Services          from './pages/Services';
 import Shop              from './pages/Shop';
 import Contact           from './pages/Contact';
+import SobreNosotros     from './pages/SobreNosotros';
 import Login             from './components/Login/Login';
 import Register          from './components/Register/Register';
 import AdminDashboard    from './pages/admin/AdminDashboard';
@@ -22,9 +23,6 @@ import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import Perfil            from './pages/cliente/Perfil';
 
 // ── Puente AuthContext ↔ DataContext ─────────────────────────────────────────
-// Va dentro de <DataProvider> para poder acceder a useData().
-// No renderiza nada — solo inyecta reloadClientsAndPets en AuthContext
-// para que register() lo llame y el nuevo cliente aparezca en dashboards.
 const DataReloaderBridge = () => {
     const { reloadClientsAndPets } = useData();
     useEffect(() => {
@@ -56,12 +54,12 @@ const AppContent = () => {
             <main className={hideGlobalUI ? 'admin-main-content' : 'main-content'}>
                 <Routes>
                     {/* ── Rutas públicas ── */}
-                    <Route path="/"          element={<Home />} />
-                    <Route path="/servicios" element={<Services />} />
-                    <Route path="/tienda"    element={<Shop />} />
-                    <Route path="/contacto"  element={<Contact />} />
-                    <Route path="/acceso"    element={<Login />} />
-                    <Route path="/registro"  element={<Register />} />
+                    <Route path="/"                element={<Home />} />
+                    <Route path="/servicios"       element={<Services />} />
+                    <Route path="/tienda"          element={<Shop />} />
+                    <Route path="/sobre-nosotros"  element={<SobreNosotros />} />
+                    <Route path="/acceso"          element={<Login />} />
+                    <Route path="/registro"        element={<Register />} />
 
                     {/* ── Dashboards protegidos ── */}
                     <Route path="/admin-dashboard/*" element={
@@ -87,11 +85,13 @@ const AppContent = () => {
                 </Routes>
             </main>
 
-            {/* Elementos flotantes — solo en páginas públicas */}
             {!hideGlobalUI && (
                 <>
                     <Footer />
-                    <WhatsAppButton />
+                    <WhatsAppButton
+                        phoneNumber="5215633252525"
+                        message="Hola, me interesa agendar una cita para mi mascota en Taylor's Pet Services."
+                    />
                     <Chatbot />
                 </>
             )}
@@ -103,7 +103,7 @@ function App() {
     return (
         <AuthProvider>
             <DataProvider>
-                <DataReloaderBridge />  {/* ← puente AuthContext ↔ DataContext */}
+                <DataReloaderBridge />
                 <Router>
                     <AppContent />
                 </Router>

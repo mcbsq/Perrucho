@@ -1,31 +1,12 @@
-// src/pages/Contact/Contact.jsx
+// src/pages/Contact.jsx
 import React from 'react';
-import { FaPhoneAlt, FaWhatsapp, FaInstagram, FaFacebook, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaWhatsapp, FaInstagram, FaFacebook, FaTiktok, FaMapMarkerAlt } from 'react-icons/fa';
 import './Contact.css';
 
-const Contact = () => {
-    // Datos de sucursales con el enlace de EMBED (Iframe)
-    const sucursales = [
-        {
-            id: 1,
-            nombre: "Sucursal Central - Coatepec",
-            direccion: "Calle Principal #123, Centro, Coatepec",
-            telefono: "+52 228 123 4567",
-            // Ejemplo: Coatepec Centro
-            embedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15053.447019808605!2d-96.9676646!3d19.4507024!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85db2d645e7f3089%3A0x6334a1705e4d2932!2sCoatepec%2C%20Ver.!5e0!3m2!1ses-419!2smx!4v1700000000000!5m2!1ses-419!2smx",
-            mapLink: "https://maps.app.goo.gl/96qU6"
-        },
-        {
-            id: 2,
-            nombre: "Sucursal Norte - Xalapa",
-            direccion: "Av. Araucarias #456, Indeco Animas, Xalapa",
-            telefono: "+52 228 987 6543",
-            // Ejemplo: Ánimas Xalapa
-            embedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3760.4706560942517!2d-96.8858509!3d19.5212458!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85db321908560001%3A0x86782782e5b4136e!2sPlaza%20Animas!5e0!3m2!1ses-419!2smx!4v1700000000000!5m2!1ses-419!2smx",
-            mapLink: "https://maps.app.goo.gl/96qU7"
-        }
-    ];
+const WA_NUMBER = '5215633252525';
+const WA_MSG    = encodeURIComponent('Hola, me interesa agendar una cita para mi mascota en Taylor\'s Pet Services.');
 
+const Contact = () => {
     return (
         <div className="contact-page-container fade-in">
             <header className="contact-header">
@@ -34,71 +15,74 @@ const Contact = () => {
                 <p>Elige el canal que prefieras, estamos listos para atenderte a ti y a tu mascota.</p>
             </header>
 
-            {/* SECCIÓN DE CANALES */}
+            {/* Canales de contacto */}
             <div className="contact-grid-channels">
-                <a href="tel:+522281234567" className="contact-card-capsule">
-                    <div className="contact-icon-box call"><FaPhoneAlt /></div>
-                    <h3>Llámanos</h3>
-                    <p>Atención inmediata para urgencias y dudas.</p>
-                    <span className="contact-link-label">Iniciar llamada</span>
-                </a>
-
-                <a href="https://wa.me/522281234567" target="_blank" rel="noopener noreferrer" className="contact-card-capsule">
+                <a
+                    href={`https://wa.me/${WA_NUMBER}?text=${WA_MSG}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="contact-card-capsule">
                     <div className="contact-icon-box whatsapp"><FaWhatsapp /></div>
                     <h3>WhatsApp</h3>
-                    <p>Agenda citas o pregunta por productos.</p>
-                    <span className="contact-link-label">Enviar mensaje</span>
+                    <p>Agenda citas, consulta servicios o resuelve dudas directamente.</p>
+                    <span className="contact-link-label">56 33 25 25 25</span>
                 </a>
 
                 <div className="contact-card-capsule">
                     <div className="contact-icon-box social"><FaInstagram /></div>
                     <h3>Síguenos</h3>
                     <div className="social-links-row">
-                        <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"><FaInstagram /></a>
-                        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"><FaFacebook /></a>
+                        <a href="https://www.instagram.com/taylors.petservices.mx" target="_blank" rel="noopener noreferrer" title="Instagram"><FaInstagram /></a>
+                        <a href="https://www.facebook.com/share/1LixCZxfux/" target="_blank" rel="noopener noreferrer" title="Facebook"><FaFacebook /></a>
+                        <a href="https://www.tiktok.com/@taylors.pet.services" target="_blank" rel="noopener noreferrer" title="TikTok"><FaTiktok /></a>
                     </div>
-                    <p>Mira nuestro día a día con los pacientes.</p>
+                    <p>Mira nuestro día a día con los peludos clientes.</p>
+                    <span className="contact-link-label">@taylors.petservices.mx</span>
                 </div>
+
+                <a
+                    href="https://maps.app.goo.gl/HNpfNETNeUqptAbK6"
+                    target="_blank" rel="noopener noreferrer"
+                    className="contact-card-capsule">
+                    <div className="contact-icon-box call"><FaMapMarkerAlt /></div>
+                    <h3>Visítanos</h3>
+                    <p>Montevideo No. 157, Colonia Lindavista, GAM, CDMX</p>
+                    <span className="contact-link-label">Abrir en Maps</span>
+                </a>
             </div>
 
-            {/* SECCIÓN DE SUCURSALES CON MAPAS INTERACTIVOS */}
+            {/* Mapa de la sucursal */}
             <section className="branches-section">
-                <h2 className="section-title">Nuestras Ubicaciones</h2>
-                <div className="branches-grid">
-                    {sucursales.map(sucursal => (
-                        <div key={sucursal.id} className="branch-card-luxury">
-                            <div className="branch-map-container">
-                                <iframe 
-                                    title={sucursal.nombre}
-                                    src={sucursal.embedUrl} 
-                                    width="100%" 
-                                    height="250" 
-                                    style={{ border: 0 }} 
-                                    allowFullScreen="" 
-                                    loading="lazy" 
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                ></iframe>
-                            </div>
-                            
-                            <div className="branch-content">
-                                <div className="branch-header-info">
-                                    <FaMapMarkerAlt className="marker-icon" />
-                                    <h3>{sucursal.nombre}</h3>
-                                </div>
-                                <p className="branch-address">{sucursal.direccion}</p>
-                                <p className="branch-tel"><strong>Tel:</strong> {sucursal.telefono}</p>
-                                
-                                <a 
-                                    href={sucursal.mapLink} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="btn-open-maps"
-                                >
-                                    Abrir en Google Maps
-                                </a>
-                            </div>
+                <h2 className="section-title">Nuestra Ubicación</h2>
+                <div className="branches-grid" style={{ gridTemplateColumns: '1fr' }}>
+                    <div className="branch-card-luxury">
+                        <div className="branch-map-container">
+                            <iframe
+                                title="Taylor's Pet Services - Lindavista"
+                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3762.0!2d-99.1395!3d19.4804!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDI4JzQ5LjQiTiA5OcKwMDgnMjIuMiJX!5e0!3m2!1ses-419!2smx!4v1700000000000"
+                                width="100%" height="280"
+                                style={{ border: 0 }}
+                                allowFullScreen=""
+                                loading="lazy"
+                                referrerPolicy="no-referrer-when-downgrade"
+                            />
                         </div>
-                    ))}
+                        <div className="branch-content">
+                            <div className="branch-header-info">
+                                <FaMapMarkerAlt className="marker-icon" />
+                                <h3>Taylor's Pet Services — Lindavista</h3>
+                            </div>
+                            <p className="branch-address">Montevideo No. 157, Colonia Lindavista, GAM, CDMX</p>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 8 }}>
+                                📱 WhatsApp: <strong>56 33 25 25 25</strong>
+                            </p>
+                            <a
+                                href="https://maps.app.goo.gl/HNpfNETNeUqptAbK6"
+                                target="_blank" rel="noopener noreferrer"
+                                className="btn-open-maps">
+                                Abrir en Google Maps
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>

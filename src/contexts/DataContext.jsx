@@ -1,9 +1,7 @@
 // src/contexts/DataContext.jsx
-// FIX: addSale ahora acepta `type` ('product' | 'service') como 4to argumento
-//      para que las ventas creadas desde POS o ServiceModal lo persistan.
-// FIX: expone reload() para que AuthContext lo llame tras register().
-//      Cuando un cliente se registra, AuthContext.register() llama reload()
-//      y el nuevo cliente aparece inmediatamente en admin/empleado.
+// FIX: separar carga pública (sin token) de carga privada (con token).
+// services, products y settings son públicos — se cargan siempre.
+// clients, pets, sales, appointments son privados — solo si hay token.
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
@@ -12,40 +10,79 @@ import {
     clientsApi,
     petsApi,
     salesApi,
+    appointmentsApi,
+    settingsApi,
 } from '../api/apiClient';
 
 const DataContext = createContext();
 export const useData = () => useContext(DataContext);
 
-export const DataProvider = ({ children }) => {
-    const [services, setServices] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [clients,  setClients]  = useState([]);
-    const [pets,     setPets]     = useState([]);
-    const [sales,    setSales]    = useState([]);
-    const [loading,  setLoading]  = useState(true);
-    const [error,    setError]    = useState(null);
+const hasToken = () => !!localStorage.getItem('perrucho_token');
 
-    // ── Carga inicial y recarga manual ────────────────────────────────────────
+export const DataProvider = ({ children }) => {
+    const [services,     setServices]     = useState([]);
+    const [products,     setProducts]     = useState([]);
+    const [clients,      setClients]      = useState([]);
+    const [pets,         setPets]         = useState([]);
+    const [sales,        setSales]        = useState([]);
+    const [appointments, setAppointments] = useState([]);
+    const [settings,     setSettings]     = useState(null);
+    const [loading,      setLoading]      = useState(true);
+    const [error,        setError]        = useState(null);
+
+    // ── Carga inicial ─────────────────────────────────────────────────────────
+    // Público: services, products, settings (sin token requerido)
+    // Privado: clients, pets, sales, appointments (solo si hay token)
     const loadAll = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const [s, p, c, pe, sa] = await Promise.all([
+            // Siempre cargar datos públicos
+            const [s, p, st] = await Promise.all([
                 servicesApi.getAll(),
                 productsApi.getAll(),
-                clientsApi.getAll(),
-                petsApi.getAll(),
-                salesApi.getAll(),
+                settingsApi.get(),
             ]);
             setServices(s);
             setProducts(p);
-            setClients(c);
-            setPets(pe);
-            setSales(sa);
+            setSettings(st);
+
+            // Solo cargar datos privados si hay sesión activa
+            if (hasToken()) {
+                const session = localStorage.getItem('perrucho_session');
+                let role = null;
+                try { role = JSON.parse(session)?.role; } catch {}
+                const isAdmin = role === 'administrador' || role === 'empleado';
+
+                try {
+                    if (isAdmin) {
+                        // Admin y empleado cargan todos los datos
+                        const [c, pe, sa, ap] = await Promise.all([
+                            clientsApi.getAll(),
+                            petsApi.getAll(),
+                            salesApi.getAll(),
+                            appointmentsApi.getAll(),
+                        ]);
+                        setClients(c);
+                        setPets(pe);
+                        setSales(sa);
+                        setAppointments(ap);
+                    } else {
+                        // Cliente: solo carga appointments propias (ventas las carga Perfil.jsx directamente)
+                        const ap = await appointmentsApi.getAll();
+                        setAppointments(ap);
+                    }
+                } catch (privErr) {
+                    console.warn('Error cargando datos privados:', privErr);
+                    if (privErr.status === 401) {
+                        localStorage.removeItem('perrucho_token');
+                        localStorage.removeItem('perrucho_session');
+                    }
+                }
+            }
         } catch (err) {
             console.error('Error cargando datos:', err);
-            setError('No se pudo conectar con el servidor. ¿Está corriendo JSON Server en el puerto 3001?');
+            setError('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.');
         } finally {
             setLoading(false);
         }
@@ -60,7 +97,7 @@ export const DataProvider = ({ children }) => {
         return created;
     };
     const updateService = async (id, updated) => {
-        const saved = await servicesApi.update(id, { ...updated, id });
+        const saved = await servicesApi.update(id, updated);
         setServices(prev => prev.map(s => s.id === id ? saved : s));
         return saved;
     };
@@ -76,7 +113,7 @@ export const DataProvider = ({ children }) => {
         return created;
     };
     const updateProduct = async (id, updated) => {
-        const saved = await productsApi.update(id, { ...updated, id });
+        const saved = await productsApi.update(id, updated);
         setProducts(prev => prev.map(p => p.id === id ? saved : p));
         return saved;
     };
@@ -92,7 +129,7 @@ export const DataProvider = ({ children }) => {
         return created;
     };
     const updateClient = async (id, updated) => {
-        const saved = await clientsApi.update(id, { ...updated, id });
+        const saved = await clientsApi.update(id, updated);
         setClients(prev => prev.map(c => c.id === id ? saved : c));
         return saved;
     };
@@ -108,7 +145,7 @@ export const DataProvider = ({ children }) => {
         return created;
     };
     const updatePet = async (id, updated) => {
-        const saved = await petsApi.update(id, { ...updated, id });
+        const saved = await petsApi.update(id, updated);
         setPets(prev => prev.map(p => p.id === id ? saved : p));
         return saved;
     };
@@ -117,21 +154,92 @@ export const DataProvider = ({ children }) => {
         setPets(prev => prev.filter(p => p.id !== id));
     };
 
+    // ── APPOINTMENTS ──────────────────────────────────────────────────────────
+    const addAppointment = async (data) => {
+        const created = await appointmentsApi.create(data);
+        setAppointments(prev => [...prev, created]);
+        return created;
+    };
+    const updateAppointment = async (id, updated) => {
+        const saved = await appointmentsApi.update(id, updated);
+        setAppointments(prev => prev.map(a => a.id === id ? saved : a));
+        return saved;
+    };
+    const patchAppointment = async (id, updated) => {
+        const saved = await appointmentsApi.patch(id, updated);
+        setAppointments(prev => prev.map(a => a.id === id ? saved : a));
+        return saved;
+    };
+    const deleteAppointment = async (id) => {
+        await appointmentsApi.delete(id);
+        setAppointments(prev => prev.filter(a => a.id !== id));
+    };
+
+    // Servicios adicionales a una cita
+    const addAppointmentExtra = async (appointmentId, data) => {
+        const extra = await appointmentsApi.addExtra(appointmentId, data);
+        // Recarga la cita completa para reflejar el extra
+        const updated = await appointmentsApi.getById(appointmentId);
+        setAppointments(prev => prev.map(a => a.id === appointmentId ? updated : a));
+        return extra;
+    };
+    const removeAppointmentExtra = async (appointmentId, extraId) => {
+        await appointmentsApi.removeExtra(appointmentId, extraId);
+        const updated = await appointmentsApi.getById(appointmentId);
+        setAppointments(prev => prev.map(a => a.id === appointmentId ? updated : a));
+    };
+
     // ── SALES ─────────────────────────────────────────────────────────────────
-    // FIX: ahora acepta `type` opcional para distinguir productos vs servicios
-    // en el historial de compras del cliente (Perfil).
-    const addSale = async (item, price, clientId = null, type = null) => {
-        const payload = { item, price, clientId };
-        if (type) payload.type = type;
-        const created = await salesApi.create(payload);
+    // Nuevo formato: recibe objeto completo con items[]
+    // Ejemplo: addSale({ items: [{name, price, quantity}], total, clientId,
+    //                     paymentMethod: 'efectivo', status: 'pagado', type: 'product' })
+    const addSale = async (saleData) => {
+        // Compatibilidad hacia atrás: si viene el formato viejo (item, price, clientId, type)
+        // lo convertimos al nuevo formato
+        if (typeof saleData === 'string' || (saleData && saleData.item)) {
+            const legacy = saleData;
+            saleData = {
+                items: [{ name: legacy.item || saleData, price: legacy.price || 0, quantity: 1 }],
+                total: legacy.price || 0,
+                clientId: legacy.clientId || null,
+                type: legacy.type || 'service',
+                paymentMethod: 'efectivo',
+                status: 'pagado',
+            };
+        }
+        const created = await salesApi.create(saleData);
         setSales(prev => [...prev, created]);
         return created;
     };
 
-    // ── reload — llamado por AuthContext.register() ───────────────────────────
-    // Recarga solo clients y pets (las colecciones que cambian tras un registro).
-    // Más eficiente que recargar todo.
+    const updateSale = async (id, updated) => {
+        const saved = await salesApi.update(id, updated);
+        setSales(prev => prev.map(s => s.id === id ? saved : s));
+        return saved;
+    };
+
+    const patchSale = async (id, updated) => {
+        const saved = await salesApi.patch(id, updated);
+        setSales(prev => prev.map(s => s.id === id ? saved : s));
+        return saved;
+    };
+
+    // ── SETTINGS ──────────────────────────────────────────────────────────────
+    const updateSettings = async (data) => {
+        const saved = await settingsApi.update(data);
+        setSettings(saved);
+        return saved;
+    };
+
+    // ── Recargas parciales ────────────────────────────────────────────────────
+    // Solo admin/empleado pueden ver todos los clientes y mascotas.
+    // Si el usuario es cliente esta función no hace nada —
+    // Perfil.jsx carga sus propios datos directamente.
     const reloadClientsAndPets = useCallback(async () => {
+        const session = localStorage.getItem('perrucho_session');
+        let role = null;
+        try { role = JSON.parse(session)?.role; } catch {}
+        if (!role || role === 'cliente') return;
         try {
             const [c, pe] = await Promise.all([
                 clientsApi.getAll(),
@@ -144,19 +252,47 @@ export const DataProvider = ({ children }) => {
         }
     }, []);
 
+    const reloadAppointments = useCallback(async () => {
+        try {
+            const ap = await appointmentsApi.getAll();
+            setAppointments(ap);
+        } catch (err) {
+            console.error('Error recargando citas:', err);
+        }
+    }, []);
+
     return (
         <DataContext.Provider value={{
-            services, products, clients, pets, sales,
+            // Estado
+            services, products, clients, pets, sales, appointments, settings,
             loading, error,
-            // CRUD
-            addService,    updateService,    deleteService,
-            addProduct,    updateProduct,    deleteProduct,
-            addClient,     updateClient,     deleteClient,
-            addPet,        updatePet,        deletePet,
-            addSale,
-            // Recarga manual — usar tras operaciones externas al contexto
-            reload:              loadAll,
+
+            // CRUD Services
+            addService, updateService, deleteService,
+
+            // CRUD Products
+            addProduct, updateProduct, deleteProduct,
+
+            // CRUD Clients
+            addClient, updateClient, deleteClient,
+
+            // CRUD Pets
+            addPet, updatePet, deletePet,
+
+            // CRUD Appointments
+            addAppointment, updateAppointment, patchAppointment, deleteAppointment,
+            addAppointmentExtra, removeAppointmentExtra,
+
+            // CRUD Sales
+            addSale, updateSale, patchSale,
+
+            // Settings
+            updateSettings,
+
+            // Recargas
+            reload: loadAll,
             reloadClientsAndPets,
+            reloadAppointments,
         }}>
             {children}
         </DataContext.Provider>

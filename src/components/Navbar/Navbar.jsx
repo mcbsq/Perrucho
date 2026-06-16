@@ -4,33 +4,31 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { useAuth } from '../../contexts/AuthContext';
 
+import logoTPS from '../../assets/logo.png';
+
 const MenuIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
         <path d="M0 0h24v24H0z" fill="none"/>
         <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
     </svg>
 );
-
 const CloseIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
         <path d="M0 0h24v24H0z" fill="none"/>
         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
     </svg>
 );
-
 const UserIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="currentColor">
         <path d="M0 0h24v24H0z" fill="none"/>
         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
     </svg>
 );
-
 const ProfileIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="currentColor">
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/>
     </svg>
 );
-
 const LogoutIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="currentColor">
         <path d="M0 0h24v24H0z" fill="none"/>
@@ -40,15 +38,13 @@ const LogoutIcon = () => (
 
 const Navbar = () => {
     const { user, isLoggedIn, logout } = useAuth();
-    const location = useLocation();
-    const navigate = useNavigate();
-
-    const [scrolled,         setScrolled]         = useState(false);
+    const location  = useLocation();
+    const navigate  = useNavigate();
+    const [scrolled, setScrolled]               = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Solo en "/" hay hero oscuro — letras blancas.
-    // En todas las demás páginas el fondo es claro — letras oscuras.
-    const isHome = location.pathname === '/';
+    // Páginas con hero oscuro — navbar con letras blancas
+    const isHome = location.pathname === '/' || location.pathname === '/sobre-nosotros';
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 100);
@@ -56,20 +52,12 @@ const Navbar = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    useEffect(() => {
-        setIsMobileMenuOpen(false);
-    }, [location.pathname]);
+    useEffect(() => { setIsMobileMenuOpen(false); }, [location.pathname]);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/');
-    };
+    const handleLogout = () => { logout(); navigate('/'); };
 
     const handleHomeClick = (e) => {
-        if (location.pathname === '/') {
-            e.preventDefault();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        if (location.pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
 
     const navbarClasses = [
@@ -79,60 +67,52 @@ const Navbar = () => {
         isMobileMenuOpen ? 'menu-open' : '',
     ].filter(Boolean).join(' ');
 
-    const navClass = ({ isActive }) =>
-        isActive ? 'nav-item nav-item--active' : 'nav-item';
+    const navClass = ({ isActive }) => isActive ? 'nav-item nav-item--active' : 'nav-item';
 
     return (
         <header className={navbarClasses}>
             <div className="navbar-content">
-
                 <NavLink to="/" className="navbar-logo" onClick={handleHomeClick}>
-                    perrucho<span>.</span>
+                    {logoTPS
+                        ? <img src={logoTPS} alt="Taylor's Pet Services" className="navbar-logo-img" />
+                        : <>Taylor's<span>.</span></>
+                    }
                 </NavLink>
 
                 <nav className="nav-links-desktop">
-                    <NavLink to="/"          className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
-                    <NavLink to="/servicios" className={navClass}>Servicios</NavLink>
-                    <NavLink to="/tienda"    className={navClass}>Tienda</NavLink>
-                    <NavLink to="/contacto"  className={navClass}>Contacto</NavLink>
+                    <NavLink to="/"               className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
+                    <NavLink to="/servicios"       className={navClass}>Servicios</NavLink>
+                    <NavLink to="/tienda"          className={navClass}>Tienda</NavLink>
+                    <NavLink to="/sobre-nosotros"  className={navClass}>Sobre nosotros</NavLink>
                 </nav>
 
                 <div className="navbar-actions">
                     {isLoggedIn ? (
                         <>
-                            <span className="user-greeting">
-                                Hola, <strong>{user.name.split(' ')[0]}</strong>
-                            </span>
-                            <NavLink to="/perfil" className="nav-icon" title="Mi Perfil">
-                                <ProfileIcon />
-                            </NavLink>
-                            <button className="nav-icon nav-icon--logout" title="Cerrar Sesión" onClick={handleLogout}>
-                                <LogoutIcon />
-                            </button>
+                            <span className="user-greeting">Hola, <strong>{user.name.split(' ')[0]}</strong></span>
+                            <NavLink to="/perfil" className="nav-icon" title="Mi Perfil"><ProfileIcon /></NavLink>
+                            <button className="nav-icon nav-icon--logout" title="Cerrar Sesión" onClick={handleLogout}><LogoutIcon /></button>
                         </>
                     ) : (
                         <NavLink to="/acceso" className="nav-access-btn">
-                            <UserIcon />
-                            <span>Iniciar sesión</span>
+                            <UserIcon /><span>Iniciar sesión</span>
                         </NavLink>
                     )}
-
                     <button
                         className="mobile-menu-toggle"
                         onClick={() => setIsMobileMenuOpen(prev => !prev)}
-                        aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-                    >
+                        aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}>
                         {isMobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
                     </button>
                 </div>
             </div>
 
             <nav className={`nav-links-mobile ${isMobileMenuOpen ? 'open' : ''}`}>
-                <NavLink to="/"          className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
-                <NavLink to="/servicios" className={navClass}>Servicios</NavLink>
-                <NavLink to="/tienda"    className={navClass}>Tienda</NavLink>
-                <NavLink to="/contacto"  className={navClass}>Contacto</NavLink>
-
+                <NavLink to="/"              className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
+                <NavLink to="/servicios"     className={navClass}>Servicios</NavLink>
+                <NavLink to="/tienda"        className={navClass}>Tienda</NavLink>
+                <NavLink to="/sobre-nosotros" className={navClass}>Sobre nosotros</NavLink>
+                <NavLink to="/contacto"      className={navClass}>Contacto</NavLink>
                 {isLoggedIn ? (
                     <>
                         <NavLink to="/perfil" className={navClass}>Mi Perfil</NavLink>
@@ -141,9 +121,7 @@ const Navbar = () => {
                         </button>
                     </>
                 ) : (
-                    <NavLink to="/acceso" className="nav-item nav-item--access">
-                        Iniciar sesión
-                    </NavLink>
+                    <NavLink to="/acceso" className="nav-item nav-item--access">Iniciar sesión</NavLink>
                 )}
             </nav>
         </header>

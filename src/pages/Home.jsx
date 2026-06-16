@@ -4,10 +4,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
 import bannerImage from '../assets/1.jpg';
 import heroVideo   from '../assets/hero.mp4';
+// Logo: pon tu archivo como src/assets/logo.png para activarlo
+// import logoTPS from '../assets/logo.png';
+const logoTPS = null; // cambia a: import logoTPS from '../assets/logo.png' cuando tengas el archivo
+
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-// ─── ServiceCard ahora es un componente compartido ────────────────────────────
 import ServiceCard from '../components/ServiceCard/ServiceCard';
+
+// ─── Número WhatsApp del negocio ──────────────────────────────────────────────
+const WA_NUMBER = '5215633252525';
+const WA_MSG    = encodeURIComponent('Hola, me interesa agendar una cita para mi mascota en Taylor\'s Pet Services.');
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
 const useAuthAction = () => {
@@ -24,7 +31,6 @@ const useCountUp = (target, duration = 1800) => {
     const [count, setCount] = useState(0);
     const ref  = useRef(null);
     const done = useRef(false);
-
     useEffect(() => {
         const el = ref.current;
         if (!el) return;
@@ -45,12 +51,161 @@ const useCountUp = (target, duration = 1800) => {
         observer.observe(el);
         return () => observer.disconnect();
     }, [target, duration]);
-
     return { count, ref };
 };
 
+// ─── Booking Express Pop-up ───────────────────────────────────────────────────
+const BookingExpressModal = ({ onClose, settings }) => {
+    const { addAppointment, services } = useData();
+    const [step, setStep]   = useState(1); // 1: datos, 2: servicio/fecha, 3: éxito
+    const [loading, setLoading] = useState(false);
+    const [error, setError]   = useState('');
+    const [form, setForm]     = useState({
+        ownerName: '', petName: '', breed: '', age: '', weight: '',
+        date: '', time: '',
+    });
+
+    const waNumber = settings?.whatsappNumber || '5633252525';
+
+    const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+    const availableTimes = [
+        '10:15','11:00','11:45','12:30','13:15','14:00','14:45','15:30','16:15','17:00'
+    ];
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!form.ownerName || !form.petName) { setError('Nombre del dueño y mascota son requeridos.'); return; }
+        if (step === 1) { setStep(2); setError(''); return; }
+
+        if (!form.date || !form.time) { setError('Selecciona fecha y horario.'); return; }
+        setLoading(true);
+        try {
+            // Crear cita sin cuenta (guest booking)
+            // El backend acepta appointments sin clientId (booking express)
+            await addAppointment({
+                clientId:    null,
+                petId:       null,
+                serviceId:   null,
+                date:        form.date,
+                time:        form.time,
+                status:      'Pendiente',
+                finalPrice:  0,
+                notes:       `BOOKING EXPRESS — Dueño: ${form.ownerName} | Mascota: ${form.petName} | Raza: ${form.breed || 'N/D'} | Edad: ${form.age || 'N/D'} | Peso aprox: ${form.weight || 'N/D'} kg`,
+            });
+            setStep(3);
+        } catch {
+            setError('Hubo un error al registrar tu cita. Intenta de nuevo.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const minDate = new Date().toISOString().split('T')[0];
+
+    return (
+        <div className="bx-overlay" onClick={onClose}>
+            <div className="bx-modal" onClick={e => e.stopPropagation()}>
+                <button className="bx-close" onClick={onClose}>✕</button>
+
+                {step < 3 && (
+                    <div className="bx-progress">
+                        <div className="bx-progress-fill" style={{ width: step === 1 ? '50%' : '100%' }} />
+                    </div>
+                )}
+
+                {step === 1 && (
+                    <form onSubmit={handleSubmit}>
+                        <div className="bx-icon">🐾</div>
+                        <h2 className="bx-title">Reserva rápida</h2>
+                        <p className="bx-subtitle">Sin necesidad de crear cuenta. Solo dinos quiénes son.</p>
+                        <div className="bx-field">
+                            <label>Nombre del dueño *</label>
+                            <input name="ownerName" value={form.ownerName} onChange={handleChange} placeholder="Tu nombre completo" required />
+                        </div>
+                        <div className="bx-field">
+                            <label>Nombre de tu mascota *</label>
+                            <input name="petName" value={form.petName} onChange={handleChange} placeholder="¿Cómo se llama?" required />
+                        </div>
+                        <div className="bx-row">
+                            <div className="bx-field">
+                                <label>Raza</label>
+                                <input name="breed" value={form.breed} onChange={handleChange} placeholder="Ej: Poodle" />
+                            </div>
+                            <div className="bx-field">
+                                <label>Peso aprox. (kg)</label>
+                                <input name="weight" value={form.weight} onChange={handleChange} type="number" step="0.1" placeholder="Ej: 5" />
+                            </div>
+                        </div>
+                        <div className="bx-field">
+                            <label>Edad aproximada</label>
+                            <input name="age" value={form.age} onChange={handleChange} placeholder="Ej: 2 años" />
+                        </div>
+                        {error && <p className="bx-error">{error}</p>}
+                        <button type="submit" className="bx-btn-primary">Siguiente →</button>
+                    </form>
+                )}
+
+                {step === 2 && (
+                    <form onSubmit={handleSubmit}>
+                        <div className="bx-icon">📅</div>
+                        <h2 className="bx-title">¿Cuándo los vemos?</h2>
+                        <p className="bx-subtitle">Elige el día y horario que más te convenga.</p>
+                        <div className="bx-field">
+                            <label>Fecha *</label>
+                            <input name="date" type="date" value={form.date} min={minDate}
+                                onChange={handleChange} required />
+                        </div>
+                        <div className="bx-field">
+                            <label>Horario *</label>
+                            <div className="bx-time-grid">
+                                {availableTimes.map(t => (
+                                    <button key={t} type="button"
+                                        className={`bx-time-slot ${form.time === t ? 'active' : ''}`}
+                                        onClick={() => setForm(prev => ({ ...prev, time: t }))}>
+                                        {t}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {error && <p className="bx-error">{error}</p>}
+                        <div className="bx-actions">
+                            <button type="button" className="bx-btn-secondary" onClick={() => setStep(1)}>← Atrás</button>
+                            <button type="submit" className="bx-btn-primary" disabled={loading}>
+                                {loading ? 'Registrando...' : 'Confirmar cita'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {step === 3 && (
+                    <div className="bx-success">
+                        <div className="bx-success-icon">✅</div>
+                        <h2 className="bx-title">¡Cita registrada!</h2>
+                        <p className="bx-subtitle">
+                            Hemos recibido tu solicitud para <strong>{form.petName}</strong> el <strong>{form.date}</strong> a las <strong>{form.time}</strong>.
+                        </p>
+                        <p className="bx-subtitle" style={{ marginTop: 8 }}>
+                            Te confirmamos por WhatsApp a la brevedad.
+                        </p>
+                        <a
+                            href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hola! Acabo de registrar una cita para ${form.petName} el ${form.date} a las ${form.time}. Nombre del dueño: ${form.ownerName}.`)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="bx-btn-wa">
+                            💬 Confirmar por WhatsApp
+                        </a>
+                        <button className="bx-btn-secondary" onClick={onClose} style={{ marginTop: 12 }}>
+                            Cerrar
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // ─── Sección "Cómo funciona" ──────────────────────────────────────────────────
-const HowItWorksSection = () => {
+const HowItWorksSection = ({ onBookingExpress, showGuestBooking }) => {
     const authAction = useAuthAction();
     const STEPS = [
         { num: '01', icon: '🔍', title: 'Elige tu servicio',  desc: 'Explora nuestro catálogo y selecciona el servicio que tu mascota necesita.', color: 'blue'     },
@@ -83,15 +238,22 @@ const HowItWorksSection = () => {
                         </React.Fragment>
                     ))}
                 </div>
-                <button className="how-cta" onClick={() => authAction('/servicios')}>
-                    Reservar mi cita →
-                </button>
+                <div className="how-cta-group">
+                    <button className="how-cta" onClick={() => authAction('/servicios')}>
+                        Reservar con cuenta →
+                    </button>
+                    {showGuestBooking && (
+                        <button className="how-cta how-cta--secondary" onClick={onBookingExpress}>
+                            Reserva rápida sin cuenta
+                        </button>
+                    )}
+                </div>
             </div>
         </section>
     );
 };
 
-// ─── Ítem de stat (hook dentro de componente, no en .map) ────────────────────
+// ─── Ítem de stat ─────────────────────────────────────────────────────────────
 const TrustStatItem = ({ target, suffix, label, icon }) => {
     const { count, ref } = useCountUp(target);
     return (
@@ -106,31 +268,32 @@ const TrustStatItem = ({ target, suffix, label, icon }) => {
 // ─── Franja de confianza ──────────────────────────────────────────────────────
 const TrustStrip = () => {
     const STATS = [
-        { target: 500, suffix: '+', label: 'Clientes felices',    icon: '😊' },
-        { target: 5,   suffix: '★', label: 'Calificación',        icon: '⭐' },
-        { target: 3,   suffix: '',  label: 'Especialistas',       icon: '👨‍⚕️' },
-        { target: 10,  suffix: '+', label: 'Años de experiencia', icon: '🏆' },
+        { target: 4000, suffix: '+', label: 'Clientes felices',    icon: '😊' },
+        { target: 5,    suffix: '★', label: 'Calificación',        icon: '⭐' },
+        { target: 3,    suffix: '',  label: 'Especialistas',       icon: '👨‍⚕️' },
+        { target: 10,   suffix: '+', label: 'Años de experiencia', icon: '🏆' },
     ];
     return (
         <div className="trust-strip">
-            {STATS.map((s, i) => (
-                <TrustStatItem key={i} {...s} />
-            ))}
+            {STATS.map((s, i) => <TrustStatItem key={i} {...s} />)}
         </div>
     );
 };
 
 // ─── ¿Por qué nosotros? ───────────────────────────────────────────────────────
 const FEATURES = [
-    { icon: '🏥', title: 'Veterinaria certificada',  desc: 'Médicos veterinarios con cédula profesional y años de experiencia en pequeñas especies.' },
-    { icon: '✂️', title: 'Estética premium',          desc: 'Cortes, baños y tratamientos con productos dermatológicos de alta calidad.' },
-    { icon: '🛍️', title: 'Tienda especializada',      desc: 'Alimentos, accesorios y suplementos seleccionados por nuestros especialistas.' },
-    { icon: '📅', title: 'Agenda en línea',           desc: 'Reserva tu cita en segundos y recibe recordatorios automáticos.' },
+    { icon: '✂️', title: 'Estética premium',         desc: 'Cortes, baños y tratamientos con productos cosméticos de alta gama garantizando calidad y cuidado.' },
+    { icon: '🛍️', title: 'Venta de alimento',         desc: 'Alimento de calidad a la puerta de tu casa. Pregunta por nuestro servicio a domicilio.' },
+    { icon: '🐕', title: 'Servicio de paseos',        desc: 'Tu mejor amigo merece ejercicio y diversión. Contamos con paseadores certificados.' },
+    { icon: '📅', title: 'Agenda en línea',           desc: 'Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.' },
 ];
 
 const WhyUsSection = () => (
     <section className="content-section why-us-section">
         <h3>¿Por qué elegirnos?</h3>
+        <p className="section-sub">
+            Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.
+        </p>
         <div className="features-grid">
             {FEATURES.map(f => (
                 <div className="feature-card" key={f.title}>
@@ -143,35 +306,41 @@ const WhyUsSection = () => (
     </section>
 );
 
-// ─── Card de producto ─────────────────────────────────────────────────────────
+// ─── Card de producto destacado ───────────────────────────────────────────────
 const ProductCard = ({ item }) => {
     const authAction = useAuthAction();
+    const icon = item.icon || (item.category?.includes('Aliment') ? '🍖' : item.category?.includes('Higien') ? '🛁' : '🎁');
     return (
         <div className="service-card product-card">
-            <div className="service-icon product-icon">🎁</div>
+            <div className="service-icon product-icon">{icon}</div>
             <h3>{item.name}</h3>
-            <p>{`Categoría: ${item.category}`}</p>
+            <p>{item.description || `Categoría: ${item.category}`}</p>
             <button className="reserve-button buy-button" onClick={() => authAction('/tienda')}>
-                Comprar
+                Ver en tienda
             </button>
         </div>
     );
 };
 
 // ─── CTA final ────────────────────────────────────────────────────────────────
-const CTASection = () => {
+const CTASection = ({ onBookingExpress, showGuestBooking }) => {
     const authAction = useAuthAction();
     return (
         <section className="cta-section">
             <div className="cta-inner">
-                <h2>Tu mascota merece lo mejor</h2>
-                <p>Crea tu cuenta gratis y agenda la primera cita con descuento especial.</p>
+                <h2>El servicio que tú y tu mejor amigo merecen</h2>
+                <p>Agenda tu cita hoy y descubre la diferencia de un servicio profesional con amor.</p>
                 <div className="cta-buttons">
                     <button className="cta-btn cta-primary" onClick={() => authAction('/servicios')}>
                         Reservar cita
                     </button>
-                    <Link to="/registro" className="cta-btn cta-secondary">
-                        Crear cuenta
+                    {showGuestBooking && (
+                        <button className="cta-btn cta-secondary" onClick={onBookingExpress}>
+                            Reserva rápida
+                        </button>
+                    )}
+                    <Link to="/sobre-nosotros" className="cta-btn cta-secondary">
+                        Conócenos
                     </Link>
                 </div>
             </div>
@@ -182,8 +351,12 @@ const CTASection = () => {
 // ─── Página principal ─────────────────────────────────────────────────────────
 const Home = () => {
     const { isLoggedIn, user } = useAuth();
-    const { services, products, loading } = useData();
+    const { services, products, loading, settings } = useData();
     const authAction = useAuthAction();
+    const [showBookingExpress, setShowBookingExpress] = useState(false);
+
+    // El toggle viene de settings (admin puede apagarlo)
+    const guestBookingEnabled = settings?.allowGuestBooking !== false;
 
     return (
         <div className="home-page-container">
@@ -199,10 +372,13 @@ const Home = () => {
                     </div>
                 )}
                 <div className="hero-copy">
-                    {/* MARCA prominente arriba del título principal */}
-                    <p className="hero-brand-name">Perrucho Delivery</p>
-                    <p className="hero-tagline">Estética · Veterinaria · Tienda</p>
-                    <h1 className="hero-title">Confíenos a su mascota<br />para consentirla y embellecerla</h1>
+                    {/* Logo o nombre de marca */}
+                    {logoTPS
+                        ? <img src={logoTPS} alt="Taylor's Pet Services" className="hero-logo" />
+                        : <p className="hero-brand-name">Taylor's Pet Services</p>
+                    }
+                    <p className="hero-tagline">Grooming · Tienda · Guardería · Paseos</p>
+                    <h1 className="hero-title">El servicio que tú y tu<br />mejor amigo merecen</h1>
                     <p className="hero-subtitle">
                         Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.
                     </p>
@@ -210,15 +386,20 @@ const Home = () => {
                         <button className="reserve-button hero-cta-main" onClick={() => authAction('/servicios')}>
                             Reservar cita
                         </button>
-                        <button className="hero-cta-secondary" onClick={() => authAction('/tienda')}>
-                            Ver tienda →
-                        </button>
+                        {guestBookingEnabled && (
+                            <button className="hero-cta-secondary" onClick={() => setShowBookingExpress(true)}>
+                                Reserva rápida →
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* ── CÓMO FUNCIONA ── */}
-            <HowItWorksSection />
+            <HowItWorksSection
+                onBookingExpress={() => setShowBookingExpress(true)}
+                showGuestBooking={guestBookingEnabled}
+            />
 
             {/* ── FRANJA DE CONFIANZA ── */}
             <TrustStrip />
@@ -228,9 +409,8 @@ const Home = () => {
                 <p className="section-eyebrow">Lo que ofrecemos</p>
                 <h3>Nuestros Servicios</h3>
                 <p className="section-sub">
-                    Selecciona el tamaño de tu mascota para ver el precio exacto.
+                    Grooming · Tienda · Guardería · Paseos
                 </p>
-                {/* Usa el componente compartido */}
                 <div className="svc-cards-grid">
                     {loading ? (
                         <p className="svc-empty-msg">Cargando servicios...</p>
@@ -255,6 +435,9 @@ const Home = () => {
             {/* ── PRODUCTOS DESTACADOS ── */}
             <section className="content-section">
                 <h3>Productos Destacados</h3>
+                <p className="section-sub">
+                    Paseos · Venta de alimento a domicilio · Guardería (próximamente)
+                </p>
                 <div className="service-cards-grid">
                     {products.length > 0 ? (
                         products.slice(0, 3).map(p => (
@@ -267,9 +450,20 @@ const Home = () => {
             </section>
 
             {/* ── CTA FINAL ── */}
-            <CTASection />
+            <CTASection
+                onBookingExpress={() => setShowBookingExpress(true)}
+                showGuestBooking={guestBookingEnabled}
+            />
 
             <div className="spacer-gradient" />
+
+            {/* ── BOOKING EXPRESS POP-UP ── */}
+            {showBookingExpress && (
+                <BookingExpressModal
+                    onClose={() => setShowBookingExpress(false)}
+                    settings={settings}
+                />
+            )}
         </div>
     );
 };

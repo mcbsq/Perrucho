@@ -1,0 +1,220 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  administrador
+  empleado
+  cliente
+}
+
+enum AppointmentStatus {
+  Pendiente
+  Confirmada
+  EnProceso
+  Completada
+  Cancelada
+}
+
+enum PaymentMethod {
+  efectivo
+  tarjeta
+  transferencia
+}
+
+enum SaleStatus {
+  pagado
+  pendiente
+}
+
+enum SaleType {
+  service
+  product
+  mixed
+}
+
+// ─────────────────────────────────────────────
+// USER (unifica users + clients del db.json)
+// ─────────────────────────────────────────────
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(cliente)
+  phone     String?
+  address   String?
+  capacity  Int?     // solo empleados: cuántas citas simultáneas puede atender
+  createdAt DateTime @default(now())
+
+  // Relaciones
+  pets              Pet[]
+  appointments      Appointment[]        // citas donde este user es el cliente
+  assignedAppointments Appointment[]     @relation("AssignedEmployee")
+  sales             Sale[]
+}
+
+// ─────────────────────────────────────────────
+// PET
+// ─────────────────────────────────────────────
+
+model Pet {
+  id        Int      @id @default(autoincrement())
+  petName   String
+  species   String   @default("perro")
+  breed     String?
+  weight    String?
+  notes     String?
+  history   Json     @default("[]")
+  ownerId   Int
+  createdAt DateTime @default(now())
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+}
+
+// ─────────────────────────────────────────────
+// SERVICE
+// ─────────────────────────────────────────────
+
+model Service {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String  @db.Text
+  category    String
+  icon        String  @default("🐾")
+  color       String  @default("blue")
+  popular     Boolean @default(false)
+
+  // Precios por tamaño (tier de peso)
+  priceMini    Int @default(0)
+  priceChico   Int @default(0)
+  priceMediano Int @default(0)
+  priceGrande  Int @default(0)
+  priceExtra   Int @default(0)
+  priceJumbo   Int @default(0)
+  price        Int @default(0) // fallback / precio base
+
+  appointments        Appointment[]
+  appointmentExtras   AppointmentExtra[]
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT
+// ─────────────────────────────────────────────
+
+model Product {
+  id          Int     @id @default(autoincrement())
+  name        String
+  price       Int
+  stock       Int     @default(0)
+  category    String
+  description String?
+
+  saleItems SaleItem[]
+}
+
+// ─────────────────────────────────────────────
+// APPOINTMENT
+// ─────────────────────────────────────────────
+
+model Appointment {
+  id         Int               @id @default(autoincrement())
+  clientId   Int
+  petId      Int
+  serviceId  Int
+  employeeId Int?
+  date       String            // "YYYY-MM-DD" — string para evitar timezone drift
+  time       String            // "HH:mm"
+  status     AppointmentStatus @default(Pendiente)
+  finalPrice Int               @default(0)
+  notes      String?
+  createdAt  DateTime          @default(now())
+
+  client   User     @relation(fields: [clientId], references: [id])
+  pet      Pet      @relation(fields: [petId], references: [id])
+  service  Service  @relation(fields: [serviceId], references: [id])
+  employee User?    @relation("AssignedEmployee", fields: [employeeId], references: [id])
+
+  extras AppointmentExtra[] // servicios adicionales (punto 3 del cliente)
+  sale   Sale?
+}
+
+// ─────────────────────────────────────────────
+// APPOINTMENT EXTRA (servicios adicionales — punto 3)
+// ─────────────────────────────────────────────
+
+model AppointmentExtra {
+  id            Int @id @default(autoincrement())
+  appointmentId Int
+  serviceId     Int
+  price         Int @default(0)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// SALE
+// ─────────────────────────────────────────────
+
+model Sale {
+  id            Int           @id @default(autoincrement())
+  clientId      Int?
+  employeeId    Int?
+  appointmentId Int?          @unique
+  total         Int
+  paymentMethod PaymentMethod @default(efectivo)
+  status        SaleStatus    @default(pendiente)
+  type          SaleType      @default(service)
+  notes         String?
+  date          DateTime      @default(now())
+
+  client      User?        @relation(fields: [clientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  items       SaleItem[]
+}
+
+// ─────────────────────────────────────────────
+// SALE ITEM (líneas del carrito)
+// ─────────────────────────────────────────────
+
+model SaleItem {
+  id        Int    @id @default(autoincrement())
+  saleId    Int
+  productId Int?
+  name      String // nombre del producto/servicio al momento de la venta
+  price     Int
+  quantity  Int    @default(1)
+
+  sale    Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// SETTINGS (configuración global — toggle booking express, etc.)
+// ─────────────────────────────────────────────
+
+model Settings {
+  id                  Int     @id @default(1) // siempre un solo registro
+  allowGuestBooking   Boolean @default(true)  // toggle admin: booking express on/off
+  whatsappNumber      String  @default("5633252525")
+  businessAddress     String  @default("Montevideo No. 157, Col. Lindavista, GAM, CDMX")
+  businessMapsUrl     String  @default("https://maps.app.goo.gl/HNpfNETNeUqptAbK6")
+  instagramUrl        String  @default("https://www.instagram.com/taylors.petservices.mx")
+  facebookUrl         String  @default("https://www.facebook.com/share/1LixCZxfux/")
+  tiktokUrl           String  @default("https://www.tiktok.com/@taylors.pet.services")
+}

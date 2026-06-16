@@ -1,25 +1,25 @@
 // src/contexts/AuthContext.jsx
-// FIX 1: CORS PATCH — se resuelve en server.js (no aquí)
-// FIX 2: register() crea entrada en /clients Y en /users con clientId vinculado
-// FIX 3: tras register(), llama reloadClientsAndPets() del DataContext para que
-//         el nuevo cliente aparezca en los dashboards sin recargar la página
-// FIX 4 (CRÍTICO): register() ahora acepta petData como 2do argumento y crea
-//         la mascota en /pets con ownerId = newClient.id. Antes Register.jsx
-//         pasaba petData pero AuthContext.register lo ignoraba → la mascota
-//         nunca se guardaba (causa raíz del feedback "no visualizaba las
-//         mascotas agregadas").
+// Migrado de json-server a Express + Prisma + JWT
+//
+// Cambios clave vs versión anterior:
+// - login() llama POST /api/login → recibe { token, user }
+// - El token JWT se guarda en localStorage como 'perrucho_token'
+// - register() llama POST /api/signup con usuario + mascota en una sola llamada
+// - La sesión se restaura desde localStorage (token + user)
+// - logout() limpia tanto el token como la sesión
+// - users y clients ya son la misma tabla → register solo hace una llamada
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { usersApi, clientsApi, petsApi } from '../api/apiClient';
+import { authApi, petsApi } from '../api/apiClient';
 
 const AuthContext  = createContext();
 const SESSION_KEY  = 'perrucho_session';
+const TOKEN_KEY    = 'perrucho_token';
 
 export const useAuth = () => useContext(AuthContext);
 
 // dataReloadRef permite que AuthContext llame al DataContext sin dependencia
-// circular — se inyecta desde App.jsx o desde un Provider wrapper.
-// Si no está disponible, el admin/empleado verá el nuevo cliente tras recargar.
+// circular — se inyecta desde DataReloaderBridge o App.jsx
 let _reloadClientsAndPets = null;
 export const setDataReloader = (fn) => { _reloadClientsAndPets = fn; };
 
@@ -27,39 +27,42 @@ export const AuthProvider = ({ children }) => {
     const [user,    setUser]    = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // ── Recuperar sesión ──────────────────────────────────────────────────────
+    // ── Restaurar sesión desde localStorage ───────────────────────────────────
     useEffect(() => {
         try {
-            const stored = sessionStorage.getItem(SESSION_KEY);
-            if (stored) {
+            const stored = localStorage.getItem(SESSION_KEY);
+            const token  = localStorage.getItem(TOKEN_KEY);
+            if (stored && token) {
                 const parsed = JSON.parse(stored);
                 if (parsed?.id && parsed?.role) setUser(parsed);
-                else sessionStorage.removeItem(SESSION_KEY);
+                else clearSession();
             }
         } catch {
-            sessionStorage.removeItem(SESSION_KEY);
+            clearSession();
         }
         setLoading(false);
     }, []);
 
-    useEffect(() => {
-        if (loading) return;
-        if (user) sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
-        else      sessionStorage.removeItem(SESSION_KEY);
-    }, [user, loading]);
+    const clearSession = () => {
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+    };
+
+    const persistSession = (token, userData) => {
+        localStorage.setItem(TOKEN_KEY, token);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+    };
 
     // ── Login ─────────────────────────────────────────────────────────────────
     const login = async (email, password) => {
         try {
-            const found = await usersApi.login(email, password);
-            if (found) {
-                const { password: _pw, ...safeUser } = found;
-                setUser(safeUser);
-                return safeUser;
-            }
-            return null;
+            const { token, user: userData } = await authApi.login(email, password);
+            persistSession(token, userData);
+            setUser(userData);
+            return userData;
         } catch (err) {
             console.error('Error en login:', err);
+            if (err.status === 401) throw new Error('Correo o contraseña incorrectos.');
             throw new Error('No se pudo conectar con el servidor.');
         }
     };
@@ -67,77 +70,57 @@ export const AuthProvider = ({ children }) => {
     // ── Logout ────────────────────────────────────────────────────────────────
     const logout = () => {
         setUser(null);
-        sessionStorage.removeItem(SESSION_KEY);
+        clearSession();
     };
 
     // ── Register ──────────────────────────────────────────────────────────────
-    // 1. Crea entrada en /clients → aparece en lista de admin/empleado
-    // 2. Crea usuario en /users con clientId vinculado
-    // 3. Si viene petData, crea la mascota inicial en /pets con ownerId=clientId
-    // 4. Recarga el DataContext para que los dashboards vean el nuevo cliente
+    // El nuevo backend unifica users + clients en una sola tabla.
+    // POST /api/signup acepta { name, email, phone, password, pet? }
+    // y crea el usuario + mascota en una sola transacción.
     const register = async (clientData, petData = null) => {
-        const today = new Date().toISOString().split('T')[0];
         try {
-            // Paso 1: crear registro de cliente
-            const newClient = await clientsApi.create({
-                name:      clientData.name    || clientData.email,
-                email:     clientData.email,
-                phone:     clientData.phone   || '',
-                address:   clientData.address || '',
-                createdAt: today,
-            });
+            const payload = {
+                name:     clientData.name    || clientData.email,
+                email:    clientData.email,
+                phone:    clientData.phone   || '',
+                password: clientData.password || 'perrucho123',
+            };
 
-            // Paso 2: crear usuario con referencia al clientId
-            const newUser = await usersApi.create({
-                name:      clientData.name || clientData.email,
-                email:     clientData.email,
-                password:  clientData.password,
-                role:      'cliente',
-                clientId:  newClient.id,
-                createdAt: today,
-            });
-
-            // Paso 3: si llegó petData, crear la mascota inicial.
-            // El cliente del feedback dijo: "se crea el perfil y automáticamente
-            // se procede a agregar los datos de la mascota. Sin embargo al entrar
-            // a mi perfil no visualizaba las mascotas agregadas." — esto era
-            // porque la mascota nunca se guardaba. Ahora sí.
+            // Si viene mascota, la enviamos junto al registro
             if (petData && (petData.petName || petData.name)) {
-                await petsApi.create({
+                payload.pet = {
                     petName: petData.petName || petData.name,
                     species: petData.species || 'perro',
                     breed:   petData.breed   || '',
-                    weight:  petData.weight  || '',
-                    age:     petData.age     || '',
+                    weight:  petData.weight  ? String(petData.weight) : '',
                     notes:   petData.notes   || '',
-                    ownerId: newClient.id,
-                    history: [],
-                    createdAt: today,
-                });
+                };
             }
 
-            // Paso 4: loguear sin password
-            const { password: _pw, ...safeUser } = newUser;
-            const sessionUser = { ...safeUser, clientId: newClient.id };
-            setUser(sessionUser);
+            const { token, user: userData } = await authApi.signup(payload);
+            persistSession(token, userData);
+            setUser(userData);
 
-            // Paso 5: notificar al DataContext para que recargue clients/pets
-            // Esto hace que el nuevo cliente y mascota aparezcan en
-            // admin/empleado de inmediato sin recargar página.
+            // Notificar al DataContext para que recargue clients/pets
             if (_reloadClientsAndPets) {
                 _reloadClientsAndPets().catch(() => {});
             }
 
-            return sessionUser;
+            return userData;
         } catch (err) {
             console.error('Error en registro:', err);
-            throw new Error('No se pudo completar el registro. ¿Ya existe una cuenta con ese correo?');
+            if (err.status === 409) throw new Error('Ya existe una cuenta con ese correo.');
+            throw new Error('No se pudo completar el registro. Intenta de nuevo.');
         }
     };
 
     // ── Actualizar datos de sesión (para cambios de perfil) ───────────────────
     const updateSessionUser = (updatedFields) => {
-        setUser(prev => ({ ...prev, ...updatedFields }));
+        setUser(prev => {
+            const updated = { ...prev, ...updatedFields };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+            return updated;
+        });
     };
 
     return (
