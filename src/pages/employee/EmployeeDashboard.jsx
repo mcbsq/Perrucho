@@ -555,6 +555,7 @@ const EmployeeDashboard = () => {
 
     const handleSaveClient=async(form)=>{try{form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Actualizado':'Guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Actualizado':'Guardado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleTogglePetStatus=async(pet,newStatus)=>{try{await updatePet(pet.id,{...pet,status:newStatus});addToast(newStatus==='activo'?'Paciente marcado como activo':'Paciente marcado como inactivo','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
     const saveMedicalFile=async(updatedPet)=>{try{await updatePet(updatedPet.id,updatedPet);setMedicalPet(null);addToast('Expediente guardado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
     // Empleado no puede eliminar — avisa que lo hace el admin
@@ -701,7 +702,7 @@ const EmployeeDashboard = () => {
 
                 {tab==='pacientes'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div></div>
-                    <div className="ds-cards-grid">{filteredPets.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet}/>)}</div>
+                    <div className="ds-cards-grid">{filteredPets.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet} onToggleStatus={handleTogglePetStatus}/>)}</div>
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 

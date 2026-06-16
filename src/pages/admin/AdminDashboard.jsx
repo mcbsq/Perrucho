@@ -526,6 +526,7 @@ const AdminDashboard = () => {
     // ── CRUD ─────────────────────────────────────────────────────────────────
     const handleSaveClient=async(form)=>{try{form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Paciente actualizado':'Paciente registrado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleTogglePetStatus=async(pet,newStatus)=>{try{await updatePet(pet.id,{...pet,status:newStatus});addToast(newStatus==='activo'?'Paciente marcado como activo':'Paciente marcado como inactivo','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
     const handleSaveService=async(form)=>{try{form.id?await updateService(form.id,form):await addService(form);addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveProduct=async(form)=>{try{form.id?await updateProduct(form.id,form):await addProduct(form);addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);}addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
@@ -760,7 +761,7 @@ const AdminDashboard = () => {
 
                 {tab==='pacientes'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
-                    <div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)}/>)}</div>
+                    <div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus}/>)}</div>
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 

@@ -1,8 +1,10 @@
 // src/components/shared/DashboardShared.jsx
-// CAMBIOS v2 según catálogo de servicios real:
-// 1. ServiceCard ahora muestra los 6 rangos de peso (Mini→Jumbo) en lugar de 3
-// 2. ServiceFormModal ahora tiene campos para los 6 precios (priceMini→priceJumbo)
-// 3. Se importa pricingRules para labels y rangos consistentes
+// CAMBIOS v3:
+// - PetCard y PetFormModal ahora manejan status (activo/inactivo)
+// - El registro de una mascota ya NO implica automáticamente que esté "activa" con tratamiento;
+//   es solo un estado administrativo que el staff puede alternar.
+// CAMBIOS v2 (catálogo real):
+// - ServiceCard y ServiceFormModal con los 6 rangos de peso (Mini→Jumbo)
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -170,17 +172,22 @@ export const ClientFormModal = ({ initial, onSave, onClose }) => {
 };
 
 // ─── PET CARD ─────────────────────────────────────────────────────────────────
-export const PetCard = ({ pet, owner, onEdit, onDelete }) => {
+// CAMBIO v3: muestra y permite alternar status (activo/inactivo)
+export const PetCard = ({ pet, owner, onEdit, onDelete, onToggleStatus }) => {
     const h = hueFromId(pet.id);
     const emoji = speciesEmoji(pet.species);
+    const isActive = (pet.status || 'activo') === 'activo';
     return (
-        <div className="ds-card ds-pet-card">
-            <div className="ds-pet-avatar" style={{ background: `hsl(${h},65%,60%)` }}>
+        <div className={`ds-card ds-pet-card ${!isActive ? 'ds-card--inactive' : ''}`}>
+            <div className="ds-pet-avatar" style={{ background: `hsl(${h},65%,60%)`, opacity: isActive ? 1 : 0.55 }}>
                 <span className="ds-pet-initial">{pet.petName?.[0]?.toUpperCase()}</span>
                 <span className="ds-pet-emoji-badge">{emoji}</span>
             </div>
             <div className="ds-card-body">
-                <div className="ds-card-name">{pet.petName}</div>
+                <div className="ds-card-name">
+                    {pet.petName}
+                    {!isActive && <span className="ds-pet-inactive-label">Inactivo</span>}
+                </div>
                 <div className="ds-card-meta">
                     <span className="ds-tag ds-tag--purple">{emoji} {pet.species || 'mascota'}</span>
                     {pet.breed  && <span className="ds-tag ds-tag--gray">{pet.breed}</span>}
@@ -190,6 +197,14 @@ export const PetCard = ({ pet, owner, onEdit, onDelete }) => {
                 {pet.notes && <div className="ds-card-notes">📌 {pet.notes}</div>}
             </div>
             <div className="ds-card-actions">
+                {onToggleStatus && (
+                    <button
+                        className={`ds-btn-icon ${isActive ? 'ds-btn-icon--active' : 'ds-btn-icon--inactive'}`}
+                        title={isActive ? 'Marcar inactivo' : 'Marcar activo'}
+                        onClick={() => onToggleStatus(pet, isActive ? 'inactivo' : 'activo')}>
+                        {isActive ? <FaCheckCircle /> : <FaExclamationTriangle />}
+                    </button>
+                )}
                 <button className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(pet)}><FaEdit /></button>
                 <button className="ds-btn-icon ds-btn-icon--del"  onClick={() => onDelete(pet.id, pet.petName)}><FaTrash /></button>
             </div>
@@ -198,9 +213,10 @@ export const PetCard = ({ pet, owner, onEdit, onDelete }) => {
 };
 
 // ─── PET FORM MODAL ───────────────────────────────────────────────────────────
+// CAMBIO v3: incluye selector de status
 export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
-        petName: '', species: 'perro', breed: '', weight: '', ownerId: '', notes: '', history: []
+        petName: '', species: 'perro', breed: '', weight: '', ownerId: '', notes: '', history: [], status: 'activo'
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -244,6 +260,12 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
                     <input placeholder="Condiciones especiales, medicamentos..." value={form.notes}
                         onChange={e => setForm({ ...form, notes: e.target.value })}
                         style={{ gridColumn: '1 / -1' }} />
+                    <label>Estado</label>
+                    <select value={form.status || 'activo'}
+                        onChange={e => setForm({ ...form, status: e.target.value })}>
+                        <option value="activo">✓ Activo</option>
+                        <option value="inactivo">○ Inactivo</option>
+                    </select>
                 </div>
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
@@ -257,7 +279,6 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
 };
 
 // ─── SERVICE CARD ─────────────────────────────────────────────────────────────
-// CAMBIO: ahora muestra los 6 rangos de peso en lugar de 3
 export const ServiceCard = ({ service, onEdit, onDelete }) => (
     <div className="ds-card ds-service-card">
         <div className="ds-service-icon">{service.icon || '✂️'}</div>
@@ -266,7 +287,6 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
             <div className="ds-card-meta">
                 <span className="ds-tag ds-tag--blue">{service.category}</span>
             </div>
-            {/* Tabla de precios con los 6 rangos */}
             <div className="ds-service-prices-grid">
                 {WEIGHT_RANGES.map(range => {
                     const field = PRICE_FIELD[range.key];
@@ -289,12 +309,11 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
 );
 
 // ─── SERVICE FORM MODAL ───────────────────────────────────────────────────────
-// CAMBIO: ahora tiene los 6 campos de precio (priceMini→priceJumbo)
 export const ServiceFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
         title: '', category: 'Estética', description: '', icon: '', color: 'blue', popular: false,
         priceMini: '', priceChico: '', priceMediano: '', priceGrande: '', priceExtra: '', priceJumbo: '',
-        price: '', // precio base (se usará como fallback y para el POS)
+        price: '',
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -302,7 +321,6 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
-        // price base = priceMini para mantener compatibilidad con POS y ServiceCard legacy
         const payload = { ...form, price: form.priceMini || form.price };
         try { await onSave(payload); }
         finally { setSaving(false); }
@@ -331,10 +349,7 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                         style={{ gridColumn: '1 / -1' }} />
                 </div>
 
-                {/* Tabla de precios por rango de peso */}
-                <div className="ds-price-table-label">
-                    💲 Precios por tamaño
-                </div>
+                <div className="ds-price-table-label">💲 Precios por tamaño</div>
                 <div className="ds-price-table">
                     {WEIGHT_RANGES.map(range => {
                         const field = PRICE_FIELD[range.key];
@@ -453,6 +468,8 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
 };
 
 // ─── USER CARD ────────────────────────────────────────────────────────────────
+// NOTA: solo recibe usuarios con role administrador/empleado — los clientes
+// se gestionan en la pestaña Clientes, nunca aquí.
 export const UserCard = ({ user, onEdit, onDelete, currentUserId }) => (
     <div className="ds-card ds-user-card">
         <div className="ds-card-avatar" style={{
@@ -481,6 +498,8 @@ export const UserCard = ({ user, onEdit, onDelete, currentUserId }) => (
 );
 
 // ─── USER FORM MODAL ──────────────────────────────────────────────────────────
+// NOTA: el rol aquí solo puede ser empleado/administrador — para registrar
+// clientes se usa el flujo público de /acceso (signup).
 export const UserFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
         name: '', email: '', password: '', role: 'empleado', capacity: 1
