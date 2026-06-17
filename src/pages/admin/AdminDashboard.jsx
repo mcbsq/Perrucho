@@ -61,8 +61,8 @@ const buildGCalLink = (a) => { const ds=(a.date||todayISO()).replace(/-/g,'');co
 // Helpers para objetos anidados del nuevo backend
 const getApptPetName     = (a) => a.pet?.petName     || a.petName     || 'Mascota';
 const getApptServiceName = (a) => a.service?.title   || a.serviceName || 'Servicio';
-const getApptClientName  = (a) => a.client?.name     || '';
-const getApptClientPhone = (a) => a.client?.phone    || '';
+const getApptClientName  = (a) => a.client?.name     || a.guestName  || '';
+const getApptClientPhone = (a) => a.client?.phone    || a.guestPhone || '';
 const getApptEmpName     = (a) => a.employee?.name   || '';
 const getApptTime        = (a) => a.time || '10:15';
 const getApptPetId       = (a) => a.petId   || a.pet?.id;

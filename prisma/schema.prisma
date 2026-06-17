@@ -143,6 +143,8 @@ model Appointment {
   status     AppointmentStatus @default(Pendiente)
   finalPrice Int               @default(0)
   notes      String?
+  guestName  String?           // booking express sin cuenta — nombre del dueño
+  guestPhone String?           // booking express sin cuenta — WhatsApp para confirmar
   createdAt  DateTime          @default(now())
 
   client   User?    @relation(fields: [clientId], references: [id])

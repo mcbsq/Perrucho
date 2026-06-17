@@ -45,8 +45,8 @@ const hueFromId = (id) => { const n=typeof id==='string'?id.split('').reduce((a,
 // Helpers para objetos anidados del nuevo backend
 const getApptPetName     = (a) => a.pet?.petName   || a.petName     || 'Mascota';
 const getApptServiceName = (a) => a.service?.title || a.serviceName || 'Servicio';
-const getApptClientName  = (a) => a.client?.name   || '';
-const getApptClientPhone = (a) => a.client?.phone  || '';
+const getApptClientName  = (a) => a.client?.name   || a.guestName  || '';
+const getApptClientPhone = (a) => a.client?.phone  || a.guestPhone || '';
 const getApptPetId       = (a) => a.petId  || a.pet?.id;
 const getApptClientId    = (a) => a.clientId || a.client?.id;
 const getApptTime        = (a) => a.time || '10:15';
