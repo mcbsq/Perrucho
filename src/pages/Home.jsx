@@ -141,7 +141,7 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         <div className="bx-field">
                             <label>WhatsApp (10 dígitos) * 📱</label>
                             <input name="ownerPhone" value={form.ownerPhone} onChange={handlePhoneChange}
-                                placeholder="228 304 5591" inputMode="numeric" required />
+                                placeholder="tu numero a 10 digitos" inputMode="numeric" required />
                             {phoneError && <small className="field-hint field-hint--error">{phoneError}</small>}
                             {!phoneError && form.ownerPhone && <small className="field-hint field-hint--ok">✓ Número válido</small>}
                             <small className="field-hint">Lo usaremos para confirmarte la cita por WhatsApp.</small>
