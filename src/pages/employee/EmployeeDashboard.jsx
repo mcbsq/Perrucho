@@ -28,6 +28,8 @@ import { calcServicePrice, weightRangeLabel } from '../../utils/pricingRules';
 import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
 import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
 import '../../components/shared/ExtrasPanel.css';
+import AssignTimePicker from '../../components/shared/AssignTimePicker';
+import '../../components/shared/AssignTimePicker.css';
 import './EmployeeDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,7 +80,7 @@ const Modal = ({title,onClose,children,wide,full}) => (
 );
 
 // ─── Appt Detail Popup ────────────────────────────────────────────────────────
-const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,onOpenExp,onDelete,onClose,isUpdating,onAddExtra,onRemoveExtra}) => {
+const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,onOpenExp,onDelete,onClose,isUpdating,onAddExtra,onRemoveExtra,allAppointments=[],employees=[],onAssignTime}) => {
     const ref=useRef(null);
     const [pos,setPos]=useState({top:0,left:0});
     const petId=getApptPetId(appt);
@@ -87,6 +89,8 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,on
     const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
     const transitions=STATUS_TRANSITIONS.empleado;
     const actionDef=STATUS_ACTION_LABEL.empleado[appt.status];
+    // Cita Pendiente sin hora: el cliente solo sugirió el día — hay que asignar horario antes de poder confirmar.
+    const needsTimeAssignment = appt.status==='Pendiente' && !appt.time && !!onAssignTime;
 
     useEffect(()=>{if(!anchor||!ref.current)return;const W=window.innerWidth,H=window.innerHeight,PW=300,PH=ref.current.offsetHeight||340;let left=anchor.left+anchor.width/2-PW/2;left=Math.max(12,Math.min(left,W-PW-12));let top=anchor.bottom+8;if(top+PH>H-12)top=anchor.top-PH-8;setPos({top:Math.max(12,top),left});},[anchor]);
     useEffect(()=>{const h=(e)=>{if(ref.current&&!ref.current.contains(e.target))onClose();};const t=setTimeout(()=>document.addEventListener('mousedown',h),80);return()=>{clearTimeout(t);document.removeEventListener('mousedown',h);};},[onClose]);
@@ -106,12 +110,21 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,on
                 <button className="appt-popup-close" onClick={onClose}><FaTimes/></button>
             </div>
             <div className="adp-body">
-                <div className="adp-row"><FaClock className="adp-icon"/><span>{getApptTime(appt)} · {appt.date}</span></div>
+                <div className="adp-row"><FaClock className="adp-icon"/><span>{appt.time ? `${getApptTime(appt)} · ${appt.date}` : `${appt.date} · sin hora asignada`}</span></div>
                 <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{getApptServiceName(appt)}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
-                <div className="adp-row">
+                {!needsTimeAssignment&&<div className="adp-row">
                     <StatusSelector current={appt.status||'Pendiente'} transitions={transitions}
                         onSelect={(newStatus)=>{onStatusChange(appt,newStatus);onClose();}}/>
-                </div>
+                </div>}
+                {needsTimeAssignment&&(
+                    <AssignTimePicker
+                        appt={appt}
+                        allAppointments={allAppointments}
+                        employees={employees}
+                        isUpdating={isUpdating}
+                        onAssign={(time)=>{onAssignTime(appt,time);onClose();}}
+                    />
+                )}
                 {pet?.notes&&<div className="appt-popup-notes"><span className="appt-popup-notes-label">Notas</span><p>{pet.notes}</p></div>}
                 {onAddExtra&&onRemoveExtra&&(
                     <ExtrasPanel
@@ -124,7 +137,7 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,on
                 )}
             </div>
             <div className="adp-footer">
-                {actionDef&&<button className={`ds-btn ds-btn--${actionDef.style} adp-action-btn`} disabled={isUpdating}
+                {!needsTimeAssignment&&actionDef&&<button className={`ds-btn ds-btn--${actionDef.style} adp-action-btn`} disabled={isUpdating}
                     onClick={()=>{onStatusChange(appt,transitions[appt.status]?.[0]);onClose();}}>
                     {actionDef.icon} {isUpdating ? 'Guardando...' : actionDef.label}
                 </button>}
@@ -188,7 +201,7 @@ const MedicalModal = ({pet,clients,onSave,onClose}) => {
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusChange,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds,onAddExtra,onRemoveExtra}) => {
+const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusChange,onAssignTime,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds,onAddExtra,onRemoveExtra}) => {
     const now=new Date();
     const [viewDate,setViewDate]=useState(new Date(now.getFullYear(),now.getMonth(),1));
     const [calView,setCalView]=useState('week');
@@ -377,6 +390,7 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
             onOpenExp={(pet)=>{onOpenExp(pet);closePopup();}}
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
             onAddExtra={onAddExtra} onRemoveExtra={onRemoveExtra}
+            allAppointments={appointments} employees={empleados} onAssignTime={onAssignTime}
             onClose={closePopup}/>}
     </>;
 };
@@ -439,7 +453,12 @@ const EmployeeDashboard = () => {
     }),[todayAppts,products]);
 
     // Notificación al cliente por WhatsApp (punto 2 del correo del cliente)
-    const notifyClientByWhatsApp = async (appt, newStatus) => {
+    // FIX (feedback cliente): antes preguntaba "¿Avisar al cliente?" con un modal
+    // que el empleado podía ignorar ("Ahora no"), haciendo la notificación opcional
+    // en la práctica. Ahora es automática e inmediata: en cuanto la cita pasa a
+    // Confirmada o Finalizada, se abre WhatsApp con el mensaje ya listo — el
+    // empleado solo presiona enviar, sin paso de confirmación intermedio.
+    const notifyClientByWhatsApp = (appt, newStatus) => {
         if(newStatus!=='Confirmada'&&newStatus!=='Completada'&&newStatus!=='Finalizada')return;
         const petId=getApptPetId(appt);
         const pet=pets.find(p=>String(p.id)===String(petId));
@@ -447,40 +466,25 @@ const EmployeeDashboard = () => {
         const clientPhone = owner?.phone || getApptClientPhone(appt);
 
         if(!clientPhone){
-            addToast('El cliente no tiene teléfono registrado','info');
+            addToast('No se notificó: el cliente no tiene teléfono registrado','info');
             return;
         }
 
-        const wants=await notify({
-            type:'confirm',icon:'💬',accent:'mint',
-            title:'¿Avisar al cliente por WhatsApp?',
-            message:`Se abrirá WhatsApp con un mensaje para ${owner?.name||getApptClientName(appt)||'el cliente'}.`,
-            confirmLabel:'Sí, enviar',cancelLabel:'Ahora no'
-        });
-        if(!wants)return;
-
         const baseInfo={
-            clientName:   owner?.name||getApptClientName(appt)||'Cliente',
-            clientPhone:  clientPhone,
-            petName:      getApptPetName(appt),
-            serviceName:  getApptServiceName(appt),
-            date:         appt.date,
-            time:         getApptTime(appt),
-            businessPhone:WA_BUSINESS,
+            clientName:  owner?.name||getApptClientName(appt)||'Cliente',
+            clientPhone: clientPhone,
+            petName:     getApptPetName(appt),
+            serviceName: getApptServiceName(appt),
+            date:        appt.date,
+            time:        getApptTime(appt),
         };
 
-        // Usar whatsappNotify para generar el mensaje
-        const phone = clientPhone.replace(/\D/g,'');
-        const fullPhone = phone.startsWith('52') ? phone : `52${phone}`;
-        let msg = '';
-        if(newStatus==='Confirmada'){
-            msg = `Hola ${baseInfo.clientName}, te confirmamos tu cita para ${baseInfo.petName} el ${baseInfo.date} a las ${baseInfo.time} en Taylor's Pet Services. ¡Te esperamos! 🐾`;
-        } else {
-            msg = `Hola ${baseInfo.clientName}, tu servicio de ${baseInfo.serviceName} para ${baseInfo.petName} ha sido completado. ¡Gracias por visitarnos en Taylor's Pet Services! 🐾`;
-        }
-        const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
-        addToast('WhatsApp abierto','info');
+        const url = (newStatus==='Confirmada')
+            ? shopToClientOnConfirmation(baseInfo)
+            : shopToClientOnFinished(baseInfo);
+
+        const opened = openWhatsApp(url);
+        addToast(opened ? 'WhatsApp abierto para notificar al cliente' : 'No se pudo generar el mensaje de WhatsApp', opened ? 'info' : 'error');
     };
 
     // FIX: addSale con nuevo formato + objetos anidados
@@ -519,12 +523,37 @@ const EmployeeDashboard = () => {
                 }
             }
             addToast(`Estado → ${newStatus}`,'success');
-            await notifyClientByWhatsApp(appt, newStatus);
+            notifyClientByWhatsApp(appt, newStatus);
         }catch(err){
             setAppointments(prevAppts);
             if(selAppt?.id===appt.id)setSelAppt(appt);
             const errMsg=err.status===404?'La cita no existe en el servidor':err.status>=500?'El servidor no responde. Intenta en unos segundos.':`${err.message||'Error desconocido'}`;
             addToast(`No se pudo cambiar el estado: ${errMsg}`,'error');
+        }finally{
+            setUpdatingIds(prev=>{const next=new Set(prev);next.delete(id);return next;});
+        }
+    };
+
+    // Asigna hora a una cita Pendiente sin horario (el cliente solo sugirió el día)
+    // y la pasa a Confirmada en un solo patch — separa "elegir hora" de "confirmar".
+    const handleAssignTime=async(appt,time)=>{
+        const id=String(appt.id);
+        const check=validateSlot(appointments,appt.date,time,empleados,appt.id);
+        if(!check.ok){addToast(check.message,'error');return;}
+        setUpdatingIds(prev=>new Set(prev).add(id));
+        const prevAppts=appointments;
+        setAppointments(p=>p.map(a=>String(a.id)===id?{...a,time,status:'Confirmada'}:a));
+        if(selAppt?.id===appt.id)setSelAppt(prev=>({...prev,time,status:'Confirmada'}));
+        try{
+            const updated=await appointmentsApi.patch(appt.id,{time,status:'Confirmada'});
+            setAppointments(p=>p.map(a=>String(a.id)===id?{...a,...updated}:a));
+            if(selAppt?.id===appt.id)setSelAppt(prev=>({...prev,...updated}));
+            addToast('Horario asignado — cita confirmada','success');
+            notifyClientByWhatsApp({...appt,time},'Confirmada');
+        }catch(err){
+            setAppointments(prevAppts);
+            if(selAppt?.id===appt.id)setSelAppt(appt);
+            addToast(`No se pudo asignar el horario: ${err.message||'error desconocido'}`,'error');
         }finally{
             setUpdatingIds(prev=>{const next=new Set(prev);next.delete(id);return next;});
         }
@@ -583,7 +612,7 @@ const EmployeeDashboard = () => {
             <div className="emp-toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {NotifyNode}
 
-            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
             {medicalPet&&<MedicalModal pet={medicalPet} clients={clients} onSave={saveMedicalFile} onClose={()=>setMedicalPet(null)}/>}
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
@@ -691,6 +720,7 @@ const EmployeeDashboard = () => {
                         onDelete={(id)=>{handleDeleteAppt(id);setSelAppt(null);setAgendaAnchor(null);}}
                         onAddExtra={addAppointmentExtra}
                         onRemoveExtra={removeAppointmentExtra}
+                        allAppointments={appointments} employees={empleados} onAssignTime={handleAssignTime}
                         onClose={()=>{setSelAppt(null);setAgendaAnchor(null);}}/>}
                 </div>}
 

@@ -1,0 +1,64 @@
+/* src/components/shared/AssignTimePicker.css */
+
+.atp-wrap {
+    background: #fef9e7;
+    border: 1.5px solid #fde68a;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-top: 4px;
+}
+
+.atp-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+.atp-header svg { margin-top: 2px; flex-shrink: 0; }
+
+.atp-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.atp-slot {
+    padding: 8px 4px;
+    border-radius: 8px;
+    border: 1.5px solid #e0e4ea;
+    background: white;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #2d3436;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.atp-slot:hover:not(:disabled) { border-color: #74b9ff; background: #eef2ff; }
+.atp-slot.active {
+    background: #74b9ff;
+    border-color: #74b9ff;
+    color: white;
+}
+.atp-slot.busy {
+    background: #f3f4f6;
+    color: #b0b6bd;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+.atp-warning {
+    font-size: 0.76rem;
+    color: #b91c1c;
+    font-weight: 600;
+    margin: 4px 0 8px;
+}
+
+.atp-confirm-btn {
+    width: 100%;
+    justify-content: center;
+}
