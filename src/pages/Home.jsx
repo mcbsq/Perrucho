@@ -1,4 +1,12 @@
 // src/pages/Home.jsx
+//
+// FIX (feedback cliente): el botón "Confirmar por WhatsApp" no debe estar en
+// la confirmación del CLIENTE — el cliente no tiene que confirmarle nada a la
+// estética; es la estética quien confirma al cliente. Ese botón se quitó de
+// BookingExpressModal. A cambio, el formulario de reserva rápida ahora pide
+// el teléfono (WhatsApp) del dueño y lo guarda en la cita como guestPhone/
+// guestName, para que el empleado/admin pueda usarlo al confirmar.
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
@@ -7,13 +15,10 @@ import heroVideo   from '../assets/hero.mp4';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
+import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
 // Logo: pon tu archivo como src/assets/logo.png para activarlo
 // import logoTPS from '../assets/logo.png';
 const logoTPS = null;
-
-// ─── Número WhatsApp del negocio ──────────────────────────────────────────────
-const WA_NUMBER = '5215633252525';
-const WA_MSG    = encodeURIComponent('Hola, me interesa agendar una cita para mi mascota en Taylor\'s Pet Services.');
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
 const useAuthAction = () => {
@@ -55,18 +60,23 @@ const useCountUp = (target, duration = 1800) => {
 
 // ─── Booking Express Pop-up ───────────────────────────────────────────────────
 const BookingExpressModal = ({ onClose, settings }) => {
-    const { addAppointment, services } = useData();
+    const { addAppointment } = useData();
     const [step, setStep]   = useState(1); // 1: datos, 2: servicio/fecha, 3: éxito
     const [loading, setLoading] = useState(false);
     const [error, setError]   = useState('');
+    const [phoneError, setPhoneError] = useState('');
     const [form, setForm]     = useState({
-        ownerName: '', petName: '', breed: '', age: '', weight: '',
+        ownerName: '', ownerPhone: '', petName: '', breed: '', age: '', weight: '',
         date: '', time: '',
     });
 
-    const waNumber = settings?.whatsappNumber || '5633252525';
-
     const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+    const handlePhoneChange = (e) => {
+        const formatted = formatMexPhone(e.target.value);
+        setForm(prev => ({ ...prev, ownerPhone: formatted }));
+        setPhoneError(formatted.length > 0 ? whatsAppValidationError(formatted) : '');
+    };
 
     const availableTimes = [
         '10:15','11:00','11:45','12:30','13:15','14:00','14:45','15:30','16:15','17:00'
@@ -75,13 +85,17 @@ const BookingExpressModal = ({ onClose, settings }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.ownerName || !form.petName) { setError('Nombre del dueño y mascota son requeridos.'); return; }
-        if (step === 1) { setStep(2); setError(''); return; }
+        if (step === 1) {
+            const waErr = whatsAppValidationError(form.ownerPhone);
+            if (waErr) { setPhoneError(waErr); setError('Ingresa un WhatsApp válido (10 dígitos) para poder confirmarte la cita.'); return; }
+            setStep(2); setError(''); return;
+        }
 
         if (!form.date || !form.time) { setError('Selecciona fecha y horario.'); return; }
         setLoading(true);
         try {
-            // Crear cita sin cuenta (guest booking)
-            // El backend acepta appointments sin clientId (booking express)
+            // Crear cita sin cuenta (guest booking) — guarda guestName/guestPhone
+            // para que el empleado/admin pueda confirmar por WhatsApp con el dueño.
             await addAppointment({
                 clientId:    null,
                 petId:       null,
@@ -90,7 +104,9 @@ const BookingExpressModal = ({ onClose, settings }) => {
                 time:        form.time,
                 status:      'Pendiente',
                 finalPrice:  0,
-                notes:       `BOOKING EXPRESS — Dueño: ${form.ownerName} | Mascota: ${form.petName} | Raza: ${form.breed || 'N/D'} | Edad: ${form.age || 'N/D'} | Peso aprox: ${form.weight || 'N/D'} kg`,
+                guestName:   form.ownerName,
+                guestPhone:  form.ownerPhone,
+                notes:       `BOOKING EXPRESS — Mascota: ${form.petName} | Raza: ${form.breed || 'N/D'} | Edad: ${form.age || 'N/D'} | Peso aprox: ${form.weight || 'N/D'} kg`,
             });
             setStep(3);
         } catch {
@@ -121,6 +137,14 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         <div className="bx-field">
                             <label>Nombre del dueño *</label>
                             <input name="ownerName" value={form.ownerName} onChange={handleChange} placeholder="Tu nombre completo" required />
+                        </div>
+                        <div className="bx-field">
+                            <label>WhatsApp (10 dígitos) * 📱</label>
+                            <input name="ownerPhone" value={form.ownerPhone} onChange={handlePhoneChange}
+                                placeholder="228 304 5591" inputMode="numeric" required />
+                            {phoneError && <small className="field-hint field-hint--error">{phoneError}</small>}
+                            {!phoneError && form.ownerPhone && <small className="field-hint field-hint--ok">✓ Número válido</small>}
+                            <small className="field-hint">Lo usaremos para confirmarte la cita por WhatsApp.</small>
                         </div>
                         <div className="bx-field">
                             <label>Nombre de tu mascota *</label>
@@ -185,14 +209,8 @@ const BookingExpressModal = ({ onClose, settings }) => {
                             Hemos recibido tu solicitud para <strong>{form.petName}</strong> el <strong>{form.date}</strong> a las <strong>{form.time}</strong>.
                         </p>
                         <p className="bx-subtitle" style={{ marginTop: 8 }}>
-                            Te confirmamos por WhatsApp a la brevedad.
+                            Te confirmaremos por WhatsApp al número que nos compartiste.
                         </p>
-                        <a
-                            href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hola! Acabo de registrar una cita para ${form.petName} el ${form.date} a las ${form.time}. Nombre del dueño: ${form.ownerName}.`)}`}
-                            target="_blank" rel="noopener noreferrer"
-                            className="bx-btn-wa">
-                            💬 Confirmar por WhatsApp
-                        </a>
                         <button className="bx-btn-secondary" onClick={onClose} style={{ marginTop: 12 }}>
                             Cerrar
                         </button>
