@@ -134,9 +134,9 @@ model Product {
 
 model Appointment {
   id         Int               @id @default(autoincrement())
-  clientId   Int
-  petId      Int
-  serviceId  Int
+  clientId   Int?
+  petId      Int?
+  serviceId  Int?
   employeeId Int?
   date       String            // "YYYY-MM-DD" — string para evitar timezone drift
   time       String            // "HH:mm"
@@ -145,9 +145,9 @@ model Appointment {
   notes      String?
   createdAt  DateTime          @default(now())
 
-  client   User     @relation(fields: [clientId], references: [id])
-  pet      Pet      @relation(fields: [petId], references: [id])
-  service  Service  @relation(fields: [serviceId], references: [id])
+  client   User?    @relation(fields: [clientId], references: [id])
+  pet      Pet?     @relation(fields: [petId], references: [id])
+  service  Service? @relation(fields: [serviceId], references: [id])
   employee User?    @relation("AssignedEmployee", fields: [employeeId], references: [id])
 
   extras AppointmentExtra[] // servicios adicionales (punto 3 del cliente)
