@@ -1,5 +1,9 @@
 // src/pages/ProductModal.jsx
-import React, { useState, useMemo } from 'react';
+//
+// FIX (mismo bug que ServiceModal): clientRecord ya no se busca en `clients`
+// del DataContext (vacío para rol 'cliente'). Se usa user.id directo.
+
+import React, { useState } from 'react';
 import {
     FaCreditCard, FaMoneyBillWave, FaCheckCircle,
     FaTimes, FaPlus, FaMinus
@@ -9,24 +13,14 @@ import { useData }  from '../contexts/DataContext';
 import './Shop.css';
 
 const ProductModal = ({ product, onClose }) => {
-    const { user }                                      = useAuth();
-    const { clients, addSale, updateProduct, products } = useData();
+    const { user }                          = useAuth();
+    const { addSale, updateProduct, products } = useData();
 
     const [step,          setStep]          = useState(1);
     const [qty,           setQty]           = useState(1);
     const [paymentMethod, setPaymentMethod] = useState('');
     const [loading,       setLoading]       = useState(false);
     const [error,         setError]         = useState('');
-
-    // FIX: Buscar cliente por clientId de sesión primero (usuarios nuevos),
-    // luego fallback por email (usuarios legacy sin clientId en sesión).
-    const clientRecord = useMemo(() => {
-        if (user?.clientId) {
-            const byId = clients.find(c => String(c.id) === String(user.clientId));
-            if (byId) return byId;
-        }
-        return clients.find(c => c.email?.toLowerCase() === user?.email?.toLowerCase());
-    }, [clients, user]);
 
     if (!product) return null;
 
@@ -41,12 +35,15 @@ const ProductModal = ({ product, onClose }) => {
         setLoading(true);
         setError('');
         try {
-            await addSale(
-                `${product.name} (x${qty})`,
+            // FIX: user.id ES el clientId — sin buscar en `clients`
+            await addSale({
+                items: [{ name: product.name, price: product.price, quantity: qty, productId: product.id }],
                 total,
-                clientRecord?.id || null,
-                'product'
-            );
+                clientId: user?.id || null,
+                type: 'product',
+                paymentMethod,
+                status: 'pagado',
+            });
             const current = products.find(p => p.id === product.id);
             if (current) {
                 await updateProduct(product.id, {

@@ -3,6 +3,12 @@
 // - addSale ahora recibe objeto { items, total, clientId, type, paymentMethod, status }
 // - Las respuestas de appointments incluyen objetos anidados (pet, service, client, employee)
 // - Helpers para extraer petName/serviceName de objetos anidados
+//
+// CAMBIO (feedback cliente — solo día, groomer asigna hora):
+// - Citas creadas por el cliente llegan con status 'Pendiente' y time:'' (ver ServiceModal.jsx).
+// - Mientras no tengan hora, deben permanecer en Pendiente — no se puede "Confirmar"
+//   directamente. El admin debe primero asignar un horario disponible (AssignTimePicker),
+//   y solo entonces la cita pasa a 'Confirmada' con esa hora ya fija.
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
@@ -33,6 +39,9 @@ import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, v
 import { calcServicePrice } from '../../utils/pricingRules';
 import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
 import '../../components/shared/ExtrasPanel.css';
+import AssignTimePicker from '../../components/shared/AssignTimePicker';
+import '../../components/shared/AssignTimePicker.css';
+import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
 import './AdminDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,7 +100,7 @@ const Modal = ({title,onClose,children,wide,fullscreen}) => (
 );
 
 // ─── Appt Detail Popup ────────────────────────────────────────────────────────
-const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onFinalize,onDelete,onClose,services=[],onAddExtra,onRemoveExtra}) => {
+const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onFinalize,onDelete,onClose,services=[],onAddExtra,onRemoveExtra,allAppointments=[],employees=[],onAssignTime}) => {
     const ref=useRef(null);
     const [pos,setPos]=useState({top:0,left:0});
     const petId = getApptPetId(appt);
@@ -101,6 +110,8 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
     const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
     const transitions=STATUS_TRANSITIONS[role]||STATUS_TRANSITIONS.admin;
     const actionDef=(STATUS_ACTION_LABEL[role]||STATUS_ACTION_LABEL.admin)[appt.status];
+    // Cita Pendiente sin hora: el cliente solo sugirió el día — hay que asignar horario antes de poder confirmar.
+    const needsTimeAssignment = appt.status==='Pendiente' && !appt.time && !!onAssignTime;
 
     useEffect(()=>{
         if(!anchor||!ref.current)return;
@@ -135,12 +146,21 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
                 <button className="appt-popup-close" onClick={onClose}><FaTimes/></button>
             </div>
             <div className="adp-body">
-                <div className="adp-row"><FaClock className="adp-icon"/><span>{getApptTime(appt)} · {appt.date}</span></div>
+                <div className="adp-row"><FaClock className="adp-icon"/><span>{appt.time ? `${getApptTime(appt)} · ${appt.date}` : `${appt.date} · sin hora asignada`}</span></div>
                 <div className="adp-row"><FaNotesMedical className="adp-icon"/><span>{getApptServiceName(appt)}</span><strong className="adp-price">~${appt.finalPrice||0}</strong></div>
-                <div className="adp-row">
+                {!needsTimeAssignment&&<div className="adp-row">
                     <StatusSelector current={appt.status||'Pendiente'} transitions={transitions}
                         onSelect={(newStatus)=>{onStatusChange(appt,newStatus);onClose();}}/>
-                </div>
+                </div>}
+                {needsTimeAssignment&&(
+                    <AssignTimePicker
+                        appt={appt}
+                        allAppointments={allAppointments}
+                        employees={employees}
+                        isUpdating={false}
+                        onAssign={(time)=>{onAssignTime(appt,time);onClose();}}
+                    />
+                )}
                 {pet?.notes&&<div className="appt-popup-notes"><span className="appt-popup-notes-label">Notas</span><p>{pet.notes}</p></div>}
                 {onAddExtra&&onRemoveExtra&&(
                     <ExtrasPanel
@@ -153,7 +173,7 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
                 )}
             </div>
             <div className="adp-footer">
-                {actionDef&&<button className={`ds-btn ds-btn--${actionDef.style} adp-action-btn`} onClick={handleAction}>
+                {!needsTimeAssignment&&actionDef&&<button className={`ds-btn ds-btn--${actionDef.style} adp-action-btn`} onClick={handleAction}>
                     {actionDef.icon} {actionDef.label} {actionDef.style==='finish'?`$${appt.finalPrice}`:''}
                 </button>}
                 <div className="adp-footer-row">
@@ -181,7 +201,7 @@ const WeeklyChart = ({sales}) => {
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,onRefresh,onAddAppointment,onStatusChange,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
+const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
     const now=new Date();
     const [viewDate,setViewDate]=useState(new Date(now.getFullYear(),now.getMonth(),1));
     const [calView,setCalView]=useState('week');
@@ -379,6 +399,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
             onFinalize={(a)=>{onFinalize(a);closePopup();}}
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
             onAddExtra={onAddExtra} onRemoveExtra={onRemoveExtra}
+            allAppointments={appointments} employees={empleados} onAssignTime={onAssignTime}
             onClose={closePopup}/>}
     </>;
 };
@@ -557,6 +578,28 @@ const AdminDashboard = () => {
         }catch(err){addToast(`Error al agendar: ${err.message}`,'error');throw err;}
     },[appointments,empleados,pets,addToast]);
 
+    // Notificación automática e inmediata por WhatsApp al confirmar/finalizar —
+    // sin diálogo de confirmación intermedio (ver feedback del cliente).
+    const notifyClientByWhatsApp = useCallback((appt,newStatus)=>{
+        if(newStatus!=='Confirmada'&&newStatus!=='Completada'&&newStatus!=='Finalizada')return;
+        const petId=getApptPetId(appt);
+        const pet=pets.find(p=>String(p.id)===String(petId));
+        const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
+        const clientPhone=owner?.phone||getApptClientPhone(appt);
+        if(!clientPhone){addToast('No se notificó: el cliente no tiene teléfono registrado','info');return;}
+        const baseInfo={
+            clientName:  owner?.name||getApptClientName(appt)||'Cliente',
+            clientPhone: clientPhone,
+            petName:     getApptPetName(appt),
+            serviceName: getApptServiceName(appt),
+            date:        appt.date,
+            time:        getApptTime(appt),
+        };
+        const url=(newStatus==='Confirmada')?shopToClientOnConfirmation(baseInfo):shopToClientOnFinished(baseInfo);
+        const opened=openWhatsApp(url);
+        addToast(opened?'WhatsApp abierto para notificar al cliente':'No se pudo generar el mensaje de WhatsApp',opened?'info':'error');
+    },[pets,clients,addToast]);
+
     // FIX: addSale con nuevo formato al finalizar cita
     const handleStatusChange=useCallback(async(appt,newStatus)=>{
         if(!newStatus)return;
@@ -578,8 +621,22 @@ const AdminDashboard = () => {
                 if(pet)await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:todayStr_,detail:`${getApptServiceName(appt)} finalizado — $${appt.finalPrice}`,author:user?.name||'Admin'}]});
             }
             addToast(`Estado → ${newStatus}`,'success');
+            notifyClientByWhatsApp(appt,newStatus);
         }catch(err){addToast(`Error: ${err.message}`,'error');}
-    },[addToast,pets,addSale,updatePet,todayStr_,user]);
+    },[addToast,pets,addSale,updatePet,todayStr_,user,notifyClientByWhatsApp]);
+
+    // Asigna hora a una cita Pendiente sin horario (el cliente solo sugirió el día)
+    // y la pasa a Confirmada en un solo update — separa "elegir hora" de "confirmar".
+    const handleAssignTime=useCallback(async(appt,time)=>{
+        const check=validateSlot(appointments,appt.date,time,empleados,appt.id);
+        if(!check.ok){addToast(check.message,'error');return;}
+        try{
+            const updated=await appointmentsApi.update(appt.id,{time,status:'Confirmada'});
+            setAppointments(p=>p.map(a=>a.id===appt.id?{...a,...updated}:a));
+            addToast('Horario asignado — cita confirmada','success');
+            notifyClientByWhatsApp({...appt,time},'Confirmada');
+        }catch(err){addToast(`No se pudo asignar el horario: ${err.message}`,'error');}
+    },[appointments,empleados,addToast,notifyClientByWhatsApp]);
 
     const handleFinalize=useCallback(async(appo)=>{
         const ok=await notify({type:'confirm',icon:'🏁',accent:'mint',title:'¿Finalizar y cobrar?',message:`"${getApptServiceName(appo)}" de ${getApptPetName(appo)} — $${appo.finalPrice}`,confirmLabel:`Cobrar $${appo.finalPrice}`,cancelLabel:'Cancelar'});
@@ -644,6 +701,7 @@ const AdminDashboard = () => {
             {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} role="admin"
                 onClose={()=>setShowCalendar(false)} onRefresh={loadAppointments}
                 onAddAppointment={handleAddAppointment} onStatusChange={handleStatusChange}
+                onAssignTime={handleAssignTime}
                 onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}
                 onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}/>}
 

@@ -1,12 +1,25 @@
 // src/components/ServiceModal/ServiceModal.jsx
 //
-// CAMBIOS v3 según catálogo real:
-// 1. Slots de horario: 10:15, 11:00, 12:00...17:00 (antes 09:00-19:00)
-// 2. Selector de mascota ahora muestra el rango de peso correcto (6 rangos)
-//    y calcula el precio con calcServicePrice() en lugar del multiplicador genérico
-// 3. El precio estimado muestra el rango exacto (Mini/Chico/Mediano/etc.)
+// FIX CRÍTICO (bug reportado por cliente):
+// - clientRecord ya NO se busca en el array `clients` del DataContext, porque ese
+//   array está vacío para usuarios con rol 'cliente' (DataContext solo lo carga
+//   para admin/empleado). Antes esto causaba que myPets SIEMPRE saliera vacío
+//   y el selector de mascota nunca mostrara nada al agendar.
+// - Ahora se usa directamente `user.id` como ownerId/clientId, igual que en
+//   Perfil.jsx — users y clients son la misma tabla, user.id ES el clientId.
+//
+// CAMBIOS según feedback del cliente (correo de revisión):
+// - Se quita la selección de horario exacto. El cliente solo elige el DÍA;
+//   el groomer fija la hora desde su calendario (interfaz empleado).
+// - Se omite el precio/método de pago como dato definitivo en la confirmación;
+//   ahora se muestra únicamente como referencia informativa, sin presentarlo
+//   como un paso de "pago" — se reduce a una sola línea aclaratoria.
+//
+// CAMBIOS v3 (catálogo real):
+// - Selector de mascota muestra el rango de peso correcto (6 rangos)
+// - Precio referencial con calcServicePrice()
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     FaCalendarAlt, FaCheckCircle, FaTimes, FaPaw,
     FaChevronLeft, FaChevronRight, FaWhatsapp, FaInfoCircle
@@ -15,24 +28,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { appointmentsApi } from '../../api/apiClient';
 import { clientToShopOnBooking, openWhatsApp } from '../../utils/whatsappNotify';
-import { calcServicePrice, weightRangeLabel, getWeightRange } from '../../utils/pricingRules';
-import { getBookingSlots } from '../../utils/bookingRules';
+import { calcServicePrice, weightRangeLabel } from '../../utils/pricingRules';
 import '../../pages/Services.css';
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAY_NAMES   = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
-
-// Slots según horario real del catálogo (10:15am a 5pm)
-const ALL_SLOTS = getBookingSlots();
-
-const fmt12 = (t) => {
-    if (!t) return '';
-    const [h, m] = t.split(':').map(Number);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12  = h % 12 || 12;
-    return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
-};
 
 const todayISO = () => {
     const d = new Date();
@@ -106,85 +107,34 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
     );
 };
 
-// ─── Grid de horarios ─────────────────────────────────────────────────────────
-const TimeGrid = ({ date, selectedTime, onSelect, busySlots }) => {
-    if (!date) return (
-        <div className="sm-time-empty">
-            <FaCalendarAlt />
-            <p>Selecciona un día para ver los horarios disponibles</p>
-        </div>
-    );
-
-    return (
-        <div className="sm-time-grid">
-            {ALL_SLOTS.map(slot => {
-                const busy     = busySlots.includes(slot);
-                const isActive = selectedTime === slot;
-                return (
-                    <button
-                        key={slot}
-                        type="button"
-                        className={[
-                            'sm-time-slot',
-                            busy     ? 'busy'   : 'free',
-                            isActive ? 'active' : '',
-                        ].filter(Boolean).join(' ')}
-                        onClick={() => !busy && onSelect(slot)}
-                        disabled={busy}
-                        title={busy ? 'Horario no disponible' : fmt12(slot)}
-                    >
-                        <span className="slot-time">{fmt12(slot)}</span>
-                        <span className="slot-label">
-                            {busy ? 'No disponible' : isActive ? '✓ Seleccionado' : 'Disponible'}
-                        </span>
-                    </button>
-                );
-            })}
-        </div>
-    );
-};
-
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 const ServiceModal = ({ service, onClose }) => {
-    const { user }                    = useAuth();
-    const { pets, clients, addSale }  = useData();
+    const { user }      = useAuth();
+    const { addSale }   = useData();
 
     const [step,        setStep]        = useState(1);
     const [loading,     setLoading]     = useState(false);
     const [error,       setError]       = useState('');
-    const [allAppts,    setAllAppts]    = useState([]);
-    const [bookingData, setBookingData] = useState({ petId: '', date: '', time: '' });
+    const [myPets,      setMyPets]      = useState([]);
+    const [petsLoading, setPetsLoading] = useState(true);
+    const [bookingData, setBookingData] = useState({ petId: '', date: '' });
     const [savedBooking, setSavedBooking] = useState(null);
 
-    useEffect(() => {
-        appointmentsApi.getAll().then(setAllAppts).catch(() => {});
-    }, []);
-
-    const busySlots = useMemo(() => {
-        if (!bookingData.date) return [];
-        return allAppts
-            .filter(a => a.date === bookingData.date && a.status !== 'Cancelada')
-            .map(a => a.time)
-            .filter(Boolean);
-    }, [allAppts, bookingData.date]);
-
-    // Resolver cliente logueado
-    const clientRecord = useMemo(() => {
-        if (user?.clientId) {
-            const byId = clients.find(c => String(c.id) === String(user.clientId));
-            if (byId) return byId;
-        }
-        return clients.find(c => c.email?.toLowerCase() === user?.email?.toLowerCase());
-    }, [clients, user]);
-
-    const myPets = useMemo(() =>
-        clientRecord ? pets.filter(p => String(p.ownerId) === String(clientRecord.id)) : [],
-        [pets, clientRecord]
-    );
+    // FIX: cargar mascotas directamente por user.id — sin depender de `clients`
+    // del DataContext, que para rol 'cliente' siempre está vacío.
+    React.useEffect(() => {
+        if (!user?.id) { setPetsLoading(false); return; }
+        import('../../api/apiClient').then(({ petsApi }) => {
+            petsApi.getByOwner(user.id)
+                .then(setMyPets)
+                .catch(() => setMyPets([]))
+                .finally(() => setPetsLoading(false));
+        });
+    }, [user]);
 
     const selectedPet = myPets.find(p => String(p.id) === String(bookingData.petId));
 
-    // Precio calculado con los 6 rangos reales
+    // Precio referencial — ya no se presenta como paso de "pago"
     const finalPrice  = calcServicePrice(service, selectedPet?.weight);
     const rangeLabel  = selectedPet ? weightRangeLabel(selectedPet.weight) : '';
 
@@ -196,32 +146,27 @@ const ServiceModal = ({ service, onClose }) => {
         setError('');
         try {
             const petName = selectedPet?.petName || 'Sin mascota';
+            // FIX: el cliente solo sugiere el día — sin hora exacta.
+            // El groomer fija la hora desde su calendario (EmployeeDashboard).
             await appointmentsApi.create({
                 petId:       bookingData.petId ? Number(bookingData.petId) : null,
                 petName,
                 serviceId:   service.id,
                 serviceName: service.title,
-                clientId:    clientRecord?.id || null,
+                clientId:    user?.id || null,
                 date:        bookingData.date,
-                time:        bookingData.time,
+                time:        '', // el groomer la asigna al confirmar
                 status:      'Pendiente',
                 finalPrice,
                 paymentMethod: '',
                 assignedTo:  '',
                 createdAt:   todayISO(),
             });
-            await addSale(
-                `Reserva: ${service.title} (${petName})`,
-                finalPrice,
-                clientRecord?.id || null,
-                'service'
-            );
             setSavedBooking({
-                clientName:  clientRecord?.name || user?.name || 'Cliente',
+                clientName:  user?.name || 'Cliente',
                 petName,
                 serviceName: service.title,
                 date:        bookingData.date,
-                time:        bookingData.time,
             });
             next();
         } catch (e) {
@@ -273,7 +218,9 @@ const ServiceModal = ({ service, onClose }) => {
                         <h2 className="sm-title">{service.title}</h2>
                         <p className="sm-desc">{service.description}</p>
 
-                        {myPets.length > 0 ? (
+                        {petsLoading ? (
+                            <p className="sm-desc">Cargando tus mascotas...</p>
+                        ) : myPets.length > 0 ? (
                             <div className="sm-field">
                                 <label><FaPaw /> ¿Para cuál mascota?</label>
                                 <select
@@ -290,16 +237,10 @@ const ServiceModal = ({ service, onClose }) => {
                                     ))}
                                 </select>
                                 {selectedPet && (
-                                    <>
-                                        <div className="sm-price-preview">
-                                            <span>Precio estimado · {rangeLabel}</span>
-                                            <strong>${finalPrice}</strong>
-                                        </div>
-                                        <small className="sm-info-note">
-                                            <FaInfoCircle /> El precio final se ajusta según el peso real
-                                            verificado en sucursal y las condiciones de la mascota.
-                                        </small>
-                                    </>
+                                    <small className="sm-info-note">
+                                        <FaInfoCircle /> Costo de referencia: ${finalPrice} ({rangeLabel}).
+                                        El costo final se determina al evaluar a tu mascota en sucursal.
+                                    </small>
                                 )}
                             </div>
                         ) : (
@@ -315,45 +256,29 @@ const ServiceModal = ({ service, onClose }) => {
                             onClick={next}
                             disabled={myPets.length > 0 && !bookingData.petId}
                         >
-                            Elegir fecha y hora →
+                            Elegir fecha →
                         </button>
                     </div>
                 )}
 
-                {/* ── PASO 2: Calendario + horarios ── */}
+                {/* ── PASO 2: Solo selección de DÍA — sin hora exacta ── */}
                 {step === 2 && (
                     <div className="sm-step fade-in">
-                        <h2 className="sm-title">Elige tu fecha y hora</h2>
+                        <h2 className="sm-title">¿Qué día te conviene?</h2>
                         <p className="sm-desc">
-                            Selecciona el día y la hora preferidos. El groomer confirmará
-                            disponibilidad y podrá ajustar el horario según la carga del día.
+                            Elige el día que prefieras. Nuestro equipo confirmará el
+                            horario disponible ese día y te avisará por WhatsApp.
                         </p>
 
-                        <div className="sm-datetime-layout">
-                            <div className="sm-datetime-left">
-                                <MiniCalendar
-                                    selectedDate={bookingData.date}
-                                    onSelect={date => setBookingData({ ...bookingData, date, time: '' })}
-                                />
-                                {bookingData.date && (
-                                    <div className="sm-selected-date-label">
-                                        📅 {formatDateDisplay(bookingData.date)}
-                                    </div>
-                                )}
+                        <MiniCalendar
+                            selectedDate={bookingData.date}
+                            onSelect={date => setBookingData({ ...bookingData, date })}
+                        />
+                        {bookingData.date && (
+                            <div className="sm-selected-date-label">
+                                📅 {formatDateDisplay(bookingData.date)}
                             </div>
-
-                            <div className="sm-datetime-right">
-                                <p className="sm-slots-title">
-                                    {bookingData.date ? 'Horarios disponibles' : 'Selecciona un día'}
-                                </p>
-                                <TimeGrid
-                                    date={bookingData.date}
-                                    selectedTime={bookingData.time}
-                                    onSelect={time => setBookingData({ ...bookingData, time })}
-                                    busySlots={busySlots}
-                                />
-                            </div>
-                        </div>
+                        )}
 
                         <div className="sm-actions-dual">
                             <button className="sm-btn-secondary" type="button" onClick={prev}>← Atrás</button>
@@ -361,7 +286,7 @@ const ServiceModal = ({ service, onClose }) => {
                                 className="sm-btn-primary"
                                 type="button"
                                 onClick={next}
-                                disabled={!bookingData.date || !bookingData.time}
+                                disabled={!bookingData.date}
                             >
                                 Continuar →
                             </button>
@@ -374,8 +299,8 @@ const ServiceModal = ({ service, onClose }) => {
                     <div className="sm-step fade-in">
                         <h2 className="sm-title">Revisar reserva</h2>
                         <p className="sm-desc">
-                            Confirma los datos. El pago se realiza en sucursal al
-                            finalizar el servicio.
+                            Confirma los datos. Nuestro equipo te asignará un horario
+                            disponible ese día y te avisará por WhatsApp.
                         </p>
 
                         <div className="sm-summary">
@@ -394,25 +319,17 @@ const ServiceModal = ({ service, onClose }) => {
                                 </div>
                             )}
                             <div className="sm-summary-row">
-                                <span>Fecha</span>
+                                <span>Día sugerido</span>
                                 <strong>{formatDateDisplay(bookingData.date)}</strong>
-                            </div>
-                            <div className="sm-summary-row">
-                                <span>Hora preferida</span>
-                                <strong>{fmt12(bookingData.time)}</strong>
-                            </div>
-                            <div className="sm-summary-row sm-summary-row--info">
-                                <span>Costo estimado <em>(se ajusta en sucursal)</em></span>
-                                <strong className="sm-info-amount">${finalPrice}</strong>
                             </div>
                         </div>
 
                         <div className="sm-info-box">
                             <FaInfoCircle />
                             <p>
-                                El costo final se determina con la evaluación de la mascota
-                                al ingreso. El método de pago se acuerda al finalizar el servicio.
-                                Llega con máximo 20 minutos de retraso.
+                                El horario y el costo final se confirman en sucursal según
+                                la evaluación de tu mascota. Te avisaremos por WhatsApp
+                                en cuanto se asigne tu horario.
                             </p>
                         </div>
 
@@ -441,9 +358,8 @@ const ServiceModal = ({ service, onClose }) => {
                         <h2 className="sm-title">¡Reserva enviada!</h2>
                         <p className="sm-desc">
                             Tu cita quedó registrada como <strong>Pendiente</strong> para el{' '}
-                            <strong>{formatDateDisplay(savedBooking.date)}</strong> a las{' '}
-                            <strong>{fmt12(savedBooking.time)}</strong>.<br />
-                            Recibirás confirmación cuando el groomer la acepte.
+                            <strong>{formatDateDisplay(savedBooking.date)}</strong>.<br />
+                            Te avisaremos por WhatsApp en cuanto se confirme el horario.
                         </p>
 
                         <div className="sm-summary">
@@ -452,10 +368,6 @@ const ServiceModal = ({ service, onClose }) => {
                             </div>
                             <div className="sm-summary-row">
                                 <span>Mascota</span><strong>{savedBooking.petName}</strong>
-                            </div>
-                            <div className="sm-summary-row sm-summary-row--info">
-                                <span>Costo estimado</span>
-                                <strong className="sm-info-amount">${finalPrice}</strong>
                             </div>
                         </div>
 
