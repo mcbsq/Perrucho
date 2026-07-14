@@ -1,0 +1,22 @@
+-- AlterTable
+ALTER TABLE "Service" ADD COLUMN     "customPriceOptions" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "pricingMode" TEXT NOT NULL DEFAULT 'weight',
+ADD COLUMN     "showOnHome" BOOLEAN NOT NULL DEFAULT true;
+
+-- AlterTable
+ALTER TABLE "Settings" ADD COLUMN     "businessName" TEXT NOT NULL DEFAULT 'Taylor''s Pet Services',
+ADD COLUMN     "clientExtraFields" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "enablePets" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "footerLinks" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "howItWorksSteps" JSONB NOT NULL DEFAULT '[]',
+ADD COLUMN     "logoUrl" TEXT,
+ADD COLUMN     "primaryColor" TEXT NOT NULL DEFAULT '#4f46e5',
+ADD COLUMN     "slogan" TEXT NOT NULL DEFAULT 'El servicio que tú y tu mejor amigo merecen',
+ADD COLUMN     "statLabel1" TEXT NOT NULL DEFAULT 'CLIENTES FELICES',
+ADD COLUMN     "statLabel2" TEXT NOT NULL DEFAULT 'CALIFICACIÓN',
+ADD COLUMN     "statLabel3" TEXT NOT NULL DEFAULT 'ESPECIALISTAS',
+ADD COLUMN     "statLabel4" TEXT NOT NULL DEFAULT 'AÑOS DE EXPERIENCIA',
+ADD COLUMN     "statValue1" TEXT NOT NULL DEFAULT '4000+',
+ADD COLUMN     "statValue2" TEXT NOT NULL DEFAULT '5★',
+ADD COLUMN     "statValue3" TEXT NOT NULL DEFAULT '3',
+ADD COLUMN     "statValue4" TEXT NOT NULL DEFAULT '10+';

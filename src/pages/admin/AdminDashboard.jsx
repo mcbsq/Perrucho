@@ -22,7 +22,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaExclamationTriangle, FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -30,7 +30,8 @@ import {
     PetCard, PetFormModal,
     ServiceCard as DSServiceCard, ServiceFormModal,
     ProductCard, ProductFormModal,
-    UserCard, UserFormModal
+    UserCard, UserFormModal,
+    PersonalizacionSection
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/DashboardShared.css';
@@ -454,7 +455,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
+    const {services,products,pets,clients,sales,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
     const {notify, NotifyNode} = useNotify();
@@ -504,13 +505,24 @@ const AdminDashboard = () => {
     },[sales,appointments,clients,products,todayStr_]);
 
     // ── POS con nuevo formato de addSale ──────────────────────────────────────
+    // item.variantName distingue líneas de carrito de un mismo producto con
+    // distinta variante (ej. "Shampoo - 500ml" vs "Shampoo - 1L").
     const addToCart=(item,type)=>{
         if(type==='product'&&item.stock<=0){addToast('Sin stock','error');return;}
-        const ex=cart.find(c=>c.id===item.id&&c.type===type);
-        if(ex)setCart(cart.map(c=>c.id===item.id&&c.type===type?{...c,qty:c.qty+1}:c));
+        const ex=cart.find(c=>c.id===item.id&&c.type===type&&c.variantName===item.variantName);
+        if(ex)setCart(cart.map(c=>c===ex?{...c,qty:c.qty+1}:c));
         else setCart([...cart,{...item,qty:1,type}]);
     };
-    const removeFromCart=(id,type)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type)));
+    const [posVariantPicker,setPosVariantPicker]=useState(null); // producto con variantes pendiente de elegir
+    const addProductToCart=(product)=>{
+        if((product.variants||[]).length>0){setPosVariantPicker(product);return;}
+        addToCart(product,'product');
+    };
+    const pickVariant=(product,variant)=>{
+        addToCart({...product,price:variant.price,stock:variant.stock,variantName:variant.name,name:`${product.name} — ${variant.name}`},'product');
+        setPosVariantPicker(null);
+    };
+    const removeFromCart=(id,type,variantName)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type&&c.variantName===variantName)));
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
 
     // FIX: addSale con nuevo formato { items, total, clientId, type, paymentMethod, status }
@@ -532,11 +544,17 @@ const AdminDashboard = () => {
                 paymentMethod: posPaymentMethod,
                 status:        posSaleStatus,
             });
-            // Descontar stock de productos
+            // Descontar stock — de la variante elegida si aplica, si no del stock base.
             for(const item of cart){
                 if(item.type==='product'){
                     const o=products.find(p=>p.id===item.id);
-                    if(o)await updateProduct(item.id,{...o,stock:o.stock-item.qty});
+                    if(!o)continue;
+                    if(item.variantName){
+                        const nextVariants=(o.variants||[]).map(v=>v.name===item.variantName?{...v,stock:Math.max(0,v.stock-item.qty)}:v);
+                        await updateProduct(item.id,{...o,variants:nextVariants});
+                    }else{
+                        await updateProduct(item.id,{...o,stock:o.stock-item.qty});
+                    }
                 }
             }
             setCart([]);setPosClientId('');setShowCheckout(false);
@@ -551,6 +569,7 @@ const AdminDashboard = () => {
     const handleSaveService=async(form)=>{try{form.id?await updateService(form.id,form):await addService(form);addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveProduct=async(form)=>{try{form.id?await updateProduct(form.id,form):await addProduct(form);addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);}addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveSettings=async(form)=>{try{const {id,...data}=form;await updateSettings(data);addToast('Configuración guardada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
     const handleDelete=async(type,id,label)=>{
         const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:`¿Eliminar "${label}"?`,message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
@@ -683,10 +702,11 @@ const AdminDashboard = () => {
         {id:'control',icon:<FaTachometerAlt/>,label:'Panel'},
         {id:'pos',icon:<FaCashRegister/>,label:'Venta'},
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
-        {id:'pacientes',icon:<FaPaw/>,label:'Pacientes'},
+        ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
         {id:'servicios',icon:<FaCut/>,label:'Servicios'},
         {id:'productos',icon:<FaBoxOpen/>,label:'Inventario'},
         {id:'usuarios',icon:<FaUserCog/>,label:'Usuarios'},
+        {id:'personalizacion',icon:<FaPalette/>,label:'Sitio'},
     ];
 
     return (
@@ -705,11 +725,25 @@ const AdminDashboard = () => {
                 onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}
                 onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}/>}
 
-            {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
+            {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)} extraFields={settings?.clientExtraFields||[]}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
             {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
             {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)}/>}
+
+            {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>
+                <div className="ds-price-table">
+                    {(posVariantPicker.variants||[]).map((v,i)=>(
+                        <button key={i} type="button" className="ds-step-row pos-variant-option" disabled={v.stock<=0}
+                            onClick={()=>pickVariant(posVariantPicker,v)}
+                            style={{width:'100%',textAlign:'left',background:'#f8fafc',border:'1.5px solid #e0e4ea',borderRadius:12,padding:'10px 14px',cursor:v.stock<=0?'not-allowed':'pointer',opacity:v.stock<=0?0.5:1}}>
+                            <span style={{flex:1,fontWeight:700}}>{v.name}</span>
+                            <span style={{fontWeight:800,color:'#00b894'}}>${v.price}</span>
+                            <span style={{fontSize:'0.78rem',color:'#94a3b8',marginLeft:8}}>{v.stock<=0?'Sin stock':`Stock: ${v.stock}`}</span>
+                        </button>
+                    ))}
+                </div>
+            </Modal>}
 
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Configura los detalles de la venta.</p>
@@ -799,13 +833,13 @@ const AdminDashboard = () => {
                                 </div>
                             )}
                             <div className="pos-grid">
-                                {(posCategory==='Todos'||posCategory==='Productos')&&posProducts.map(p=><div key={p.id} className={`pos-card ${p.stock<=0?'pos-card--disabled':''}`} onClick={()=>addToCart(p,'product')}><div className="pos-card-icon product-icon"><FaBoxOpen/></div><h5>{p.name}</h5><p className="pos-price">${p.price}</p><span className={p.stock<5?'low-stock':'in-stock'}>{p.stock<=0?'Sin stock':`Stock: ${p.stock}`}</span></div>)}
-                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}><div className="pos-card-icon service-icon"><FaCut/></div><h5>{s.title}</h5><p className="pos-price">${s.price} base*</p><span className="in-stock">Precio según talla</span></div>)}
+                                {(posCategory==='Todos'||posCategory==='Productos')&&posProducts.map(p=><div key={p.id} className={`pos-card ${p.stock<=0?'pos-card--disabled':''}`} onClick={()=>addProductToCart(p)}>{p.imageUrl?<img src={p.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon product-icon"><FaBoxOpen/></div>}<h5>{p.name}</h5><p className="pos-price">{(p.variants||[]).length>0?'Ver opciones':`$${p.price}`}</p><span className={p.stock<5?'low-stock':'in-stock'}>{(p.variants||[]).length>0?`${p.variants.length} variantes`:p.stock<=0?'Sin stock':`Stock: ${p.stock}`}</span></div>)}
+                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}>{s.imageUrl?<img src={s.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon service-icon"><FaCut/></div>}<h5>{s.title}</h5><p className="pos-price">${s.price} base*</p><span className="in-stock">Precio según talla</span></div>)}
                             </div>
                         </div>
                         <aside className="pos-cart">
                             <div className="pos-cart-header"><h4><FaCartPlus/> Carrito</h4><button className="clear-cart-btn" onClick={()=>setCart([])}>Vaciar</button></div>
-                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${i}`} className="cart-item"><div><span className="cart-item-name">{item.qty}x {item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div><button onClick={()=>removeFromCart(item.id,item.type)}><FaTrashAlt/></button></div>)}</div>
+                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${item.variantName||''}-${i}`} className="cart-item"><div><span className="cart-item-name">{item.qty}x {item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div><button onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button></div>)}</div>
                             <div className="pos-cart-footer"><div className="cart-total-row"><span>Total</span><span className="cart-total-amount">${cartTotal.toFixed(2)}</span></div><button className="checkout-btn" onClick={()=>setShowCheckout(true)} disabled={!cart.length}><FaReceipt/> Finalizar</button></div>
                         </aside>
                     </div>
@@ -849,6 +883,11 @@ const AdminDashboard = () => {
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Usuarios</h2><p>{users.length} registrados</p></div></div>
                     <div className="ds-cards-grid ds-cards-grid--compact">{filteredUsers.length===0&&<p className="empty-td">Sin resultados</p>}{filteredUsers.map(u=><UserCard key={u.id} user={u} currentUserId={user?.id} onEdit={usr=>setUserModal(usr)} onDelete={(id,name)=>handleDelete('user',id,name)}/>)}</div>
                     <FAB onClick={()=>setUserModal({})} title="Nuevo usuario" color="#636e72"/>
+                </div>}
+
+                {tab==='personalizacion'&&<div className="fade-in">
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Personalización del sitio</h2><p>Marca, contenido público y configuración del negocio</p></div></div>
+                    <PersonalizacionSection settings={settings} onSave={handleSaveSettings}/>
                 </div>}
 
             </main>

@@ -17,6 +17,8 @@ import { formatMexPhone } from '../../utils/formatPhone';
 import BreedCombobox from '../BreedCombobox/BreedCombobox';
 import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
 import { WEIGHT_RANGES, PRICE_FIELD } from '../../utils/pricingRules';
+import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
+import { STOCK_IMAGE_CATEGORIES } from '../../data/stockImages';
 
 // ─── Emoji por especie ────────────────────────────────────────────────────────
 export const speciesEmoji = (sp) => {
@@ -57,6 +59,69 @@ export const DSModal = ({ title, onClose, children, wide }) => (
         </div>
     </div>
 );
+
+// ─── IMAGE PICKER (subir archivo o elegir de la galería de stock) ─────────────
+// Reutilizable en cualquier lugar del sistema que necesite una imagen:
+// hero del sitio, fondo de login, servicios, productos, etc.
+export const ImagePicker = ({ value, onChange, maxDim = 800 }) => {
+    const [galleryOpen, setGalleryOpen] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setError('');
+        try {
+            const dataUrl = await readImageAsResizedDataUrl(file, { maxDim });
+            onChange(dataUrl);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="ds-image-picker">
+            {value && <img src={value} alt="" className="ds-image-picker-preview" />}
+            <div className="ds-logo-upload-actions">
+                <label className="ds-btn ds-btn--secondary ds-file-btn">
+                    Subir imagen
+                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} hidden />
+                </label>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={() => setGalleryOpen(true)}>
+                    Elegir de galería
+                </button>
+                {value && (
+                    <button type="button" className="ds-btn ds-btn--secondary" onClick={() => onChange(null)}>
+                        Quitar
+                    </button>
+                )}
+            </div>
+            {error && <p className="ds-logo-error">{error}</p>}
+
+            {galleryOpen && (
+                <DSModal title="📷 Galería de imágenes" onClose={() => setGalleryOpen(false)} wide>
+                    <p className="ds-gallery-hint">
+                        Fotos de stock (Unsplash) organizadas por giro de negocio — úsalas mientras no tengas tus propias fotos.
+                    </p>
+                    {STOCK_IMAGE_CATEGORIES.map(cat => (
+                        <div key={cat.key} className="ds-gallery-category">
+                            <h4>{cat.label}</h4>
+                            <div className="ds-gallery-grid">
+                                {cat.images.map((url, i) => (
+                                    <button type="button" key={i} className="ds-gallery-item"
+                                        onClick={() => { onChange(url); setGalleryOpen(false); }}>
+                                        <img src={url} alt="" loading="lazy" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </DSModal>
+            )}
+        </div>
+    );
+};
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 export const StatusBadge = ({ status }) => {
@@ -133,10 +198,11 @@ export const ClientCard = ({ client, petsCount = 0, onEdit, onDelete }) => (
 );
 
 // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
-export const ClientFormModal = ({ initial, onSave, onClose }) => {
-    const [form, setForm] = useState(initial || { name: '', phone: '', email: '' });
+export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) => {
+    const [form, setForm] = useState(initial || { name: '', phone: '', email: '', extraData: {} });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
+    const extraData = form.extraData || {};
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -159,6 +225,14 @@ export const ClientFormModal = ({ initial, onSave, onClose }) => {
                     <label>Correo electrónico</label>
                     <input type="email" placeholder="correo@ejemplo.com" value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })} required />
+                    {/* Campos extra configurados en Personalización → Giro de negocio */}
+                    {extraFields.map(f => (
+                        <React.Fragment key={f.key}>
+                            <label>{f.label}</label>
+                            <input value={extraData[f.key] || ''} required={!!f.required}
+                                onChange={e => setForm({ ...form, extraData: { ...extraData, [f.key]: e.target.value } })} />
+                        </React.Fragment>
+                    ))}
                 </div>
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
@@ -281,7 +355,10 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
 // ─── SERVICE CARD ─────────────────────────────────────────────────────────────
 export const ServiceCard = ({ service, onEdit, onDelete }) => (
     <div className="ds-card ds-service-card">
-        <div className="ds-service-icon">{service.icon || '✂️'}</div>
+        {service.imageUrl
+            ? <img src={service.imageUrl} alt="" className="ds-service-photo" />
+            : <div className="ds-service-icon">{service.icon || '✂️'}</div>
+        }
         <div className="ds-card-body">
             <div className="ds-card-name">{service.title}</div>
             <div className="ds-card-meta">
@@ -313,10 +390,12 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
         title: '', category: 'Estética', description: '', icon: '', color: 'blue', popular: false,
         priceMini: '', priceChico: '', priceMediano: '', priceGrande: '', priceExtra: '', priceJumbo: '',
-        price: '',
+        price: '', showOnHome: true, pricingMode: 'weight', customPriceOptions: [],
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
+    const pricingMode = form.pricingMode || 'weight';
+    const customOptions = form.customPriceOptions || [];
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -325,6 +404,13 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
         try { await onSave(payload); }
         finally { setSaving(false); }
     };
+
+    const updateOption = (i, field, value) => {
+        const next = customOptions.map((o, idx) => idx === i ? { ...o, [field]: value } : o);
+        setForm({ ...form, customPriceOptions: next });
+    };
+    const addOption = () => setForm({ ...form, customPriceOptions: [...customOptions, { label: '', price: '' }] });
+    const removeOption = (i) => setForm({ ...form, customPriceOptions: customOptions.filter((_, idx) => idx !== i) });
 
     return (
         <DSModal title={isEdit ? `✏️ Editar — ${initial.title}` : '✂️ Nuevo servicio'} onClose={onClose} wide>
@@ -343,38 +429,82 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                     <label>Ícono (emoji)</label>
                     <input placeholder="🛁 ✂️ 🐾 💉" value={form.icon}
                         onChange={e => setForm({ ...form, icon: e.target.value })} />
+                    <label>Foto</label>
+                    <ImagePicker value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} maxDim={700} />
                     <label>Descripción</label>
                     <input placeholder="Descripción breve" value={form.description}
                         onChange={e => setForm({ ...form, description: e.target.value })}
                         style={{ gridColumn: '1 / -1' }} />
+                    <label>Visible en inicio</label>
+                    <label className="ds-toggle-inline">
+                        <input type="checkbox" checked={form.showOnHome !== false}
+                            onChange={e => setForm({ ...form, showOnHome: e.target.checked })} />
+                        <span>{form.showOnHome !== false ? 'Se muestra en la página principal' : 'Solo visible en Punto de Venta'}</span>
+                    </label>
+                    <label>Criterio de cobro</label>
+                    <select value={pricingMode}
+                        onChange={e => setForm({ ...form, pricingMode: e.target.value })}>
+                        <option value="weight">Por tamaño / peso de mascota</option>
+                        <option value="custom">Personalizado (ej. tipo de trabajo)</option>
+                    </select>
                 </div>
 
-                <div className="ds-price-table-label">💲 Precios por tamaño</div>
-                <div className="ds-price-table">
-                    {WEIGHT_RANGES.map(range => {
-                        const field = PRICE_FIELD[range.key];
-                        return (
-                            <div key={range.key} className="ds-price-table-row">
-                                <div className="ds-price-table-info">
-                                    <span className="ds-price-range-name">{range.label}</span>
-                                    <span className="ds-price-range-desc">{range.desc}</span>
+                {pricingMode === 'weight' ? (
+                    <>
+                        <div className="ds-price-table-label">💲 Precios por tamaño</div>
+                        <div className="ds-price-table">
+                            {WEIGHT_RANGES.map(range => {
+                                const field = PRICE_FIELD[range.key];
+                                return (
+                                    <div key={range.key} className="ds-price-table-row">
+                                        <div className="ds-price-table-info">
+                                            <span className="ds-price-range-name">{range.label}</span>
+                                            <span className="ds-price-range-desc">{range.desc}</span>
+                                        </div>
+                                        <div className="ds-price-input-wrap">
+                                            <span className="ds-price-prefix">$</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                placeholder="0"
+                                                value={form[field] ?? ''}
+                                                onChange={e => setForm({ ...form, [field]: e.target.value })}
+                                                required
+                                                className="ds-price-input"
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="ds-price-table-label">💲 Opciones de precio personalizadas</div>
+                        <div className="ds-price-table">
+                            {customOptions.map((opt, i) => (
+                                <div key={i} className="ds-price-table-row">
+                                    <input placeholder="Ej: Gelish, Acrílico, Corte de caballero..."
+                                        value={opt.label}
+                                        onChange={e => updateOption(i, 'label', e.target.value)}
+                                        style={{ flex: 1, marginRight: 8 }} required />
+                                    <div className="ds-price-input-wrap">
+                                        <span className="ds-price-prefix">$</span>
+                                        <input type="number" min="0" placeholder="0"
+                                            value={opt.price}
+                                            onChange={e => updateOption(i, 'price', e.target.value)}
+                                            required className="ds-price-input" />
+                                    </div>
+                                    <button type="button" className="ds-btn-icon ds-btn-icon--del"
+                                        onClick={() => removeOption(i)}><FaTimes /></button>
                                 </div>
-                                <div className="ds-price-input-wrap">
-                                    <span className="ds-price-prefix">$</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        placeholder="0"
-                                        value={form[field] ?? ''}
-                                        onChange={e => setForm({ ...form, [field]: e.target.value })}
-                                        required
-                                        className="ds-price-input"
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            ))}
+                        </div>
+                        <button type="button" className="ds-btn ds-btn--secondary" onClick={addOption}>
+                            + Agregar opción
+                        </button>
+                    </>
+                )}
 
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
@@ -391,14 +521,19 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
 export const ProductCard = ({ product, onEdit, onDelete }) => {
     const isLow  = Number(product.stock) < 5 && Number(product.stock) > 0;
     const isOut  = Number(product.stock) === 0;
+    const variants = product.variants || [];
     return (
         <div className={`ds-card ds-product-card ${isOut ? 'ds-card--out' : isLow ? 'ds-card--low' : ''}`}>
-            <div className="ds-product-icon">📦</div>
+            {product.imageUrl
+                ? <img src={product.imageUrl} alt="" className="ds-service-photo" />
+                : <div className="ds-product-icon">📦</div>
+            }
             <div className="ds-card-body">
                 <div className="ds-card-name">{product.name}</div>
                 <div className="ds-card-meta">
                     <span className="ds-tag ds-tag--blue">{product.category}</span>
                     <span className="ds-tag ds-tag--green">${product.price}</span>
+                    {variants.length > 0 && <span className="ds-tag ds-tag--blue">{variants.length} variante{variants.length !== 1 ? 's' : ''}</span>}
                 </div>
                 <div className="ds-product-stock">
                     <span className={`ds-stock-badge ${isOut ? 'out' : isLow ? 'low' : 'ok'}`}>
@@ -418,10 +553,17 @@ export const ProductCard = ({ product, onEdit, onDelete }) => {
 // ─── PRODUCT FORM MODAL ───────────────────────────────────────────────────────
 export const ProductFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState(initial || {
-        name: '', price: '', stock: '', category: 'Alimentos', description: ''
+        name: '', price: '', stock: '', category: 'Alimentos', description: '', imageUrl: null, variants: []
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
+    const variants = form.variants || [];
+
+    const updateVariant = (i, field, value) => {
+        setForm({ ...form, variants: variants.map((v, idx) => idx === i ? { ...v, [field]: value } : v) });
+    };
+    const addVariant = () => setForm({ ...form, variants: [...variants, { name: '', price: '', stock: '' }] });
+    const removeVariant = (i) => setForm({ ...form, variants: variants.filter((_, idx) => idx !== i) });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -431,12 +573,14 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
     };
 
     return (
-        <DSModal title={isEdit ? `✏️ Editar — ${initial.name}` : '📦 Nuevo producto'} onClose={onClose}>
+        <DSModal title={isEdit ? `✏️ Editar — ${initial.name}` : '📦 Nuevo producto'} onClose={onClose} wide>
             <form onSubmit={handleSubmit} className="ds-form">
                 <div className="ds-form-grid">
                     <label>Nombre</label>
                     <input placeholder="Nombre del producto" value={form.name}
                         onChange={e => setForm({ ...form, name: e.target.value })} required />
+                    <label>Foto</label>
+                    <ImagePicker value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} maxDim={700} />
                     <label>Precio</label>
                     <input type="number" placeholder="$" value={form.price}
                         onChange={e => setForm({ ...form, price: e.target.value })} required />
@@ -456,6 +600,31 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
                         onChange={e => setForm({ ...form, description: e.target.value })}
                         style={{ gridColumn: '1 / -1' }} />
                 </div>
+
+                <div className="ds-price-table-label">
+                    📐 Variantes (opcional — ej. presentaciones, tallas, colores)
+                </div>
+                <div className="ds-price-table">
+                    {variants.map((v, i) => (
+                        <div key={i} className="ds-step-row">
+                            <input placeholder="Nombre (ej. 500ml, Talla M...)" value={v.name}
+                                onChange={e => updateVariant(i, 'name', e.target.value)} style={{ flex: 2 }} required />
+                            <div className="ds-price-input-wrap">
+                                <span className="ds-price-prefix">$</span>
+                                <input type="number" min="0" placeholder="Precio" value={v.price}
+                                    onChange={e => updateVariant(i, 'price', e.target.value)} required className="ds-price-input" />
+                            </div>
+                            <input type="number" min="0" placeholder="Stock" value={v.stock}
+                                onChange={e => updateVariant(i, 'stock', e.target.value)} style={{ width: 90 }} required />
+                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeVariant(i)}><FaTimes /></button>
+                        </div>
+                    ))}
+                    {variants.length === 0 && <p className="empty-td">Sin variantes — se vende como producto único con el precio y stock de arriba.</p>}
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={addVariant} style={{ marginBottom: 20 }}>
+                    + Agregar variante
+                </button>
+
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
                     <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
@@ -550,5 +719,237 @@ export const UserFormModal = ({ initial, onSave, onClose }) => {
                 </div>
             </form>
         </DSModal>
+    );
+};
+
+// ─── PERSONALIZACIÓN DEL SITIO (branding, cómo funciona, footer, giro) ────────
+export const PersonalizacionSection = ({ settings, onSave }) => {
+    const [form, setForm] = useState(settings || {});
+    const [saving, setSaving] = useState(false);
+    const [logoError, setLogoError] = useState('');
+    const [stepImageErrors, setStepImageErrors] = useState({});
+
+    useEffect(() => { if (settings) setForm(settings); }, [settings]);
+
+    const steps = form.howItWorksSteps || [];
+    const stats = form.stats || [];
+    const footerLinks = form.footerLinks || [];
+    const extraFields = form.clientExtraFields || [];
+
+    const set = (patch) => setForm(prev => ({ ...prev, ...patch }));
+
+    const updateStep = (i, field, value) => {
+        set({ howItWorksSteps: steps.map((s, idx) => idx === i ? { ...s, [field]: value } : s) });
+    };
+    const addStep = () => set({ howItWorksSteps: [...steps, { icon: '🐾', imageUrl: null, title: '', description: '' }] });
+    const removeStep = (i) => set({ howItWorksSteps: steps.filter((_, idx) => idx !== i) });
+
+    const handleStepImageFile = async (i, e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setStepImageErrors(prev => ({ ...prev, [i]: '' }));
+        try {
+            const dataUrl = await readImageAsResizedDataUrl(file, { maxDim: 360 });
+            updateStep(i, 'imageUrl', dataUrl);
+        } catch (err) {
+            setStepImageErrors(prev => ({ ...prev, [i]: err.message }));
+        }
+    };
+
+    const updateStat = (i, field, value) => {
+        set({ stats: stats.map((s, idx) => idx === i ? { ...s, [field]: value } : s) });
+    };
+    const addStat = () => set({ stats: [...stats, { icon: '⭐', value: '', label: '' }] });
+    const removeStat = (i) => set({ stats: stats.filter((_, idx) => idx !== i) });
+
+    const updateFooterLink = (i, field, value) => {
+        set({ footerLinks: footerLinks.map((l, idx) => idx === i ? { ...l, [field]: value } : l) });
+    };
+    const addFooterLink = () => set({ footerLinks: [...footerLinks, { label: '', url: '' }] });
+    const removeFooterLink = (i) => set({ footerLinks: footerLinks.filter((_, idx) => idx !== i) });
+
+    const updateExtraField = (i, field, value) => {
+        set({ clientExtraFields: extraFields.map((f, idx) => idx === i ? { ...f, [field]: value } : f) });
+    };
+    const addExtraField = () => set({ clientExtraFields: [...extraFields, { key: '', label: '', required: false }] });
+    const removeExtraField = (i) => set({ clientExtraFields: extraFields.filter((_, idx) => idx !== i) });
+
+    // ── Logo: se sube como archivo (no URL) y se guarda embebido como
+    // data URL en Settings.logoUrl. Se reescala en el navegador antes de
+    // codificar para no inflar la base de datos con imágenes gigantes.
+    const handleLogoFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setLogoError('');
+        try {
+            const dataUrl = await readImageAsResizedDataUrl(file, { maxDim: 480 });
+            set({ logoUrl: dataUrl });
+        } catch (err) {
+            setLogoError(err.message);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try { await onSave(form); }
+        finally { setSaving(false); }
+    };
+
+    if (!settings) return <p className="empty-td">Cargando configuración...</p>;
+
+    return (
+        <form onSubmit={handleSubmit} className="ds-form ds-personalizacion">
+            <section className="ds-settings-block">
+                <h3>🎨 Marca</h3>
+                <div className="ds-form-grid">
+                    <label>Nombre del negocio</label>
+                    <input value={form.businessName || ''} onChange={e => set({ businessName: e.target.value })} />
+                    <label>Slogan</label>
+                    <input value={form.slogan || ''} onChange={e => set({ slogan: e.target.value })} />
+                    <label>Logo</label>
+                    <div className="ds-logo-upload">
+                        {form.logoUrl && <img src={form.logoUrl} alt="Logo" className="ds-logo-preview" />}
+                        <div className="ds-logo-upload-actions">
+                            <label className="ds-btn ds-btn--secondary ds-file-btn">
+                                {form.logoUrl ? 'Cambiar imagen' : 'Subir imagen'}
+                                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
+                            </label>
+                            {form.logoUrl && (
+                                <button type="button" className="ds-btn ds-btn--secondary" onClick={() => set({ logoUrl: null })}>
+                                    Quitar
+                                </button>
+                            )}
+                        </div>
+                        {logoError && <p className="ds-logo-error">{logoError}</p>}
+                    </div>
+                    <label>Color principal</label>
+                    <input type="color" value={form.primaryColor || '#4f46e5'} onChange={e => set({ primaryColor: e.target.value })} style={{ width: 60, padding: 2 }} />
+                </div>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>🖼️ Imágenes del sitio</h3>
+                <div className="ds-form-grid">
+                    <label>Portada de inicio</label>
+                    <div>
+                        <ImagePicker value={form.heroImageUrl} onChange={url => set({ heroImageUrl: url })} maxDim={1600} />
+                        <p className="ds-gallery-hint" style={{ marginTop: 6 }}>Si no eliges una imagen, se sigue mostrando el video por defecto.</p>
+                    </div>
+                    <label>Fondo de inicio de sesión</label>
+                    <ImagePicker value={form.loginBackgroundUrl} onChange={url => set({ loginBackgroundUrl: url })} maxDim={1600} />
+                </div>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>📱 Contacto y redes</h3>
+                <div className="ds-form-grid">
+                    <label>WhatsApp</label>
+                    <input value={form.whatsappNumber || ''} onChange={e => set({ whatsappNumber: e.target.value })} />
+                    <label>Dirección</label>
+                    <input value={form.businessAddress || ''} onChange={e => set({ businessAddress: e.target.value })} />
+                    <label>Instagram</label>
+                    <input value={form.instagramUrl || ''} onChange={e => set({ instagramUrl: e.target.value })} />
+                    <label>Facebook</label>
+                    <input value={form.facebookUrl || ''} onChange={e => set({ facebookUrl: e.target.value })} />
+                    <label>TikTok</label>
+                    <input value={form.tiktokUrl || ''} onChange={e => set({ tiktokUrl: e.target.value })} />
+                </div>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>✨ ¿Cómo funciona?</h3>
+                <div className="ds-price-table">
+                    {steps.map((s, i) => (
+                        <div key={i} className="ds-step-row ds-step-row--wrap">
+                            <div className="ds-step-image-upload">
+                                {s.imageUrl
+                                    ? <img src={s.imageUrl} alt="" className="ds-step-image-preview" />
+                                    : <input placeholder="Emoji" value={s.icon || ''} onChange={e => updateStep(i, 'icon', e.target.value)} className="ds-step-emoji-input" />
+                                }
+                                <label className="ds-btn ds-btn--secondary ds-file-btn ds-file-btn--sm">
+                                    {s.imageUrl ? 'Cambiar' : 'Imagen'}
+                                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => handleStepImageFile(i, e)} hidden />
+                                </label>
+                                {s.imageUrl && (
+                                    <button type="button" className="ds-btn ds-btn--secondary ds-file-btn ds-file-btn--sm" onClick={() => updateStep(i, 'imageUrl', null)}>
+                                        Quitar
+                                    </button>
+                                )}
+                            </div>
+                            <div className="ds-step-text-inputs">
+                                <input placeholder="Título del paso" value={s.title} onChange={e => updateStep(i, 'title', e.target.value)} />
+                                <input placeholder="Descripción" value={s.description} onChange={e => updateStep(i, 'description', e.target.value)} />
+                                {stepImageErrors[i] && <p className="ds-logo-error">{stepImageErrors[i]}</p>}
+                            </div>
+                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeStep(i)}><FaTimes /></button>
+                        </div>
+                    ))}
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={addStep}>+ Agregar paso</button>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>🏆 Logros</h3>
+                <div className="ds-price-table">
+                    {stats.map((s, i) => (
+                        <div key={i} className="ds-step-row">
+                            <input placeholder="Emoji" value={s.icon || ''} onChange={e => updateStat(i, 'icon', e.target.value)} style={{ width: 56 }} />
+                            <input placeholder="Valor (ej. 4000+)" value={s.value || ''} onChange={e => updateStat(i, 'value', e.target.value)} />
+                            <input placeholder="Etiqueta (ej. CLIENTES FELICES)" value={s.label || ''} onChange={e => updateStat(i, 'label', e.target.value)} style={{ flex: 2 }} />
+                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeStat(i)}><FaTimes /></button>
+                        </div>
+                    ))}
+                    {stats.length === 0 && <p className="empty-td">Sin logros — agrega los que quieras destacar.</p>}
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={addStat}>+ Agregar logro</button>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>🔗 Pie de página</h3>
+                <div className="ds-price-table">
+                    {footerLinks.map((l, i) => (
+                        <div key={i} className="ds-step-row">
+                            <input placeholder="Etiqueta" value={l.label} onChange={e => updateFooterLink(i, 'label', e.target.value)} />
+                            <input placeholder="https://... o /ruta" value={l.url} onChange={e => updateFooterLink(i, 'url', e.target.value)} style={{ flex: 2 }} />
+                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeFooterLink(i)}><FaTimes /></button>
+                        </div>
+                    ))}
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={addFooterLink}>+ Agregar link</button>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>🏷️ Giro de negocio</h3>
+                <label className="ds-toggle-inline">
+                    <input type="checkbox" checked={form.enablePets !== false} onChange={e => set({ enablePets: e.target.checked })} />
+                    <span>Este negocio maneja mascotas (muestra la sección "Pacientes")</span>
+                </label>
+
+                <div className="ds-price-table-label" style={{ marginTop: 12 }}>Campos extra al registrar un cliente</div>
+                <div className="ds-price-table">
+                    {extraFields.map((f, i) => (
+                        <div key={i} className="ds-step-row">
+                            <input placeholder="clave (sin espacios)" value={f.key} onChange={e => updateExtraField(i, 'key', e.target.value)} />
+                            <input placeholder="Etiqueta visible" value={f.label} onChange={e => updateExtraField(i, 'label', e.target.value)} />
+                            <label className="ds-toggle-inline" style={{ whiteSpace: 'nowrap' }}>
+                                <input type="checkbox" checked={!!f.required} onChange={e => updateExtraField(i, 'required', e.target.checked)} />
+                                <span>Requerido</span>
+                            </label>
+                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeExtraField(i)}><FaTimes /></button>
+                        </div>
+                    ))}
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={addExtraField}>+ Agregar campo</button>
+            </section>
+
+            <div className="ds-form-actions">
+                <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
+                    {saving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+            </div>
+        </form>
     );
 };

@@ -58,6 +58,13 @@ export function getWeightRange(weight) {
  */
 export function calcServicePrice(service, weight) {
     if (!service) return 0;
+    // Servicios con criterio de cobro personalizado (ej. tipo de trabajo en
+    // vez de peso) no usan tiers — se toma la primera opción como default;
+    // el precio final sigue siendo editable a mano en el formulario de cita.
+    if (service.pricingMode === 'custom') {
+        const options = service.customPriceOptions || [];
+        return Number(options[0]?.price) || Number(service.price) || 0;
+    }
     const range = getWeightRange(weight);
     const field = PRICE_FIELD[range.key];
     // Usar el precio del rango si existe, si no el precio base

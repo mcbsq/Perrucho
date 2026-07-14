@@ -24,11 +24,11 @@ import Perfil            from './pages/cliente/Perfil';
 
 // ── Puente AuthContext ↔ DataContext ─────────────────────────────────────────
 const DataReloaderBridge = () => {
-    const { reloadClientsAndPets } = useData();
+    const { reload } = useData();
     useEffect(() => {
-        setDataReloader(reloadClientsAndPets);
+        setDataReloader(reload);
         return () => setDataReloader(null);
-    }, [reloadClientsAndPets]);
+    }, [reload]);
     return null;
 };
 

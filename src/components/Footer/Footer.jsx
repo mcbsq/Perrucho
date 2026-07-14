@@ -2,17 +2,29 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaPhone } from 'react-icons/fa';
+import { useData } from '../../contexts/DataContext';
 import './Footer.css';
 
-// Logo: pon tu archivo como src/assets/logo.png para activarlo
-// import logoTPS from '../../assets/logo.png';
-const logoTPS = null; // cambia a: import logoTPS from '../../assets/logo.png' cuando tengas el archivo
+const DEFAULT_FOOTER_LINKS = [
+    { label: 'Grooming básico', url: '/servicios' },
+    { label: 'Baño y corte', url: '/servicios' },
+    { label: 'Servicio premium', url: '/servicios' },
+    { label: 'Paseos', url: '/servicios' },
+    { label: 'Guardería (próximamente)', url: '/servicios' },
+];
 
-const WA_NUMBER = '5215633252525';
-const WA_MSG    = encodeURIComponent('Hola, me interesa agendar una cita para mi mascota en Taylor\'s Pet Services.');
+const isExternalLink = (url) => /^https?:\/\//i.test(url || '');
 
 const Footer = () => {
+    const { settings } = useData();
     const year = new Date().getFullYear();
+
+    const logoTPS = settings?.logoUrl || null;
+    const businessName = settings?.businessName || "Taylor's Pet Services";
+    const slogan = settings?.slogan || 'El servicio que tú y tu mejor amigo merecen.';
+    const waNumber = settings?.whatsappNumber ? `52${settings.whatsappNumber.replace(/\D/g, '')}` : '5215633252525';
+    const waMsg = encodeURIComponent(`Hola, me interesa agendar una cita para mi mascota en ${businessName}.`);
+    const footerLinks = settings?.footerLinks?.length ? settings.footerLinks : DEFAULT_FOOTER_LINKS;
 
     return (
         <footer className="footer-container">
@@ -21,23 +33,23 @@ const Footer = () => {
                 {/* ── Marca ── */}
                 <div className="footer-brand">
                     {logoTPS
-                        ? <img src={logoTPS} alt="Taylor's Pet Services" className="footer-logo" />
-                        : <span className="footer-brand-name">Taylor's Pet Services</span>
+                        ? <img src={logoTPS} alt={businessName} className="footer-logo" />
+                        : <span className="footer-brand-name">{businessName}</span>
                     }
                     <p className="footer-tagline">
-                        El servicio que tú y tu mejor amigo merecen.
+                        {slogan}
                     </p>
                     <div className="footer-social">
-                        <a href="https://www.instagram.com/taylors.petservices.mx" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                        <a href={settings?.instagramUrl || 'https://www.instagram.com/taylors.petservices.mx'} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                             <FaInstagram />
                         </a>
-                        <a href="https://www.facebook.com/share/1LixCZxfux/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                        <a href={settings?.facebookUrl || 'https://www.facebook.com/share/1LixCZxfux/'} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                             <FaFacebook />
                         </a>
-                        <a href="https://www.tiktok.com/@taylors.pet.services" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                        <a href={settings?.tiktokUrl || 'https://www.tiktok.com/@taylors.pet.services'} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
                             <FaTiktok />
                         </a>
-                        <a href={`https://wa.me/${WA_NUMBER}?text=${WA_MSG}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                        <a href={`https://wa.me/${waNumber}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
                             <FaWhatsapp />
                         </a>
                     </div>
@@ -52,31 +64,31 @@ const Footer = () => {
                     <Link to="/sobre-nosotros">Sobre nosotros</Link>
                 </div>
 
-                {/* ── Servicios ── */}
+                {/* ── Servicios (editable desde Personalización → Pie de página) ── */}
                 <div className="footer-nav">
                     <h4>Servicios</h4>
-                    <span>Grooming básico</span>
-                    <span>Baño y corte</span>
-                    <span>Servicio premium</span>
-                    <span>Paseos</span>
-                    <span>Guardería (próximamente)</span>
+                    {footerLinks.map((l, i) => (
+                        isExternalLink(l.url)
+                            ? <a key={i} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>
+                            : <Link key={i} to={l.url || '#'}>{l.label}</Link>
+                    ))}
                 </div>
 
                 {/* ── Contacto ── */}
                 <div className="footer-contact">
                     <h4>Contáctanos</h4>
-                    <a href={`https://wa.me/${WA_NUMBER}?text=${WA_MSG}`} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
-                        <FaWhatsapp /> <span>56 33 25 25 25</span>
+                    <a href={`https://wa.me/${waNumber}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
+                        <FaWhatsapp /> <span>{settings?.whatsappNumber || '56 33 25 25 25'}</span>
                     </a>
-                    <a href="https://maps.app.goo.gl/HNpfNETNeUqptAbK6" target="_blank" rel="noopener noreferrer" className="footer-contact-item">
-                        <FaMapMarkerAlt /> <span>Montevideo No. 157, Col. Lindavista, GAM, CDMX</span>
+                    <a href={settings?.businessMapsUrl || 'https://maps.app.goo.gl/HNpfNETNeUqptAbK6'} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
+                        <FaMapMarkerAlt /> <span>{settings?.businessAddress || 'Montevideo No. 157, Col. Lindavista, GAM, CDMX'}</span>
                     </a>
                 </div>
             </div>
 
             {/* ── Bottom bar ── */}
             <div className="footer-bottom">
-                <p>Taylor's Pet Services | Todos los derechos reservados {year}.</p>
+                <p>{businessName} | Todos los derechos reservados {year}.</p>
                 <div className="footer-legal">
                     <Link to="/aviso-privacidad">Aviso de Privacidad</Link>
                     <Link to="/terminos">Términos y Condiciones</Link>

@@ -59,6 +59,14 @@ export const AuthProvider = ({ children }) => {
             const { token, user: userData } = await authApi.login(email, password);
             persistSession(token, userData);
             setUser(userData);
+
+            // Notificar al DataContext para que recargue clients/pets
+            // (mismo puente que usa register(); sin esto, admin/empleado
+            // ven listas vacías hasta la próxima recarga manual)
+            if (_reloadClientsAndPets) {
+                _reloadClientsAndPets().catch(() => {});
+            }
+
             return userData;
         } catch (err) {
             console.error('Error en login:', err);

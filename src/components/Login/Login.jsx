@@ -5,6 +5,7 @@ import './Login.css';
 import loginVideo from '../../assets/login.mp4'; // ← mismo video o uno distinto
 import loginPoster from '../../assets/1.jpg';   // fallback mientras carga
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 
 const Login = () => {
     const [email,    setEmail]    = useState('');
@@ -13,6 +14,7 @@ const Login = () => {
     const [loading,  setLoading]  = useState(false);
 
     const { login }  = useAuth();
+    const { settings } = useData();
     const navigate   = useNavigate();
     const location   = useLocation();
 
@@ -51,17 +53,21 @@ const Login = () => {
     return (
         <div className="login-container">
 
-            {/* ── Video de fondo full-screen ── */}
-            <video
-                className="login-video-bg"
-                autoPlay
-                muted
-                loop
-                playsInline
-                poster={loginPoster}
-            >
-                <source src={loginVideo} type="video/mp4" />
-            </video>
+            {/* ── Fondo full-screen: video por defecto, o imagen si el admin eligió una ── */}
+            {settings?.loginBackgroundUrl ? (
+                <img src={settings.loginBackgroundUrl} alt="" className="login-video-bg" />
+            ) : (
+                <video
+                    className="login-video-bg"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    poster={loginPoster}
+                >
+                    <source src={loginVideo} type="video/mp4" />
+                </video>
+            )}
 
             {/* ── Overlay oscuro sobre el video ── */}
             <div className="login-overlay" />
