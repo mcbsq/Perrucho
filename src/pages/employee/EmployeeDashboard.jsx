@@ -13,7 +13,8 @@ import {
     FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt,
     FaNotesMedical, FaClock, FaTimes, FaSave,
     FaHistory, FaBoxOpen, FaExclamationTriangle, FaClipboardList,
-    FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp
+    FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp,
+    FaCashRegister, FaCartPlus, FaReceipt, FaTrashAlt, FaSearch, FaCut
 } from 'react-icons/fa';
 import {
     FAB, StatusBadge, StatusSelector,
@@ -31,6 +32,7 @@ import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
 import './EmployeeDashboard.css';
+import '../admin/AdminDashboard.css'; // reutiliza los estilos del POS (.pos-container, .pos-cart, etc.)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const toLocalISO = (d) => {
@@ -397,7 +399,7 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const EmployeeDashboard = () => {
-    const {products,pets,clients,services,addClient,updateClient,addPet,updatePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
+    const {products,pets,clients,services,settings,addClient,updateClient,addPet,updatePet,addSale,updateProduct,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
     const {notify, NotifyNode} = useNotify();
@@ -412,6 +414,70 @@ const EmployeeDashboard = () => {
     const [apptLoading,setApptLoading]=useState(false);
     const [selAppt,setSelAppt]=useState(null);
     const [agendaAnchor,setAgendaAnchor]=useState(null);
+
+    // ── POS (venta) ──────────────────────────────────────────────────────────
+    const [cart,setCart]=useState([]);
+    const [posCategory,setPosCategory]=useState('Todos');
+    const [posSearch,setPosSearch]=useState('');
+    const [posClientId,setPosClientId]=useState('');
+    const [posPaymentMethod,setPosPaymentMethod]=useState('efectivo');
+    const [posSaleStatus,setPosSaleStatus]=useState('pagado');
+    const [showCheckout,setShowCheckout]=useState(false);
+    const [posVariantPicker,setPosVariantPicker]=useState(null);
+
+    const addToCart=(item,type)=>{
+        if(type==='product'&&item.stock<=0){addToast('Sin stock','error');return;}
+        const ex=cart.find(c=>c.id===item.id&&c.type===type&&c.variantName===item.variantName);
+        if(ex)setCart(cart.map(c=>c===ex?{...c,qty:c.qty+1}:c));
+        else setCart([...cart,{...item,qty:1,type}]);
+    };
+    const addProductToCart=(product)=>{
+        if((product.variants||[]).length>0){setPosVariantPicker(product);return;}
+        addToCart(product,'product');
+    };
+    const pickVariant=(product,variant)=>{
+        addToCart({...product,price:variant.price,stock:variant.stock,variantName:variant.name,name:`${product.name} — ${variant.name}`},'product');
+        setPosVariantPicker(null);
+    };
+    const removeFromCart=(id,type,variantName)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type&&c.variantName===variantName)));
+    const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
+    const posProducts=products.filter(p=>p.name?.toLowerCase().includes(posSearch.toLowerCase()));
+    const posServices=services.filter(s=>s.title?.toLowerCase().includes(posSearch.toLowerCase()));
+
+    const processCheckout=async()=>{
+        if(!cart.length)return;
+        try{
+            const allProducts=cart.every(i=>i.type==='product');
+            const allServices=cart.every(i=>i.type==='service');
+            await addSale({
+                items: cart.map(i=>({
+                    name: i.name||i.title,
+                    price: i.price,
+                    quantity: i.qty,
+                    productId: i.type==='product' ? i.id : undefined,
+                })),
+                total: +cartTotal.toFixed(2),
+                clientId: posClientId||null,
+                type: allProducts?'product':allServices?'service':'mixed',
+                paymentMethod: posPaymentMethod,
+                status: posSaleStatus,
+            });
+            for(const item of cart){
+                if(item.type==='product'){
+                    const o=products.find(p=>p.id===item.id);
+                    if(!o)continue;
+                    if(item.variantName){
+                        const nextVariants=(o.variants||[]).map(v=>v.name===item.variantName?{...v,stock:Math.max(0,v.stock-item.qty)}:v);
+                        await updateProduct(item.id,{...o,variants:nextVariants});
+                    }else{
+                        await updateProduct(item.id,{...o,stock:o.stock-item.qty});
+                    }
+                }
+            }
+            setCart([]);setPosClientId('');setShowCheckout(false);
+            addToast('¡Venta procesada!','success');
+        }catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
 
     const [updatingIds,setUpdatingIds]=useState(new Set());
     const updatingIdsRef = useRef(updatingIds);
@@ -602,8 +668,9 @@ const EmployeeDashboard = () => {
 
     const NAV=[
         {id:'agenda',icon:<FaCalendarAlt/>,label:'Agenda'},
+        {id:'venta',icon:<FaCashRegister/>,label:'Venta'},
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
-        {id:'pacientes',icon:<FaPaw/>,label:'Pacientes'},
+        ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
         {id:'inventario',icon:<FaBoxOpen/>,label:'Inventario'},
     ];
 
@@ -614,8 +681,54 @@ const EmployeeDashboard = () => {
 
             {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
             {medicalPet&&<MedicalModal pet={medicalPet} clients={clients} onSave={saveMedicalFile} onClose={()=>setMedicalPet(null)}/>}
-            {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)}/>}
+            {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)} extraFields={settings?.clientExtraFields||[]}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
+
+            {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>
+                <div className="ds-price-table">
+                    {(posVariantPicker.variants||[]).map((v,i)=>(
+                        <button key={i} type="button" className="ds-step-row pos-variant-option" disabled={v.stock<=0}
+                            onClick={()=>pickVariant(posVariantPicker,v)}
+                            style={{width:'100%',textAlign:'left',background:'#f8fafc',border:'1.5px solid #e0e4ea',borderRadius:12,padding:'10px 14px',cursor:v.stock<=0?'not-allowed':'pointer',opacity:v.stock<=0?0.5:1}}>
+                            <span style={{flex:1,fontWeight:700}}>{v.name}</span>
+                            <span style={{fontWeight:800,color:'#00b894'}}>${v.price}</span>
+                            <span style={{fontSize:'0.78rem',color:'#94a3b8',marginLeft:8}}>{v.stock<=0?'Sin stock':`Stock: ${v.stock}`}</span>
+                        </button>
+                    ))}
+                </div>
+            </Modal>}
+
+            {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
+                <p className="checkout-modal-note">Configura los detalles de la venta.</p>
+                <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
+                    <option value="">Sin cliente</option>
+                    {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
+                    {['efectivo','tarjeta','transferencia'].map(m=>(
+                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
+                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
+                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
+                        </button>
+                    ))}
+                </div>
+                <div style={{display:'flex',gap:8,marginBottom:12}}>
+                    {['pagado','pendiente'].map(s=>(
+                        <button key={s} className={`checkout-pay-btn ${posSaleStatus===s?'active':''}`}
+                            onClick={()=>setPosSaleStatus(s)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posSaleStatus===s?'#55efc4':'#e2e8f0',background:posSaleStatus===s?'#d1fae5':'white',color:posSaleStatus===s?'#065f46':'#64748b'}}>
+                            {s==='pagado'?'✅ Pagado':'⏳ Pendiente'}
+                        </button>
+                    ))}
+                </div>
+                <div className="checkout-items-preview">
+                    {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
+                </div>
+                <div className="checkout-total-row"><strong>Total: ${cartTotal.toFixed(2)}</strong></div>
+                <div className="ds-form-actions">
+                    <button type="button" className="ds-btn ds-btn--secondary" onClick={()=>setShowCheckout(false)}>Cancelar</button>
+                    <button type="button" className="ds-btn ds-btn--primary" onClick={processCheckout}>Confirmar venta</button>
+                </div>
+            </Modal>}
 
             <header className="emp-topbar">
                 <div className="emp-topbar-left">
@@ -722,6 +835,34 @@ const EmployeeDashboard = () => {
                         onRemoveExtra={removeAppointmentExtra}
                         allAppointments={appointments} employees={empleados} onAssignTime={handleAssignTime}
                         onClose={()=>{setSelAppt(null);setAgendaAnchor(null);}}/>}
+                </div>}
+
+                {tab==='venta'&&<div className="fade-in pos-page">
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Punto de venta</h2></div></div>
+                    <div className="pos-container">
+                        <div className="pos-catalog">
+                            <div className="pos-search-row" style={{display:'flex',gap:8,marginBottom:12}}>
+                                <input placeholder="Buscar..." value={posSearch} onChange={e=>setPosSearch(e.target.value)} style={{flex:1,padding:'10px 14px',borderRadius:12,border:'1.5px solid #e0e4ea'}}/>
+                            </div>
+                            <div style={{display:'flex',gap:8,marginBottom:16}}>
+                                {['Todos','Productos','Servicios'].map(c=>(
+                                    <button key={c} className={`checkout-pay-btn ${posCategory===c?'active':''}`} onClick={()=>setPosCategory(c)}
+                                        style={{padding:'8px 16px',borderRadius:999,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posCategory===c?'#74b9ff':'#e2e8f0',background:posCategory===c?'#e0f2fe':'white',color:posCategory===c?'#185FA5':'#64748b'}}>
+                                        {c}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="pos-grid">
+                                {(posCategory==='Todos'||posCategory==='Productos')&&posProducts.map(p=><div key={p.id} className={`pos-card ${p.stock<=0?'pos-card--disabled':''}`} onClick={()=>addProductToCart(p)}>{p.imageUrl?<img src={p.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon product-icon"><FaBoxOpen/></div>}<h5>{p.name}</h5><p className="pos-price">{(p.variants||[]).length>0?'Ver opciones':`$${p.price}`}</p><span className={p.stock<5?'low-stock':'in-stock'}>{(p.variants||[]).length>0?`${p.variants.length} variantes`:p.stock<=0?'Sin stock':`Stock: ${p.stock}`}</span></div>)}
+                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}>{s.imageUrl?<img src={s.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon service-icon"><FaCut/></div>}<h5>{s.title}</h5><p className="pos-price">${s.price} base*</p><span className="in-stock">Precio según talla</span></div>)}
+                            </div>
+                        </div>
+                        <aside className="pos-cart">
+                            <div className="pos-cart-header"><h4><FaCartPlus/> Carrito</h4><button className="clear-cart-btn" onClick={()=>setCart([])}>Vaciar</button></div>
+                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${item.variantName||''}-${i}`} className="cart-item"><div><span className="cart-item-name">{item.qty}x {item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div><button onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button></div>)}</div>
+                            <div className="pos-cart-footer"><div className="cart-total-row"><span>Total</span><span className="cart-total-amount">${cartTotal.toFixed(2)}</span></div><button className="checkout-btn" onClick={()=>setShowCheckout(true)} disabled={!cart.length}><FaReceipt/> Finalizar</button></div>
+                        </aside>
+                    </div>
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">

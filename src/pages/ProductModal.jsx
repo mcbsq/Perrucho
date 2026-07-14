@@ -76,8 +76,8 @@ const ProductModal = ({ product, onClose }) => {
                 {step === 1 && (
                     <div className="modal-step-content fade-in">
                         <div className="service-modal-icon">
-                            {product.image
-                                ? <img src={product.image} alt={product.name}
+                            {product.imageUrl
+                                ? <img src={product.imageUrl} alt={product.name}
                                     style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'32px' }} />
                                 : (product.icon || '🎁')}
                         </div>

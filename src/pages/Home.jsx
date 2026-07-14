@@ -222,13 +222,24 @@ const BookingExpressModal = ({ onClose, settings }) => {
 };
 
 // ─── Sección "Cómo funciona" ──────────────────────────────────────────────────
-const HowItWorksSection = ({ onBookingExpress, showGuestBooking }) => {
+const DEFAULT_HOW_IT_WORKS_STEPS = [
+    { icon: '🔍', title: 'Elige tu servicio',  description: 'Explora nuestro catálogo y selecciona el servicio que tu mascota necesita.' },
+    { icon: '📅', title: 'Agenda tu cita',     description: 'Selecciona el día y hora que más te convenga. Confirmación inmediata.' },
+    { icon: '🐾', title: '¡Ven y disfruta!',   description: 'Llega con tu mascota y nosotros nos encargamos del resto con amor.' },
+];
+const STEP_COLORS = ['blue', 'lavender', 'mint'];
+
+const HowItWorksSection = ({ onBookingExpress, showGuestBooking, settings }) => {
     const authAction = useAuthAction();
-    const STEPS = [
-        { num: '01', icon: '🔍', title: 'Elige tu servicio',  desc: 'Explora nuestro catálogo y selecciona el servicio que tu mascota necesita.', color: 'blue'     },
-        { num: '02', icon: '📅', title: 'Agenda tu cita',     desc: 'Selecciona el día y hora que más te convenga. Confirmación inmediata.',       color: 'lavender' },
-        { num: '03', icon: '🐾', title: '¡Ven y disfruta!',   desc: 'Llega con tu mascota y nosotros nos encargamos del resto con amor.',          color: 'mint'     },
-    ];
+    const rawSteps = settings?.howItWorksSteps?.length ? settings.howItWorksSteps : DEFAULT_HOW_IT_WORKS_STEPS;
+    const STEPS = rawSteps.map((s, i) => ({
+        num: String(i + 1).padStart(2, '0'),
+        icon: s.icon,
+        imageUrl: s.imageUrl,
+        title: s.title,
+        desc: s.description,
+        color: STEP_COLORS[i % STEP_COLORS.length],
+    }));
     return (
         <section className="how-section">
             <div className="how-inner">
@@ -241,7 +252,10 @@ const HowItWorksSection = ({ onBookingExpress, showGuestBooking }) => {
                             <div className={`how-step how-step--${step.color}`}>
                                 <div className={`how-step-num how-step-num--${step.color}`}>{step.num}</div>
                                 <div className={`how-step-icon-wrap how-step-icon-wrap--${step.color}`}>
-                                    <span className="how-step-icon">{step.icon}</span>
+                                    {step.imageUrl
+                                        ? <img src={step.imageUrl} alt="" className="how-step-image" />
+                                        : <span className="how-step-icon">{step.icon}</span>
+                                    }
                                 </div>
                                 <h4 className="how-step-title">{step.title}</h4>
                                 <p className="how-step-desc">{step.desc}</p>
@@ -283,13 +297,24 @@ const TrustStatItem = ({ target, suffix, label, icon }) => {
 };
 
 // ─── Franja de confianza ──────────────────────────────────────────────────────
-const TrustStrip = () => {
-    const STATS = [
-        { target: 4000, suffix: '+', label: 'Clientes felices',    icon: '😊' },
-        { target: 5,    suffix: '★', label: 'Calificación',        icon: '⭐' },
-        { target: 3,    suffix: '',  label: 'Especialistas',       icon: '👨‍⚕️' },
-        { target: 10,   suffix: '+', label: 'Años de experiencia', icon: '🏆' },
-    ];
+// stat.value puede ser "4000+" o "5★" — se separa el número del sufijo para
+// mantener la animación de conteo.
+const parseStatValue = (raw) => {
+    const match = String(raw || '').match(/^(\d+)(.*)$/);
+    if (!match) return { target: 0, suffix: String(raw || '') };
+    return { target: Number(match[1]), suffix: match[2] || '' };
+};
+
+const DEFAULT_STATS = [
+    { value: '4000+', label: 'Clientes felices', icon: '😊' },
+    { value: '5★', label: 'Calificación', icon: '⭐' },
+    { value: '3', label: 'Especialistas', icon: '👨‍⚕️' },
+    { value: '10+', label: 'Años de experiencia', icon: '🏆' },
+];
+
+const TrustStrip = ({ settings }) => {
+    const rawStats = settings?.stats?.length ? settings.stats : DEFAULT_STATS;
+    const STATS = rawStats.map(s => ({ ...parseStatValue(s.value), label: s.label, icon: s.icon }));
     return (
         <div className="trust-strip">
             {STATS.map((s, i) => <TrustStatItem key={i} {...s} />)}
@@ -329,7 +354,10 @@ const ProductCard = ({ item }) => {
     const icon = item.icon || (item.category?.includes('Aliment') ? '🍖' : item.category?.includes('Higien') ? '🛁' : '🎁');
     return (
         <div className="service-card product-card">
-            <div className="service-icon product-icon">{icon}</div>
+            {item.imageUrl
+                ? <img src={item.imageUrl} alt="" className="product-photo" />
+                : <div className="service-icon product-icon">{icon}</div>
+            }
             <h3>{item.name}</h3>
             <p>{item.description || `Categoría: ${item.category}`}</p>
             <button className="reserve-button buy-button" onClick={() => authAction('/tienda')}>
@@ -378,11 +406,14 @@ const Home = () => {
     return (
         <div className="home-page-container">
 
-            {/* ── HERO CON VIDEO ── */}
+            {/* ── HERO CON VIDEO (o imagen si el admin eligió una) ── */}
             <div className="capsule-banner">
-                <video className="hero-video" autoPlay muted loop playsInline poster={bannerImage}>
-                    <source src={heroVideo} type="video/mp4" />
-                </video>
+                {settings?.heroImageUrl
+                    ? <img src={settings.heroImageUrl} alt="" className="hero-video" />
+                    : <video className="hero-video" autoPlay muted loop playsInline poster={bannerImage}>
+                        <source src={heroVideo} type="video/mp4" />
+                    </video>
+                }
                 {isLoggedIn && user && (
                     <div className="hero-welcome-badge">
                         Bienvenido de nuevo, <span>{user.name.split(' ')[0]}</span> 👋
@@ -390,12 +421,12 @@ const Home = () => {
                 )}
                 <div className="hero-copy">
                     {/* Logo o nombre de marca */}
-                    {logoTPS
-                        ? <img src={logoTPS} alt="Taylor's Pet Services" className="hero-logo" />
-                        : <p className="hero-brand-name">Taylor's Pet Services</p>
+                    {settings?.logoUrl || logoTPS
+                        ? <img src={settings?.logoUrl || logoTPS} alt={settings?.businessName || "Taylor's Pet Services"} className="hero-logo" />
+                        : <p className="hero-brand-name">{settings?.businessName || "Taylor's Pet Services"}</p>
                     }
                     <p className="hero-tagline">Grooming · Tienda · Guardería · Paseos</p>
-                    <h1 className="hero-title">El servicio que tú y tu mejor amigo merecen</h1>
+                    <h1 className="hero-title">{settings?.slogan || 'El servicio que tú y tu mejor amigo merecen'}</h1>
                     <p className="hero-subtitle">
                         Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.
                     </p>
@@ -416,10 +447,11 @@ const Home = () => {
             <HowItWorksSection
                 onBookingExpress={() => setShowBookingExpress(true)}
                 showGuestBooking={guestBookingEnabled}
+                settings={settings}
             />
 
             {/* ── FRANJA DE CONFIANZA ── */}
-            <TrustStrip />
+            <TrustStrip settings={settings} />
 
             {/* ── SERVICIOS DESDE LA BD ── */}
             <section className="content-section services-section">
@@ -431,8 +463,8 @@ const Home = () => {
                 <div className="svc-cards-grid">
                     {loading ? (
                         <p className="svc-empty-msg">Cargando servicios...</p>
-                    ) : services.length > 0 ? (
-                        services.slice(0, 3).map(s => (
+                    ) : services.filter(s => s.showOnHome !== false).length > 0 ? (
+                        services.filter(s => s.showOnHome !== false).slice(0, 3).map(s => (
                             <ServiceCard
                                 key={s.id}
                                 service={s}

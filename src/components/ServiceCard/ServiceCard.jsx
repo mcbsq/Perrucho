@@ -33,8 +33,12 @@ export function inferIcon(service) {
 
 // ── Componente principal ─────────────────────────────────────────────────────
 const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
+    const isCustomPricing = service.pricingMode === 'custom';
+    const customOptions = service.customPriceOptions || [];
+
     // El rango por defecto es 'mediano' (el más común, 10-19kg)
     const [selectedRange, setSelectedRange] = useState('mediano');
+    const [selectedOptionIdx, setSelectedOptionIdx] = useState(0);
 
     // Obtener el rango seleccionado y calcular el precio con los 6 rangos reales
     const selectedRangeData = WEIGHT_RANGES.find(r => r.key === selectedRange);
@@ -47,7 +51,9 @@ const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
         extra:   38,
         jumbo:   50,
     };
-    const displayPrice = calcServicePrice(service, representativeWeight[selectedRange]);
+    const displayPrice = isCustomPricing
+        ? Number(customOptions[selectedOptionIdx]?.price) || 0
+        : calcServicePrice(service, representativeWeight[selectedRange]);
 
     const color = service.color || inferColor(service);
     const icon  = service.icon  || inferIcon(service);
@@ -59,29 +65,49 @@ const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
             )}
 
             <div className={`svc-icon-wrap svc-icon-wrap--${color}`}>
-                <span className="svc-icon">{icon}</span>
+                {service.imageUrl
+                    ? <img src={service.imageUrl} alt="" className="svc-photo" />
+                    : <span className="svc-icon">{icon}</span>
+                }
             </div>
 
             <h3 className="svc-title">{service.title}</h3>
             <p className="svc-desc">{service.description || `Servicio de ${service.category}`}</p>
 
-            {/* Selector de talla — 6 rangos del catálogo */}
-            <div className="svc-size-selector">
-                {WEIGHT_RANGES.map(range => (
-                    <button
-                        key={range.key}
-                        className={`svc-size-btn ${selectedRange === range.key ? 'active' : ''}`}
-                        onClick={() => setSelectedRange(range.key)}
-                        title={range.desc}
-                    >
-                        {range.label}
-                    </button>
-                ))}
-            </div>
+            {isCustomPricing ? (
+                <div className="svc-size-selector">
+                    {customOptions.map((opt, i) => (
+                        <button
+                            key={i}
+                            className={`svc-size-btn ${selectedOptionIdx === i ? 'active' : ''}`}
+                            onClick={() => setSelectedOptionIdx(i)}
+                            title={opt.label}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            ) : (
+                <>
+                    {/* Selector de talla — 6 rangos del catálogo */}
+                    <div className="svc-size-selector">
+                        {WEIGHT_RANGES.map(range => (
+                            <button
+                                key={range.key}
+                                className={`svc-size-btn ${selectedRange === range.key ? 'active' : ''}`}
+                                onClick={() => setSelectedRange(range.key)}
+                                title={range.desc}
+                            >
+                                {range.label}
+                            </button>
+                        ))}
+                    </div>
 
-            {/* Rango de kg del tamaño seleccionado */}
-            {selectedRangeData && (
-                <span className="svc-range-desc">{selectedRangeData.desc}</span>
+                    {/* Rango de kg del tamaño seleccionado */}
+                    {selectedRangeData && (
+                        <span className="svc-range-desc">{selectedRangeData.desc}</span>
+                    )}
+                </>
             )}
 
             {/* Precio dinámico */}

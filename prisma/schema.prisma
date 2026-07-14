@@ -59,6 +59,9 @@ model User {
   address   String?
   capacity  Int?     // solo empleados: cuántas citas simultáneas puede atender
   createdAt DateTime @default(now())
+  // Valores de los campos extra configurados en Settings.clientExtraFields
+  // (varían según el giro del negocio, ej. podología vs. estética canina)
+  extraData Json     @default("{}")
 
   // Relaciones
   pets              Pet[]
@@ -99,8 +102,20 @@ model Service {
   icon        String  @default("🐾")
   color       String  @default("blue")
   popular     Boolean @default(false)
+  // Foto real (subida o elegida de la galería de stock) — si existe, se
+  // muestra en vez del emoji en las tarjetas públicas y del POS.
+  imageUrl    String?
 
-  // Precios por tamaño (tier de peso)
+  // Visibilidad: si es false, el servicio solo aparece en Punto de Venta,
+  // no en la página pública de inicio (petición del cliente vía CIBERCOM).
+  showOnHome Boolean @default(true)
+
+  // Criterio de cobro: "weight" usa los 6 tiers de peso de abajo;
+  // "custom" usa customPriceOptions (ej. tipo de trabajo en un negocio de uñas).
+  pricingMode        String @default("weight") // "weight" | "custom"
+  customPriceOptions Json   @default("[]") // [{ label: string, price: number }]
+
+  // Precios por tamaño (tier de peso) — usados si pricingMode = "weight"
   priceMini    Int @default(0)
   priceChico   Int @default(0)
   priceMediano Int @default(0)
@@ -124,6 +139,11 @@ model Product {
   stock       Int     @default(0)
   category    String
   description String?
+  // Foto real (subida o elegida de la galería de stock).
+  imageUrl    String?
+  // Variantes (ej. presentaciones/tallas/colores) con su propio precio y
+  // stock — si está vacío, el producto se vende como una sola unidad.
+  variants    Json    @default("[]") // [{ name, price, stock }]
 
   saleItems SaleItem[]
 }
@@ -220,4 +240,31 @@ model Settings {
   instagramUrl        String  @default("https://www.instagram.com/taylors.petservices.mx")
   facebookUrl         String  @default("https://www.facebook.com/share/1LixCZxfux/")
   tiktokUrl           String  @default("https://www.tiktok.com/@taylors.pet.services")
+
+  // ── Personalización (branding) ──────────────────────────────────────────
+  businessName String  @default("Taylor's Pet Services")
+  slogan       String  @default("El servicio que tú y tu mejor amigo merecen")
+  logoUrl      String?
+  primaryColor String  @default("#4f46e5")
+  // Imagen del hero (portada de inicio) — si está vacía se sigue mostrando
+  // el video por defecto. Fondo de la pantalla de inicio de sesión/registro.
+  heroImageUrl       String?
+  loginBackgroundUrl String?
+
+  // ── "¿Cómo funciona?" — pasos y logros, editables ───────────────────────
+  // Cada paso puede tener un emoji (icon) y/o una imagen subida (imageUrl,
+  // base64) — si hay imageUrl, se muestra en vez del emoji.
+  howItWorksSteps Json @default("[]") // [{ icon, imageUrl, title, description }]
+  // Logros/estadísticas — lista libre, el admin agrega/quita las que quiera.
+  stats Json @default("[{\"value\":\"4000+\",\"label\":\"CLIENTES FELICES\",\"icon\":\"😊\"},{\"value\":\"5★\",\"label\":\"CALIFICACIÓN\",\"icon\":\"⭐\"},{\"value\":\"3\",\"label\":\"ESPECIALISTAS\",\"icon\":\"👨‍⚕️\"},{\"value\":\"10+\",\"label\":\"AÑOS DE EXPERIENCIA\",\"icon\":\"🏆\"}]") // [{ value, label, icon }]
+
+  // ── Footer editable ──────────────────────────────────────────────────────
+  footerLinks Json @default("[]") // [{ label, url }]
+
+  // ── Adaptable a otros giros de negocio ──────────────────────────────────
+  // Si el negocio no maneja mascotas (podología, barbería, spa, etc.),
+  // el admin puede ocultar toda la sección de "Pacientes" y el registro
+  // de mascotas, sin perder la funcionalidad para quien sí la usa (Taylor's).
+  enablePets        Boolean @default(true)
+  clientExtraFields Json    @default("[]") // [{ key, label, required }] — campos extra de registro de cliente
 }

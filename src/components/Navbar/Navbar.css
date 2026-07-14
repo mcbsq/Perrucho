@@ -48,6 +48,7 @@
 /* Contenido */
 .navbar-content {
     width: 100%; max-width: 1300px; height: 72px; margin: 0 auto;
+    padding: 0 24px;
     display: flex; justify-content: space-between; align-items: center;
     transition: var(--nav-transition);
 }
@@ -125,9 +126,12 @@
     .nav-links-mobile.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); pointer-events: auto; }
     .nav-links-mobile .nav-item {
         width: 100%; text-align: center; background: #f8fafc; border-radius: 16px; padding: 14px;
-        color: var(--sidebar-bg, #2d3446) !important; text-shadow: none !important;
         transform: translateX(-16px); opacity: 0; transition: all 0.35s ease;
     }
+    /* El menú móvil siempre tiene fondo claro — el texto debe ser oscuro incluso
+       cuando .top-transparent.is-home fuerza texto blanco en el resto del navbar. */
+    .top-transparent.is-home .nav-links-mobile .nav-item,
+    .nav-links-mobile .nav-item { color: var(--sidebar-bg, #2d3446) !important; text-shadow: none !important; }
     .nav-links-mobile.open .nav-item { transform: translateX(0); opacity: 1; }
     .nav-links-mobile.open .nav-item:nth-child(1) { transition-delay: 0.05s; }
     .nav-links-mobile.open .nav-item:nth-child(2) { transition-delay: 0.10s; }

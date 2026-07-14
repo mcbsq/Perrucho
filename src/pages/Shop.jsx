@@ -29,8 +29,8 @@ const ProductCard = ({ product, onBuy, isLoggedIn }) => {
 
             {/* Imagen / ícono */}
             <div className="product-image-box">
-                {product.image
-                    ? <img src={product.image} alt={product.name} />
+                {product.imageUrl
+                    ? <img src={product.imageUrl} alt={product.name} />
                     : <span className="product-icon-placeholder">{icon}</span>
                 }
                 {noStock  && <span className="stock-tag stock-tag--none">Agotado</span>}

@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { PrismaClient } = require('@prisma/client');
 const { verifyToken, requireRole, requireOwnerOrRole } = require('../middleware/auth');
 
@@ -31,6 +32,17 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '15mb' }));
+
+// ── Rate limiting para rutas públicas de booking express ─────────────────────
+// Sin esto, /api/signup, /api/clients, /api/pets y /api/appointments son
+// blancos abiertos de spam/abuso al no requerir autenticación.
+const publicWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.' },
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // Nunca exponer el password en respuestas
@@ -73,7 +85,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // POST /api/signup  — registro de cliente con mascota (flujo booking express)
-app.post('/api/signup', async (req, res) => {
+app.post('/api/signup', publicWriteLimiter, async (req, res) => {
   try {
     const { name, email, phone, password, pet } = req.body;
     if (!name || !email)
@@ -122,6 +134,7 @@ app.get('/api/me', verifyToken, async (req, res) => {
     });
     res.json(safeUser(user));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -140,6 +153,7 @@ app.get('/api/users', verifyToken, requireRole('administrador', 'empleado'), asy
     });
     res.json(users.map(safeUser));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -154,6 +168,7 @@ app.get('/api/users/:id', verifyToken, requireOwnerOrRole('administrador', 'empl
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(safeUser(user));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -168,6 +183,7 @@ app.put('/api/users/:id', verifyToken, requireOwnerOrRole('administrador'), asyn
     });
     res.json(safeUser(user));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -182,6 +198,7 @@ app.post('/api/users', verifyToken, requireRole('administrador'), async (req, re
     const user = await prisma.user.create({ data: { ...data, password: hash, role: validRole } });
     res.status(201).json(safeUser(user));
   } catch (err) {
+    console.error(err);
     if (err.code === 'P2002') return res.status(409).json({ error: 'Email ya registrado' });
     res.status(500).json({ error: 'Error del servidor' });
   }
@@ -193,6 +210,7 @@ app.delete('/api/users/:id', verifyToken, requireRole('administrador'), async (r
     await prisma.user.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -210,6 +228,7 @@ app.get('/api/clients', verifyToken, requireRole('administrador', 'empleado'), a
     });
     res.json(clients.map(safeUser));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -223,26 +242,30 @@ app.get('/api/clients/:id', verifyToken, async (req, res) => {
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json(safeUser(client));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.post('/api/clients', async (req, res) => {
+app.post('/api/clients', publicWriteLimiter, async (req, res) => {
   // Ruta pública: registro de cliente desde booking express
   try {
     const { password, confirmPassword, ...data } = req.body;
+    if (!data.name || !data.email)
+      return res.status(400).json({ error: 'Nombre y email requeridos' });
     const hash = await bcrypt.hash(password || 'perrucho123', 10);
     const client = await prisma.user.create({
       data: { ...data, password: hash, role: 'cliente' },
     });
     res.status(201).json(safeUser(client));
   } catch (err) {
+    console.error(err);
     if (err.code === 'P2002') return res.status(409).json({ error: 'Email ya registrado' });
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.put('/api/clients/:id', verifyToken, async (req, res) => {
+app.put('/api/clients/:id', verifyToken, requireOwnerOrRole('administrador', 'empleado'), async (req, res) => {
   try {
     const { password, confirmPassword, role, ...data } = req.body;
     const client = await prisma.user.update({
@@ -251,6 +274,7 @@ app.put('/api/clients/:id', verifyToken, async (req, res) => {
     });
     res.json(safeUser(client));
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -260,6 +284,7 @@ app.delete('/api/clients/:id', verifyToken, requireRole('administrador'), async 
     await prisma.user.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -274,6 +299,7 @@ app.get('/api/pets', verifyToken, async (req, res) => {
     const pets = await prisma.pet.findMany({ where, orderBy: { createdAt: 'desc' } });
     res.json(pets);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -284,40 +310,52 @@ app.get('/api/pets/:id', verifyToken, async (req, res) => {
     if (!pet) return res.status(404).json({ error: 'Mascota no encontrada' });
     res.json(pet);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.post('/api/pets', async (req, res) => {
+app.post('/api/pets', publicWriteLimiter, async (req, res) => {
   // Pública para booking express
   try {
-    const pet = await prisma.pet.create({ data: req.body });
+    // ownerId llega como string desde el <select> del formulario — el schema
+    // lo define como Int, así que Prisma rechaza el string con un error de
+    // validación (500 genérico) si no se convierte aquí.
+    const { ownerId, ...rest } = req.body;
+    if (!rest.petName || !ownerId)
+      return res.status(400).json({ error: 'Nombre de mascota y dueño requeridos' });
+    const pet = await prisma.pet.create({ data: { ...rest, ownerId: parseInt(ownerId) } });
     res.status(201).json(pet);
   } catch (err) {
+    console.error('Error creando mascota:', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
 app.put('/api/pets/:id', verifyToken, async (req, res) => {
   try {
+    const { ownerId, ...rest } = req.body;
     const pet = await prisma.pet.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body,
+      data: { ...rest, ...(ownerId !== undefined && { ownerId: parseInt(ownerId) }) },
     });
     res.json(pet);
   } catch (err) {
+    console.error('Error actualizando mascota:', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
 app.patch('/api/pets/:id', verifyToken, async (req, res) => {
   try {
+    const { ownerId, ...rest } = req.body;
     const pet = await prisma.pet.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body,
+      data: { ...rest, ...(ownerId !== undefined && { ownerId: parseInt(ownerId) }) },
     });
     res.json(pet);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -327,6 +365,7 @@ app.delete('/api/pets/:id', verifyToken, async (req, res) => {
     await prisma.pet.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -340,6 +379,7 @@ app.get('/api/services', async (req, res) => {
     const services = await prisma.service.findMany({ orderBy: { id: 'asc' } });
     res.json(services);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -350,15 +390,33 @@ app.get('/api/services/:id', async (req, res) => {
     if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
     res.json(service);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
+// Los inputs de precio en el form son <input type="number">, que en React
+// siempre entregan string — hay que convertir antes de pasarlos a Prisma
+// (mismo problema que ownerId en /api/pets y price/stock en /api/products).
+const PRICE_FIELDS = ['priceMini', 'priceChico', 'priceMediano', 'priceGrande', 'priceExtra', 'priceJumbo', 'price'];
+const normalizeServiceBody = (body) => {
+  const { customPriceOptions, ...rest } = body;
+  const data = { ...rest };
+  for (const f of PRICE_FIELDS) {
+    if (data[f] !== undefined) data[f] = parseInt(data[f]) || 0;
+  }
+  if (customPriceOptions !== undefined) {
+    data.customPriceOptions = customPriceOptions.map(o => ({ ...o, price: Number(o.price) || 0 }));
+  }
+  return data;
+};
+
 app.post('/api/services', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
-    const service = await prisma.service.create({ data: req.body });
+    const service = await prisma.service.create({ data: normalizeServiceBody(req.body) });
     res.status(201).json(service);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -367,10 +425,11 @@ app.put('/api/services/:id', verifyToken, requireRole('administrador'), async (r
   try {
     const service = await prisma.service.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body,
+      data: normalizeServiceBody(req.body),
     });
     res.json(service);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -380,6 +439,7 @@ app.delete('/api/services/:id', verifyToken, requireRole('administrador'), async
     await prisma.service.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -393,6 +453,7 @@ app.get('/api/products', async (req, res) => {
     const products = await prisma.product.findMany({ orderBy: { id: 'asc' } });
     res.json(products);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -403,39 +464,59 @@ app.get('/api/products/:id', async (req, res) => {
     if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json(product);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
+
+// price/stock llegan como string desde <input type="number"> — el schema
+// los define como Int, así que hay que convertirlos antes de pasarlos a
+// Prisma (mismo problema que ownerId en /api/pets). Igual para price/stock
+// dentro de cada variante.
+const normalizeProductBody = (body) => {
+  const { price, stock, variants, ...rest } = body;
+  const data = { ...rest };
+  if (price !== undefined) data.price = parseInt(price);
+  if (stock !== undefined) data.stock = parseInt(stock);
+  if (variants !== undefined) {
+    data.variants = variants.map(v => ({ ...v, price: Number(v.price) || 0, stock: parseInt(v.stock) || 0 }));
+  }
+  return data;
+};
 
 app.post('/api/products', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
-    const product = await prisma.product.create({ data: req.body });
+    const product = await prisma.product.create({ data: normalizeProductBody(req.body) });
     res.status(201).json(product);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.put('/api/products/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+// empleado puede editar (necesita descontar stock al vender en el POS)
+app.put('/api/products/:id', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
     const product = await prisma.product.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body,
+      data: normalizeProductBody(req.body),
     });
     res.json(product);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.patch('/api/products/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+app.patch('/api/products/:id', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
     const product = await prisma.product.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body,
+      data: normalizeProductBody(req.body),
     });
     res.json(product);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -445,6 +526,7 @@ app.delete('/api/products/:id', verifyToken, requireRole('administrador'), async
     await prisma.product.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -476,6 +558,7 @@ app.get('/api/appointments', verifyToken, async (req, res) => {
     });
     res.json(appointments);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -489,14 +572,17 @@ app.get('/api/appointments/:id', verifyToken, async (req, res) => {
     if (!appt) return res.status(404).json({ error: 'Cita no encontrada' });
     res.json(appt);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.post('/api/appointments', async (req, res) => {
+app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
   // Pública para booking express (clientes sin sesión)
   try {
     const { extras, ...data } = req.body;
+    if (!data.date || !data.time)
+      return res.status(400).json({ error: 'Fecha y hora requeridas' });
     const appt = await prisma.appointment.create({
       data: {
         ...data,
@@ -521,6 +607,7 @@ app.put('/api/appointments/:id', verifyToken, async (req, res) => {
     });
     res.json(appt);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -535,6 +622,7 @@ app.patch('/api/appointments/:id', verifyToken, async (req, res) => {
     });
     res.json(appt);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -544,6 +632,7 @@ app.delete('/api/appointments/:id', verifyToken, async (req, res) => {
     await prisma.appointment.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -562,6 +651,7 @@ app.post('/api/appointments/:id/extras', verifyToken, requireRole('administrador
     });
     res.status(201).json(extra);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -571,6 +661,7 @@ app.delete('/api/appointments/:id/extras/:extraId', verifyToken, requireRole('ad
     await prisma.appointmentExtra.delete({ where: { id: parseInt(req.params.extraId) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -606,6 +697,7 @@ app.get('/api/sales', verifyToken, async (req, res) => {
     });
     res.json(sales);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -619,11 +711,12 @@ app.get('/api/sales/:id', verifyToken, requireRole('administrador'), async (req,
     if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
     res.json(sale);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-app.post('/api/sales', verifyToken, requireRole('administrador'), async (req, res) => {
+app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
     const { items, ...data } = req.body;
     const sale = await prisma.sale.create({
@@ -650,6 +743,7 @@ app.put('/api/sales/:id', verifyToken, requireRole('administrador'), async (req,
     });
     res.json(sale);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -664,6 +758,7 @@ app.patch('/api/sales/:id', verifyToken, requireRole('administrador'), async (re
     });
     res.json(sale);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -673,6 +768,7 @@ app.delete('/api/sales/:id', verifyToken, requireRole('administrador'), async (r
     await prisma.sale.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -687,6 +783,7 @@ app.get('/api/settings', async (req, res) => {
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     res.json(settings);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -701,6 +798,7 @@ app.put('/api/settings', verifyToken, requireRole('administrador'), async (req, 
     });
     res.json(settings);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
