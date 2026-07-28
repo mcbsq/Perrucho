@@ -14,9 +14,9 @@
 /* 2. Configuración del Fondo (CRUCIAL para ver las partículas) */
 /* Aseguramos que el fondo de los elementos principales sea transparente */
 body, #root, .app-container {
-    background-color: transparent; 
+    background-color: transparent;
     min-height: 100vh;
-    font-family: 'Roboto', sans-serif; /* Usamos una fuente moderna (asume que la importaste) */
+    font-family: var(--brand-font, 'Roboto', sans-serif);
 }
 
 /* 3. Contenedor Principal de la Aplicación */

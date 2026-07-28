@@ -24,7 +24,7 @@
 body {
     background-color: var(--light-background); /* Fondo sutil */
     color: var(--text-color);
-    font-family: 'Roboto', sans-serif; /* Asumiendo que usas Roboto o similar */
+    font-family: var(--brand-font, 'Roboto', sans-serif);
 }
 
 .services-page-container {
