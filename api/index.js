@@ -10,14 +10,32 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { verifyToken, requireRole, requireOwnerOrRole } = require('../middleware/auth');
+const { sendPasswordResetEmail } = require('./mailer');
 
 // ── Singleton de Prisma para serverless (patrón Booz) ────────────────────────
 if (!global.prisma) {
   global.prisma = new PrismaClient();
 }
 const prisma = global.prisma;
+
+// Mismos horarios que ofrece el booking express en el frontend
+// (src/pages/Home.jsx `availableTimes`) — mantener sincronizados.
+const SHOP_TIME_SLOTS = ['10:15', '11:00', '11:45', '12:30', '13:15', '14:00', '14:45', '15:30', '16:15', '17:00'];
+
+// El frontend (STATUS_TRANSITIONS en src/utils/apptStatus.js) usa las
+// etiquetas 'En proceso' y 'Finalizada' en toda la UI, pero el enum
+// AppointmentStatus de Prisma es EnProceso/Completada (sin espacio, otro
+// nombre) — enviar el valor tal cual crasheaba el update ("Error del
+// servidor" al marcar una cita en proceso o finalizada). Se traduce en
+// ambas direcciones aquí para no tocar toda la UI del frontend.
+const STATUS_LABEL_TO_ENUM = { 'En proceso': 'EnProceso', 'Finalizada': 'Completada' };
+const STATUS_ENUM_TO_LABEL = { EnProceso: 'En proceso', Completada: 'Finalizada' };
+const withLabelStatus = (appt) => appt && appt.status in STATUS_ENUM_TO_LABEL
+  ? { ...appt, status: STATUS_ENUM_TO_LABEL[appt.status] }
+  : appt;
 
 const app = express();
 
@@ -44,6 +62,16 @@ const publicWriteLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.' },
 });
 
+// Más estricto que publicWriteLimiter — /api/login y /api/auth/* son blanco
+// de fuerza bruta / abuso de enumeración de emails y no tenían límite alguno.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Intenta de nuevo más tarde.' },
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // Nunca exponer el password en respuestas
 const safeUser = (user) => {
@@ -64,7 +92,7 @@ const signToken = (user) =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 // POST /api/login
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
@@ -121,6 +149,59 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
     res.status(201).json({ token, user: safeUser(newUser) });
   } catch (err) {
     console.error('POST /api/signup', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/auth/forgot-password — solicita un enlace de restablecimiento.
+// Siempre responde { ok: true } exista o no el email, para no permitir
+// enumerar cuentas registradas a partir de la respuesta.
+app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+      await prisma.user.update({ where: { id: user.id }, data: { resetToken, resetTokenExpiry } });
+
+      const base = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const resetUrl = `${base}/restablecer-contrasena?token=${resetToken}`;
+      const sent = await sendPasswordResetEmail({ to: user.email, name: user.name, resetUrl }).catch(err => {
+        console.error('sendPasswordResetEmail', err);
+        return false;
+      });
+      if (!sent) console.warn(`[forgot-password] Correo no enviado (SMTP no configurado). Enlace para ${user.email}: ${resetUrl}`);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/auth/forgot-password', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/auth/reset-password — completa el restablecimiento con el token.
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ error: 'Token y nueva contraseña requeridos' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+    const user = await prisma.user.findUnique({ where: { resetToken: token } });
+    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      return res.status(400).json({ error: 'El enlace es inválido o expiró. Solicita uno nuevo.' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hash, resetToken: null, resetTokenExpiry: null },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/auth/reset-password', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -295,7 +376,12 @@ app.delete('/api/clients/:id', verifyToken, requireRole('administrador'), async 
 
 app.get('/api/pets', verifyToken, async (req, res) => {
   try {
-    const where = req.query.ownerId ? { ownerId: parseInt(req.query.ownerId) } : {};
+    // IDOR fix: para un cliente, ownerId ya no es un filtro opcional — se
+    // fuerza siempre a su propio id (antes podía omitirse y listar las
+    // mascotas de todo el negocio).
+    const where = req.user.role === 'cliente'
+      ? { ownerId: req.user.id }
+      : (req.query.ownerId ? { ownerId: parseInt(req.query.ownerId) } : {});
     const pets = await prisma.pet.findMany({ where, orderBy: { createdAt: 'desc' } });
     res.json(pets);
   } catch (err) {
@@ -308,6 +394,8 @@ app.get('/api/pets/:id', verifyToken, async (req, res) => {
   try {
     const pet = await prisma.pet.findUnique({ where: { id: parseInt(req.params.id) } });
     if (!pet) return res.status(404).json({ error: 'Mascota no encontrada' });
+    if (req.user.role === 'cliente' && pet.ownerId !== req.user.id)
+      return res.status(403).json({ error: 'No tienes permiso para ver esta mascota' });
     res.json(pet);
   } catch (err) {
     console.error(err);
@@ -332,8 +420,19 @@ app.post('/api/pets', publicWriteLimiter, async (req, res) => {
   }
 });
 
+// IDOR fix: análogo a assertAppointmentOwnership — un cliente solo puede
+// editar/borrar mascotas de las que es dueño.
+const assertPetOwnership = async (req, res) => {
+  if (req.user.role !== 'cliente') return true;
+  const existing = await prisma.pet.findUnique({ where: { id: parseInt(req.params.id) }, select: { ownerId: true } });
+  if (!existing) { res.status(404).json({ error: 'Mascota no encontrada' }); return false; }
+  if (existing.ownerId !== req.user.id) { res.status(403).json({ error: 'No tienes permiso sobre esta mascota' }); return false; }
+  return true;
+};
+
 app.put('/api/pets/:id', verifyToken, async (req, res) => {
   try {
+    if (!(await assertPetOwnership(req, res))) return;
     const { ownerId, ...rest } = req.body;
     const pet = await prisma.pet.update({
       where: { id: parseInt(req.params.id) },
@@ -348,6 +447,7 @@ app.put('/api/pets/:id', verifyToken, async (req, res) => {
 
 app.patch('/api/pets/:id', verifyToken, async (req, res) => {
   try {
+    if (!(await assertPetOwnership(req, res))) return;
     const { ownerId, ...rest } = req.body;
     const pet = await prisma.pet.update({
       where: { id: parseInt(req.params.id) },
@@ -362,6 +462,7 @@ app.patch('/api/pets/:id', verifyToken, async (req, res) => {
 
 app.delete('/api/pets/:id', verifyToken, async (req, res) => {
   try {
+    if (!(await assertPetOwnership(req, res))) return;
     await prisma.pet.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
@@ -549,14 +650,60 @@ app.get('/api/appointments', verifyToken, async (req, res) => {
     if (req.query.clientId) where.clientId = parseInt(req.query.clientId);
     if (req.query.employeeId) where.employeeId = parseInt(req.query.employeeId);
     if (req.query.date) where.date = req.query.date;
-    if (req.query.status) where.status = req.query.status;
+    if (req.query.status) where.status = STATUS_LABEL_TO_ENUM[req.query.status] || req.query.status;
+    // IDOR fix: un cliente solo puede ver SUS citas — sin esto, cualquier
+    // cliente logueado podía traer las citas (nombre, teléfono, notas) de
+    // todos los demás clientes con un simple GET /api/appointments sin filtro.
+    if (req.user.role === 'cliente') where.clientId = req.user.id;
 
     const appointments = await prisma.appointment.findMany({
       where,
       include: appointmentInclude,
       orderBy: [{ date: 'desc' }, { time: 'asc' }],
     });
-    res.json(appointments);
+    res.json(appointments.map(withLabelStatus));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Mismo criterio que validateSlot() en el frontend: una cita "ocupa" toda la
+// ventana de ±59 min alrededor de su hora. Capacidad total = suma de
+// capacity de los empleados (default 1 c/u si no hay ninguno configurado).
+const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0); };
+
+async function getFullSlotsForDate(date, excludeApptId = null) {
+  const [appointments, employees] = await Promise.all([
+    prisma.appointment.findMany({
+      where: { date, status: { notIn: ['Cancelada', 'Completada'] } },
+      select: { id: true, time: true },
+    }),
+    prisma.user.findMany({ where: { role: 'empleado' }, select: { capacity: true } }),
+  ]);
+  const totalCapacity = employees.reduce((sum, e) => sum + (Number(e.capacity) || 1), 0) || 1;
+  const bookedMinutes = appointments
+    .filter(a => a.time && a.id !== excludeApptId)
+    .map(a => toMinutes(a.time));
+
+  return SHOP_TIME_SLOTS.filter(slot => {
+    const slotMin = toMinutes(slot);
+    const conflicts = bookedMinutes.filter(m => Math.abs(m - slotMin) < 60).length;
+    return conflicts >= totalCapacity;
+  });
+}
+
+// GET /api/appointments/availability?date=YYYY-MM-DD — pública (la necesita
+// el booking express, que corre sin sesión). Devuelve solo qué horarios ya
+// están llenos ese día, sin exponer datos de otras citas/clientes.
+// IMPORTANTE: debe ir antes de '/api/appointments/:id' — si no, Express
+// interpretaría "availability" como un :id.
+app.get('/api/appointments/availability', async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: 'Fecha requerida' });
+    const fullSlots = await getFullSlotsForDate(date);
+    res.json({ fullSlots });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -570,7 +717,9 @@ app.get('/api/appointments/:id', verifyToken, async (req, res) => {
       include: appointmentInclude,
     });
     if (!appt) return res.status(404).json({ error: 'Cita no encontrada' });
-    res.json(appt);
+    if (req.user.role === 'cliente' && appt.clientId !== req.user.id)
+      return res.status(403).json({ error: 'No tienes permiso para ver esta cita' });
+    res.json(withLabelStatus(appt));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -578,11 +727,23 @@ app.get('/api/appointments/:id', verifyToken, async (req, res) => {
 });
 
 app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
-  // Pública para booking express (clientes sin sesión)
+  // Pública para booking express (clientes sin sesión) Y para el flujo de
+  // reserva con cuenta (ServiceModal): ese flujo solo pide el DÍA a propósito
+  // — el groomer asigna la hora después desde su calendario — así que time
+  // llega como '' intencionalmente y NO debe exigirse aquí.
   try {
     const { extras, ...data } = req.body;
-    if (!data.date || !data.time)
-      return res.status(400).json({ error: 'Fecha y hora requeridas' });
+    if (!data.date)
+      return res.status(400).json({ error: 'Fecha requerida' });
+    // Revalidar disponibilidad en el servidor (evita que dos personas
+    // reserven el mismo horario a la vez — el frontend ya filtra los
+    // horarios llenos, pero esto cierra la condición de carrera).
+    if (data.time) {
+      const fullSlots = await getFullSlotsForDate(data.date);
+      if (fullSlots.includes(data.time)) {
+        return res.status(409).json({ error: 'Ese horario ya no está disponible. Elige otro.' });
+      }
+    }
     const appt = await prisma.appointment.create({
       data: {
         ...data,
@@ -590,22 +751,42 @@ app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
       },
       include: appointmentInclude,
     });
-    res.status(201).json(appt);
+    res.status(201).json(withLabelStatus(appt));
   } catch (err) {
     console.error('POST /api/appointments', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
+const normalizeAppointmentBody = (body) => {
+  const { extras, ...data } = body;
+  if (data.status && STATUS_LABEL_TO_ENUM[data.status]) {
+    data.status = STATUS_LABEL_TO_ENUM[data.status];
+  }
+  return { data, extras };
+};
+
+// IDOR fix: PUT/PATCH/DELETE solo exigían estar logueado, sin comprobar que
+// la cita perteneciera al cliente que la solicita — cualquier cliente podía
+// editar/cancelar/borrar la cita de otro. Admin/empleado siguen sin restricción.
+const assertAppointmentOwnership = async (req, res) => {
+  if (req.user.role !== 'cliente') return true;
+  const existing = await prisma.appointment.findUnique({ where: { id: parseInt(req.params.id) }, select: { clientId: true } });
+  if (!existing) { res.status(404).json({ error: 'Cita no encontrada' }); return false; }
+  if (existing.clientId !== req.user.id) { res.status(403).json({ error: 'No tienes permiso sobre esta cita' }); return false; }
+  return true;
+};
+
 app.put('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
-    const { extras, ...data } = req.body;
+    if (!(await assertAppointmentOwnership(req, res))) return;
+    const { data } = normalizeAppointmentBody(req.body);
     const appt = await prisma.appointment.update({
       where: { id: parseInt(req.params.id) },
       data,
       include: appointmentInclude,
     });
-    res.json(appt);
+    res.json(withLabelStatus(appt));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -614,13 +795,14 @@ app.put('/api/appointments/:id', verifyToken, async (req, res) => {
 
 app.patch('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
-    const { extras, ...data } = req.body;
+    if (!(await assertAppointmentOwnership(req, res))) return;
+    const { data } = normalizeAppointmentBody(req.body);
     const appt = await prisma.appointment.update({
       where: { id: parseInt(req.params.id) },
       data,
       include: appointmentInclude,
     });
-    res.json(appt);
+    res.json(withLabelStatus(appt));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -629,6 +811,7 @@ app.patch('/api/appointments/:id', verifyToken, async (req, res) => {
 
 app.delete('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
+    if (!(await assertAppointmentOwnership(req, res))) return;
     await prisma.appointment.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
@@ -766,6 +949,53 @@ app.patch('/api/sales/:id', verifyToken, requireRole('administrador'), async (re
 app.delete('/api/sales/:id', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
     await prisma.sale.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPENSES (egresos/gastos) — el Panel de control solo mostraba ingresos.
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/expenses', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const expenses = await prisma.expense.findMany({ orderBy: { date: 'desc' } });
+    res.json(expenses);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.post('/api/expenses', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const { concept, amount, category, notes, date } = req.body;
+    if (!concept || !amount)
+      return res.status(400).json({ error: 'Concepto y monto requeridos' });
+
+    const expense = await prisma.expense.create({
+      data: {
+        concept,
+        amount: Number(amount),
+        category: category || 'Otro',
+        notes: notes || null,
+        date: date ? new Date(date) : undefined,
+        createdBy: req.user.id,
+      },
+    });
+    res.status(201).json(expense);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/expenses/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    await prisma.expense.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

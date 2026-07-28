@@ -9,6 +9,7 @@ import Footer            from './components/Footer/Footer';
 import WhatsAppButton    from './components/WhatsAppButton/WhatsAppButton';
 import Chatbot           from './components/Chatbot/Chatbot';
 import ProtectedRoute    from './components/ProtectedRoute';
+import { applyBrandColor } from './utils/theme';
 
 // ── Páginas ───────────────────────────────────────────────────────────────────
 import Home              from './pages/Home';
@@ -17,6 +18,8 @@ import Shop              from './pages/Shop';
 import Contact           from './pages/Contact';
 import SobreNosotros     from './pages/SobreNosotros';
 import Login             from './components/Login/Login';
+import ForgotPassword    from './components/Login/ForgotPassword';
+import ResetPassword     from './components/Login/ResetPassword';
 import Register          from './components/Register/Register';
 import AdminDashboard    from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
@@ -32,6 +35,16 @@ const DataReloaderBridge = () => {
     return null;
 };
 
+// Aplica el color de marca configurado en Personalización a toda la app
+// (bug reportado: el color elegido no generaba ningún cambio en la interfaz).
+const BrandThemeBridge = () => {
+    const { settings } = useData();
+    useEffect(() => {
+        applyBrandColor(settings?.primaryColor);
+    }, [settings?.primaryColor]);
+    return null;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AppContent = () => {
@@ -43,7 +56,9 @@ const AppContent = () => {
 
     const isAuthPage =
         location.pathname === '/acceso' ||
-        location.pathname === '/registro';
+        location.pathname === '/registro' ||
+        location.pathname === '/olvide-contrasena' ||
+        location.pathname === '/restablecer-contrasena';
 
     const hideGlobalUI = isDashboard || isAuthPage;
 
@@ -59,6 +74,8 @@ const AppContent = () => {
                     <Route path="/tienda"          element={<Shop />} />
                     <Route path="/sobre-nosotros"  element={<SobreNosotros />} />
                     <Route path="/acceso"          element={<Login />} />
+                    <Route path="/olvide-contrasena"      element={<ForgotPassword />} />
+                    <Route path="/restablecer-contrasena" element={<ResetPassword />} />
                     <Route path="/registro"        element={<Register />} />
 
                     {/* ── Dashboards protegidos ── */}
@@ -104,6 +121,7 @@ function App() {
         <AuthProvider>
             <DataProvider>
                 <DataReloaderBridge />
+                <BrandThemeBridge />
                 <Router>
                     <AppContent />
                 </Router>

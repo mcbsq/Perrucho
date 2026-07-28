@@ -199,7 +199,12 @@ export const ClientCard = ({ client, petsCount = 0, onEdit, onDelete }) => (
 
 // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
 export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) => {
-    const [form, setForm] = useState(initial || { name: '', phone: '', email: '', extraData: {} });
+    // { ...defaults, ...initial } y no "initial || defaults": el FAB abre estos
+    // modales con setXModal({}) para "nuevo registro", y {} es truthy en JS —
+    // "initial || defaults" nunca aplicaba los valores por defecto, dejando
+    // ausentes del payload los campos que el usuario no tocara a mano
+    // (causaba "Error del servidor" en creates con campos requeridos por Prisma).
+    const [form, setForm] = useState({ name: '', phone: '', email: '', extraData: {}, ...initial });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
     const extraData = form.extraData || {};
@@ -289,8 +294,9 @@ export const PetCard = ({ pet, owner, onEdit, onDelete, onToggleStatus }) => {
 // ─── PET FORM MODAL ───────────────────────────────────────────────────────────
 // CAMBIO v3: incluye selector de status
 export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
-    const [form, setForm] = useState(initial || {
-        petName: '', species: 'perro', breed: '', weight: '', ownerId: '', notes: '', history: [], status: 'activo'
+    const [form, setForm] = useState({
+        petName: '', species: 'perro', breed: '', weight: '', ownerId: '', notes: '', history: [], status: 'activo',
+        ...initial,
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -365,17 +371,24 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
                 <span className="ds-tag ds-tag--blue">{service.category}</span>
             </div>
             <div className="ds-service-prices-grid">
-                {WEIGHT_RANGES.map(range => {
-                    const field = PRICE_FIELD[range.key];
-                    const price = service[field] ?? service.price ?? 0;
-                    return (
-                        <div key={range.key} className="ds-service-price-item">
-                            <span className="ds-service-price-label">{range.label}</span>
-                            <span className="ds-service-price-desc">{range.desc}</span>
-                            <strong className="ds-service-price-value">${price}</strong>
+                {service.pricingMode === 'custom'
+                    ? (service.customPriceOptions || []).map((opt, i) => (
+                        <div key={i} className="ds-service-price-item">
+                            <span className="ds-service-price-label">{opt.label}</span>
+                            <strong className="ds-service-price-value">${opt.price}</strong>
                         </div>
-                    );
-                })}
+                    ))
+                    : WEIGHT_RANGES.map(range => {
+                        const field = PRICE_FIELD[range.key];
+                        const price = service[field] ?? service.price ?? 0;
+                        return (
+                            <div key={range.key} className="ds-service-price-item">
+                                <span className="ds-service-price-label">{range.label}</span>
+                                <span className="ds-service-price-desc">{range.desc}</span>
+                                <strong className="ds-service-price-value">${price}</strong>
+                            </div>
+                        );
+                    })}
             </div>
         </div>
         <div className="ds-card-actions">
@@ -385,12 +398,46 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
     </div>
 );
 
+// ─── CATEGORY FIELD (select + "Otro" con texto libre) ─────────────────────────
+// El valor guardado sigue siendo un string plano en `category` (sin cambios de
+// esquema) — "Otro" es solo un estado de la UI para decidir si mostrar el
+// select o el input de texto libre.
+const CategoryField = ({ value, knownOptions, onChange }) => {
+    const initiallyCustom = !!value && !knownOptions.includes(value);
+    const [customMode, setCustomMode] = useState(initiallyCustom);
+    const selectValue = customMode ? '__otro__' : (value || knownOptions[0]);
+
+    return (
+        <>
+            <select value={selectValue} onChange={e => {
+                const v = e.target.value;
+                if (v === '__otro__') { setCustomMode(true); onChange(''); }
+                else { setCustomMode(false); onChange(v); }
+            }}>
+                {knownOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                <option value="__otro__">Otro (escribir)</option>
+            </select>
+            {customMode && (
+                <input
+                    placeholder="Escribe la categoría"
+                    value={value || ''}
+                    onChange={e => onChange(e.target.value)}
+                    style={{ gridColumn: '1 / -1' }}
+                    autoFocus
+                    required
+                />
+            )}
+        </>
+    );
+};
+
 // ─── SERVICE FORM MODAL ───────────────────────────────────────────────────────
 export const ServiceFormModal = ({ initial, onSave, onClose }) => {
-    const [form, setForm] = useState(initial || {
+    const [form, setForm] = useState({
         title: '', category: 'Estética', description: '', icon: '', color: 'blue', popular: false,
         priceMini: '', priceChico: '', priceMediano: '', priceGrande: '', priceExtra: '', priceJumbo: '',
         price: '', showOnHome: true, pricingMode: 'weight', customPriceOptions: [],
+        ...initial,
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -420,12 +467,11 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                     <input placeholder="Nombre del servicio" value={form.title}
                         onChange={e => setForm({ ...form, title: e.target.value })} required />
                     <label>Categoría</label>
-                    <select value={form.category}
-                        onChange={e => setForm({ ...form, category: e.target.value })}>
-                        <option value="Estética">Estética</option>
-                        <option value="Higiene">Higiene</option>
-                        <option value="Médico">Consulta médica</option>
-                    </select>
+                    <CategoryField
+                        value={form.category}
+                        knownOptions={['Estética', 'Higiene', 'Médico']}
+                        onChange={category => setForm({ ...form, category })}
+                    />
                     <label>Ícono (emoji)</label>
                     <input placeholder="🛁 ✂️ 🐾 💉" value={form.icon}
                         onChange={e => setForm({ ...form, icon: e.target.value })} />
@@ -552,8 +598,9 @@ export const ProductCard = ({ product, onEdit, onDelete }) => {
 
 // ─── PRODUCT FORM MODAL ───────────────────────────────────────────────────────
 export const ProductFormModal = ({ initial, onSave, onClose }) => {
-    const [form, setForm] = useState(initial || {
-        name: '', price: '', stock: '', category: 'Alimentos', description: '', imageUrl: null, variants: []
+    const [form, setForm] = useState({
+        name: '', price: '', stock: '', category: 'Alimentos', description: '', imageUrl: null, variants: [],
+        ...initial,
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -588,13 +635,11 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
                     <input type="number" placeholder="Unidades" value={form.stock}
                         onChange={e => setForm({ ...form, stock: e.target.value })} required />
                     <label>Categoría</label>
-                    <select value={form.category}
-                        onChange={e => setForm({ ...form, category: e.target.value })}>
-                        <option value="Alimentos">Alimentos</option>
-                        <option value="Farmacia">Farmacia</option>
-                        <option value="Accesorios">Accesorios</option>
-                        <option value="Higiene">Higiene</option>
-                    </select>
+                    <CategoryField
+                        value={form.category}
+                        knownOptions={['Alimentos', 'Farmacia', 'Accesorios', 'Higiene']}
+                        onChange={category => setForm({ ...form, category })}
+                    />
                     <label>Descripción</label>
                     <input placeholder="Descripción breve" value={form.description}
                         onChange={e => setForm({ ...form, description: e.target.value })}
@@ -670,8 +715,9 @@ export const UserCard = ({ user, onEdit, onDelete, currentUserId }) => (
 // NOTA: el rol aquí solo puede ser empleado/administrador — para registrar
 // clientes se usa el flujo público de /acceso (signup).
 export const UserFormModal = ({ initial, onSave, onClose }) => {
-    const [form, setForm] = useState(initial || {
-        name: '', email: '', password: '', role: 'empleado', capacity: 1
+    const [form, setForm] = useState({
+        name: '', email: '', password: '', role: 'empleado', capacity: 1,
+        ...initial,
     });
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
@@ -733,6 +779,7 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
 
     const steps = form.howItWorksSteps || [];
     const stats = form.stats || [];
+    const whyUsFeatures = form.whyUsFeatures || [];
     const footerLinks = form.footerLinks || [];
     const extraFields = form.clientExtraFields || [];
 
@@ -762,6 +809,12 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
     };
     const addStat = () => set({ stats: [...stats, { icon: '⭐', value: '', label: '' }] });
     const removeStat = (i) => set({ stats: stats.filter((_, idx) => idx !== i) });
+
+    const updateWhyUsFeature = (i, field, value) => {
+        set({ whyUsFeatures: whyUsFeatures.map((f, idx) => idx === i ? { ...f, [field]: value } : f) });
+    };
+    const addWhyUsFeature = () => set({ whyUsFeatures: [...whyUsFeatures, { icon: '🐾', title: '', desc: '' }] });
+    const removeWhyUsFeature = (i) => set({ whyUsFeatures: whyUsFeatures.filter((_, idx) => idx !== i) });
 
     const updateFooterLink = (i, field, value) => {
         set({ footerLinks: footerLinks.map((l, idx) => idx === i ? { ...l, [field]: value } : l) });
@@ -809,6 +862,10 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
                     <input value={form.businessName || ''} onChange={e => set({ businessName: e.target.value })} />
                     <label>Slogan</label>
                     <input value={form.slogan || ''} onChange={e => set({ slogan: e.target.value })} />
+                    <label>Frase corta (sobre el título)</label>
+                    <input placeholder="Ej. Grooming · Tienda · Guardería · Paseos" value={form.heroTagline || ''} onChange={e => set({ heroTagline: e.target.value })} />
+                    <label>Subtítulo (bajo el título)</label>
+                    <input placeholder="Ej. Baño, corte, arreglo de uñas y más." value={form.heroSubtitle || ''} onChange={e => set({ heroSubtitle: e.target.value })} />
                     <label>Logo</label>
                     <div className="ds-logo-upload">
                         {form.logoUrl && <img src={form.logoUrl} alt="Logo" className="ds-logo-preview" />}
@@ -889,6 +946,29 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
                     ))}
                 </div>
                 <button type="button" className="ds-btn ds-btn--secondary" onClick={addStep}>+ Agregar paso</button>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>⭐ ¿Por qué elegirnos?</h3>
+                <div className="ds-form-grid">
+                    <label>Título</label>
+                    <input value={form.whyUsTitle || ''} onChange={e => set({ whyUsTitle: e.target.value })} />
+                    <label>Subtítulo</label>
+                    <input value={form.whyUsSubtitle || ''} onChange={e => set({ whyUsSubtitle: e.target.value })}
+                        style={{ gridColumn: '1 / -1' }} />
+                </div>
+                <div className="ds-price-table" style={{ marginTop: 12 }}>
+                    {whyUsFeatures.map((f, i) => (
+                        <div key={i} className="ds-step-row">
+                            <input placeholder="Emoji" value={f.icon || ''} onChange={e => updateWhyUsFeature(i, 'icon', e.target.value)} style={{ width: 56 }} />
+                            <input placeholder="Título" value={f.title || ''} onChange={e => updateWhyUsFeature(i, 'title', e.target.value)} />
+                            <input placeholder="Descripción" value={f.desc || ''} onChange={e => updateWhyUsFeature(i, 'desc', e.target.value)} style={{ flex: 2 }} />
+                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeWhyUsFeature(i)}><FaTimes /></button>
+                        </div>
+                    ))}
+                    {whyUsFeatures.length === 0 && <p className="empty-td">Sin características — agrega las que quieras destacar.</p>}
+                </div>
+                <button type="button" className="ds-btn ds-btn--secondary" onClick={addWhyUsFeature}>+ Agregar característica</button>
             </section>
 
             <section className="ds-settings-block">

@@ -10,6 +10,7 @@ import {
     clientsApi,
     petsApi,
     salesApi,
+    expensesApi,
     appointmentsApi,
     settingsApi,
 } from '../api/apiClient';
@@ -25,6 +26,7 @@ export const DataProvider = ({ children }) => {
     const [clients,      setClients]      = useState([]);
     const [pets,         setPets]         = useState([]);
     const [sales,        setSales]        = useState([]);
+    const [expenses,     setExpenses]     = useState([]);
     const [appointments, setAppointments] = useState([]);
     const [settings,     setSettings]     = useState(null);
     const [loading,      setLoading]      = useState(true);
@@ -57,15 +59,17 @@ export const DataProvider = ({ children }) => {
                 try {
                     if (isAdmin) {
                         // Admin y empleado cargan todos los datos
-                        const [c, pe, sa, ap] = await Promise.all([
+                        const [c, pe, sa, ex, ap] = await Promise.all([
                             clientsApi.getAll(),
                             petsApi.getAll(),
                             salesApi.getAll(),
+                            expensesApi.getAll(),
                             appointmentsApi.getAll(),
                         ]);
                         setClients(c);
                         setPets(pe);
                         setSales(sa);
+                        setExpenses(ex);
                         setAppointments(ap);
                     } else {
                         // Cliente: solo carga appointments propias (ventas las carga Perfil.jsx directamente)
@@ -224,6 +228,18 @@ export const DataProvider = ({ children }) => {
         return saved;
     };
 
+    // ── EXPENSES ──────────────────────────────────────────────────────────────
+    const addExpense = async (data) => {
+        const created = await expensesApi.create(data);
+        setExpenses(prev => [created, ...prev]);
+        return created;
+    };
+
+    const deleteExpense = async (id) => {
+        await expensesApi.delete(id);
+        setExpenses(prev => prev.filter(e => e.id !== id));
+    };
+
     // ── SETTINGS ──────────────────────────────────────────────────────────────
     const updateSettings = async (data) => {
         const saved = await settingsApi.update(data);
@@ -264,7 +280,7 @@ export const DataProvider = ({ children }) => {
     return (
         <DataContext.Provider value={{
             // Estado
-            services, products, clients, pets, sales, appointments, settings,
+            services, products, clients, pets, sales, expenses, appointments, settings,
             loading, error,
 
             // CRUD Services
@@ -285,6 +301,9 @@ export const DataProvider = ({ children }) => {
 
             // CRUD Sales
             addSale, updateSale, patchSale,
+
+            // CRUD Expenses
+            addExpense, deleteExpense,
 
             // Settings
             updateSettings,

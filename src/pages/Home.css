@@ -478,6 +478,11 @@
     background: #74b9ff; border-color: #74b9ff; color: white;
     box-shadow: 0 4px 12px rgba(116,185,255,0.35);
 }
+.bx-time-slot--full {
+    background: #f8fafc; color: #cbd5e1; text-decoration: line-through;
+    cursor: not-allowed; border-color: #f1f5f9;
+}
+.bx-time-slot--full:hover { border-color: #f1f5f9; color: #cbd5e1; }
 
 .bx-error {
     background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e;
@@ -492,7 +497,7 @@
     background: #2d3446; color: white; font-weight: 800; font-size: 0.95rem;
     cursor: pointer; transition: all 0.3s; font-family: inherit;
 }
-.bx-btn-primary:hover:not(:disabled) { background: #74b9ff; box-shadow: 0 10px 24px rgba(116,185,255,0.3); transform: translateY(-2px); }
+.bx-btn-primary:hover:not(:disabled) { background: var(--color-accent, #74b9ff); box-shadow: 0 10px 24px rgba(116,185,255,0.3); transform: translateY(-2px); }
 .bx-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .bx-btn-secondary {

@@ -93,6 +93,9 @@ const Footer = () => {
                     <Link to="/aviso-privacidad">Aviso de Privacidad</Link>
                     <Link to="/terminos">Términos y Condiciones</Link>
                 </div>
+                <span className="footer-cibercom-badge">
+                    Hecho con 🐾 por <strong>CIBERCOM</strong>
+                </span>
             </div>
         </footer>
     );

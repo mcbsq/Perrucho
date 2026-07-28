@@ -3,10 +3,13 @@
    Importar en index.css con: @import './styles/tokens.css';
    ========================================================================== */
 :root {
-    /* ── Colores de marca ── */
+    /* ── Colores de marca ──
+       --brand-primary* se sobreescribe en tiempo de ejecución desde
+       Settings.primaryColor (ver src/utils/theme.js) — así el "Color
+       principal" elegido en Personalización sí se refleja en la interfaz. */
     --color-brand:        #2d3446;
-    --color-accent:       #74b9ff;
-    --color-accent-dark:  #185FA5;
+    --color-accent:       var(--brand-primary, #74b9ff);
+    --color-accent-dark:  var(--brand-primary-dark, #185FA5);
     --color-mint:         #55efc4;
     --color-mint-dark:    #1D9E75;
     --color-lavender:     #a29bfe;

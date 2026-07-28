@@ -251,7 +251,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    ========================================================================== */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px; margin-bottom: 28px;
 }
 
@@ -2156,4 +2156,26 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 @media (max-width: 480px) {
     .admin-cal-form-grid { grid-template-columns: 1fr; }
     .admin-cal-toolbar { flex-direction: column; align-items: flex-start; }
+}
+/* ── Nota de venta (recibo digital) ── */
+.receipt-sheet {
+    background: white; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 24px; max-width: 420px; margin: 0 auto;
+}
+.receipt-header { text-align: center; margin-bottom: 16px; }
+.receipt-header h3 { margin: 6px 0 2px; }
+.receipt-logo { max-height: 56px; max-width: 140px; object-fit: contain; margin: 0 auto; }
+.receipt-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; margin-bottom: 6px; }
+.receipt-items { margin: 16px 0; }
+.receipt-total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 1.15rem; font-weight: 800; border-top: 2px solid #2d3446;
+    padding-top: 10px; margin-top: 8px;
+}
+.receipt-footer { text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 16px; }
+
+@media print {
+    body * { visibility: hidden; }
+    #receipt-print-area, #receipt-print-area * { visibility: visible; }
+    #receipt-print-area { position: absolute; top: 0; left: 0; width: 100%; border: none; }
 }
