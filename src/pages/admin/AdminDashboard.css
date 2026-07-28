@@ -2179,3 +2179,20 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     #receipt-print-area, #receipt-print-area * { visibility: visible; }
     #receipt-print-area { position: absolute; top: 0; left: 0; width: 100%; border: none; }
 }
+
+/* ── Analíticos ── */
+.analytics-legend {
+    display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; font-size: 0.88rem; color: #64748b;
+}
+.analytics-legend span { display: flex; align-items: center; gap: 6px; }
+.analytics-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.ie-chart {
+    display: flex; align-items: flex-end; gap: 3px; height: 140px;
+    overflow-x: auto; padding-bottom: 4px;
+}
+.ie-chart-col { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 6px; }
+.ie-chart-bars { display: flex; align-items: flex-end; gap: 1px; height: 110px; }
+.ie-bar { width: 4px; border-radius: 2px 2px 0 0; min-height: 2px; }
+.ie-bar--income { background: #00b894; }
+.ie-bar--expense { background: #e63946; }
+.ie-chart-day { font-size: 0.65rem; color: #94a3b8; margin-top: 4px; }

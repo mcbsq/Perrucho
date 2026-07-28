@@ -884,6 +884,21 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
                     </div>
                     <label>Color principal</label>
                     <input type="color" value={form.primaryColor || '#4f46e5'} onChange={e => set({ primaryColor: e.target.value })} style={{ width: 60, padding: 2 }} />
+                    <label>Color secundario</label>
+                    <input type="color" value={form.secondaryColor || '#a29bfe'} onChange={e => set({ secondaryColor: e.target.value })} style={{ width: 60, padding: 2 }} />
+                    <label>Tipografía</label>
+                    <select value={form.fontFamily || 'system'} onChange={e => set({ fontFamily: e.target.value })}>
+                        <option value="system">Predeterminada (sistema)</option>
+                        <option value="rounded">Redondeada</option>
+                        <option value="serif">Serif (clásica)</option>
+                        <option value="mono">Monoespaciada</option>
+                    </select>
+                    <label>Tema por defecto</label>
+                    <select value={form.defaultTheme || 'auto'} onChange={e => set({ defaultTheme: e.target.value })}>
+                        <option value="auto">Automático (según el dispositivo)</option>
+                        <option value="light">Claro</option>
+                        <option value="dark">Oscuro</option>
+                    </select>
                 </div>
             </section>
 

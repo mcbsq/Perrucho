@@ -270,6 +270,12 @@ model Settings {
   heroSubtitle String  @default("Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.")
   logoUrl      String?
   primaryColor String  @default("#4f46e5")
+  // Personalización extendida: color secundario (acentos/gradientes), tipografía
+  // y el modo de tema (claro/oscuro/automático) que ve un visitante nuevo por
+  // defecto — el toggle del usuario en su propio navegador siempre tiene prioridad.
+  secondaryColor String  @default("#a29bfe")
+  fontFamily     String  @default("system")
+  defaultTheme   String  @default("auto") // 'light' | 'dark' | 'auto'
   // Imagen del hero (portada de inicio) — si está vacía se sigue mostrando
   // el video por defecto. Fondo de la pantalla de inicio de sesión/registro.
   heroImageUrl       String?

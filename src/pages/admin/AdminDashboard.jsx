@@ -15,6 +15,7 @@ import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
+import ThemeToggle from '../../components/shared/ThemeToggle';
 import * as XLSX from 'xlsx';
 import {
     FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers,
@@ -200,6 +201,119 @@ const WeeklyChart = ({sales}) => {
     const max=Math.max(...totals,1);
     const DAYS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     return <div className="weekly-chart-wrap"><div className="chart-bars">{totals.map((v,i)=><div key={i} className="chart-col"><span className="chart-val">{v>0?`$${v}`:''}</span><div className={`chart-bar ${i===tod?'today':''}`} style={{height:`${Math.max((v/max)*80,4)}px`}}/><span className="chart-day">{DAYS[i]}</span></div>)}</div></div>;
+};
+
+// ─── ANALÍTICOS (extendido) ────────────────────────────────────────────────────
+// Todo calculado en el cliente sobre sales/expenses/appointments/clients que
+// ya carga DataContext — sin endpoints nuevos. Rango configurable (7/30/90 días).
+const RANGE_OPTIONS = [{ days: 7, label: '7 días' }, { days: 30, label: '30 días' }, { days: 90, label: '90 días' }];
+
+const IncomeExpenseChart = ({ sales, expenses, days }) => {
+    const data = useMemo(() => {
+        const now = new Date();
+        const buckets = Array.from({ length: days }, (_, i) => {
+            const d = new Date(now); d.setDate(d.getDate() - (days - 1 - i));
+            return { date: d, income: 0, expense: 0 };
+        });
+        const idx = (d) => Math.floor((d - buckets[0].date) / 86400000);
+        sales.forEach(s => { const d = parseDate(s.date || s.createdAt); if (!d || isNaN(d)) return; const i = idx(d); if (i >= 0 && i < days) buckets[i].income += Number(getSaleAmount(s)) || 0; });
+        expenses.forEach(e => { const d = parseDate(e.date); if (!d || isNaN(d)) return; const i = idx(d); if (i >= 0 && i < days) buckets[i].expense += Number(e.amount) || 0; });
+        return buckets;
+    }, [sales, expenses, days]);
+    const max = Math.max(...data.map(d => Math.max(d.income, d.expense)), 1);
+    const totalIncome = data.reduce((a, d) => a + d.income, 0);
+    const totalExpense = data.reduce((a, d) => a + d.expense, 0);
+    const showLabels = days <= 30;
+    return (
+        <div>
+            <div className="analytics-legend">
+                <span><i style={{ background: '#00b894' }} /> Ingresos: <strong>${totalIncome.toLocaleString()}</strong></span>
+                <span><i style={{ background: '#e63946' }} /> Egresos: <strong>${totalExpense.toLocaleString()}</strong></span>
+                <span>Neto: <strong style={{ color: totalIncome - totalExpense >= 0 ? '#00b894' : '#e63946' }}>${(totalIncome - totalExpense).toLocaleString()}</strong></span>
+            </div>
+            <div className="ie-chart">
+                {data.map((d, i) => (
+                    <div key={i} className="ie-chart-col" title={`${d.date.toLocaleDateString('es-MX')} — Ingresos: $${d.income} / Egresos: $${d.expense}`}>
+                        <div className="ie-chart-bars">
+                            <div className="ie-bar ie-bar--income" style={{ height: `${(d.income / max) * 100}px` }} />
+                            <div className="ie-bar ie-bar--expense" style={{ height: `${(d.expense / max) * 100}px` }} />
+                        </div>
+                        {showLabels && days <= 14 && <span className="ie-chart-day">{d.date.getDate()}</span>}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const TopItemsRanking = ({ sales }) => {
+    const items = useMemo(() => {
+        const map = {};
+        sales.forEach(s => (s.items || [{ name: getSaleLabel(s), quantity: 1, price: getSaleAmount(s) }]).forEach(it => {
+            const name = it.name || it.product?.name || 'Otro';
+            if (!map[name]) map[name] = { qty: 0, total: 0 };
+            map[name].qty += Number(it.quantity) || 1;
+            map[name].total += Number(it.price) * (Number(it.quantity) || 1);
+        }));
+        return Object.entries(map).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+    }, [sales]);
+    const max = Math.max(...items.map(i => i[1].total), 1);
+    return (
+        <div className="service-chart">
+            {items.length === 0 ? <p className="empty-chart">Sin ventas todavía</p> : items.map(([name, v], i) => (
+                <div key={name} className="svc-bar-row">
+                    <span className="svc-bar-label">{i + 1}. {name}</span>
+                    <div className="svc-bar-track"><div className="svc-bar-fill" style={{ width: `${(v.total / max) * 100}%`, background: ['#74b9ff', '#a29bfe', '#55efc4', '#fdcb6e', '#ff7675'][i % 5] }} /></div>
+                    <span className="svc-bar-val">${v.total.toLocaleString()} <small className="muted-text">({v.qty}x)</small></span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const AnalyticsSection = ({ sales, expenses, appointments, clients, services }) => {
+    const [days, setDays] = useState(30);
+
+    const kpis = useMemo(() => {
+        const now = new Date();
+        const inRange = (d) => { const p = parseDate(d); return p && !isNaN(p) && (now - p) / 86400000 <= days; };
+        const rangeSales = sales.filter(s => inRange(s.date || s.createdAt));
+        const rangeAppts = appointments.filter(a => inRange(a.date));
+        const avgTicket = rangeSales.length ? rangeSales.reduce((a, s) => a + Number(getSaleAmount(s)), 0) / rangeSales.length : 0;
+        const canceled = rangeAppts.filter(a => a.status === 'Cancelada').length;
+        const cancelRate = rangeAppts.length ? (canceled / rangeAppts.length) * 100 : 0;
+        const newClients = clients.filter(c => inRange(c.createdAt)).length;
+        return { avgTicket, cancelRate, newClients, totalAppts: rangeAppts.length, totalClients: clients.length };
+    }, [sales, appointments, clients, days]);
+
+    return (
+        <div className="fade-in">
+            <div className="page-header"><h2>Analíticos</h2><p>Ingresos, egresos y desempeño del negocio</p></div>
+            <div className="modal-filters" style={{ marginBottom: 20 }}>
+                {RANGE_OPTIONS.map(r => <button key={r.days} className={`pill-btn ${days === r.days ? 'active' : ''}`} onClick={() => setDays(r.days)}>{r.label}</button>)}
+            </div>
+            <div className="stats-grid">
+                <div className="stat-card stat-card--blue"><span className="stat-label">Ticket promedio</span><span className="stat-value">${kpis.avgTicket.toFixed(0)}</span></div>
+                <div className="stat-card stat-card--red"><span className="stat-label">Tasa de cancelación</span><span className="stat-value">{kpis.cancelRate.toFixed(0)}%</span></div>
+                <div className="stat-card stat-card--purple"><span className="stat-label">Clientes nuevos</span><span className="stat-value">{kpis.newClients}</span></div>
+                <div className="stat-card stat-card--teal"><span className="stat-label">Citas en el rango</span><span className="stat-value">{kpis.totalAppts}</span></div>
+            </div>
+            <div className="control-lower-grid">
+                <div className="panel-card" style={{ gridColumn: '1 / -1' }}>
+                    <div className="panel-card-header"><h4><FaDollarSign/> Ingresos vs egresos ({RANGE_OPTIONS.find(r => r.days === days).label})</h4></div>
+                    <IncomeExpenseChart sales={sales} expenses={expenses} days={days} />
+                </div>
+                <div className="panel-card">
+                    <div className="panel-card-header"><h4><FaChartBar/> Más vendidos</h4></div>
+                    <TopItemsRanking sales={sales.filter(s => { const now = new Date(); const p = parseDate(s.date || s.createdAt); return p && !isNaN(p) && (now - p) / 86400000 <= days; })} />
+                </div>
+                <div className="panel-card">
+                    <div className="panel-card-header"><h4><FaChartBar/> Servicios por categoría</h4></div>
+                    <ServiceChart sales={sales} services={services} />
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
@@ -815,6 +929,7 @@ const AdminDashboard = () => {
 
     const NAV=[
         {id:'control',icon:<FaTachometerAlt/>,label:'Panel'},
+        {id:'analiticos',icon:<FaChartBar/>,label:'Analíticos'},
         {id:'pos',icon:<FaCashRegister/>,label:'Venta'},
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
         ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
@@ -908,6 +1023,7 @@ const AdminDashboard = () => {
                     </div>}
                 </div>
                 <div className="topbar-right">
+                    <ThemeToggle/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <div className="user-pill"><FaUserShield/><span>{user?.name}</span></div>
                     <button className="logout-pill" onClick={logout}><FaSignOutAlt/></button>
@@ -937,6 +1053,8 @@ const AdminDashboard = () => {
                         <div className="panel-card"><div className="panel-card-header"><h4><FaDollarSign/> Ventas esta semana</h4></div><WeeklyChart sales={sales}/></div>
                     </div>
                 </div>}
+
+                {tab==='analiticos'&&<AnalyticsSection sales={sales} expenses={expenses} appointments={appointments} clients={clients} services={services}/>}
 
                 {tab==='pos'&&<div className="fade-in">
                     <div className="page-header"><h2>Punto de venta</h2></div>
