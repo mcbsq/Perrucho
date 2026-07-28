@@ -35,11 +35,6 @@ const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAY_NAMES   = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
 
-const todayISO = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-
 // ─── Mini Calendario ──────────────────────────────────────────────────────────
 const MiniCalendar = ({ selectedDate, onSelect }) => {
     const today = new Date();
@@ -148,19 +143,23 @@ const ServiceModal = ({ service, onClose }) => {
             const petName = selectedPet?.petName || 'Sin mascota';
             // FIX: el cliente solo sugiere el día — sin hora exacta.
             // El groomer fija la hora desde su calendario (EmployeeDashboard).
+            // FIX: petName/serviceName/paymentMethod/assignedTo NO son columnas
+            // del modelo Appointment en Prisma (ver prisma/schema.prisma) — al
+            // enviarlas, prisma.appointment.create() lanzaba
+            // PrismaClientValidationError y el backend respondía "Error del
+            // servidor" (bug reportado: no se podía agendar con registro
+            // completo, aunque cita rápida sí funcionaba porque ese flujo en
+            // Home.jsx nunca mandó esos campos). petId/serviceId ya alcanzan
+            // para que el include del backend resuelva nombre de mascota y
+            // servicio.
             await appointmentsApi.create({
                 petId:       bookingData.petId ? Number(bookingData.petId) : null,
-                petName,
                 serviceId:   service.id,
-                serviceName: service.title,
                 clientId:    user?.id || null,
                 date:        bookingData.date,
                 time:        '', // el groomer la asigna al confirmar
                 status:      'Pendiente',
                 finalPrice,
-                paymentMethod: '',
-                assignedTo:  '',
-                createdAt:   todayISO(),
             });
             setSavedBooking({
                 clientName:  user?.name || 'Cliente',

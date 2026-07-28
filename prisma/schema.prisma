@@ -62,12 +62,16 @@ model User {
   // Valores de los campos extra configurados en Settings.clientExtraFields
   // (varían según el giro del negocio, ej. podología vs. estética canina)
   extraData Json     @default("{}")
+  // "Olvidé mi contraseña" — token de un solo uso con expiración (1h)
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
 
   // Relaciones
   pets              Pet[]
   appointments      Appointment[]        // citas donde este user es el cliente
   assignedAppointments Appointment[]     @relation("AssignedEmployee")
   sales             Sale[]
+  expenses          Expense[]
 }
 
 // ─────────────────────────────────────────────
@@ -191,6 +195,22 @@ model AppointmentExtra {
 }
 
 // ─────────────────────────────────────────────
+// EXPENSE (egresos/gastos — Panel de control solo mostraba ingresos)
+// ─────────────────────────────────────────────
+
+model Expense {
+  id        Int      @id @default(autoincrement())
+  concept   String
+  amount    Int
+  category  String   @default("Otro")
+  notes     String?
+  date      DateTime @default(now())
+  createdBy Int?
+
+  creator User? @relation(fields: [createdBy], references: [id])
+}
+
+// ─────────────────────────────────────────────
 // SALE
 // ─────────────────────────────────────────────
 
@@ -244,6 +264,10 @@ model Settings {
   // ── Personalización (branding) ──────────────────────────────────────────
   businessName String  @default("Taylor's Pet Services")
   slogan       String  @default("El servicio que tú y tu mejor amigo merecen")
+  // Línea pequeña sobre el título del hero (ej. "Grooming · Tienda · Guardería · Paseos")
+  // y el párrafo debajo del título — antes hardcodeados en Home.jsx.
+  heroTagline  String  @default("Grooming · Tienda · Guardería · Paseos")
+  heroSubtitle String  @default("Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.")
   logoUrl      String?
   primaryColor String  @default("#4f46e5")
   // Imagen del hero (portada de inicio) — si está vacía se sigue mostrando
@@ -257,6 +281,11 @@ model Settings {
   howItWorksSteps Json @default("[]") // [{ icon, imageUrl, title, description }]
   // Logros/estadísticas — lista libre, el admin agrega/quita las que quiera.
   stats Json @default("[{\"value\":\"4000+\",\"label\":\"CLIENTES FELICES\",\"icon\":\"😊\"},{\"value\":\"5★\",\"label\":\"CALIFICACIÓN\",\"icon\":\"⭐\"},{\"value\":\"3\",\"label\":\"ESPECIALISTAS\",\"icon\":\"👨‍⚕️\"},{\"value\":\"10+\",\"label\":\"AÑOS DE EXPERIENCIA\",\"icon\":\"🏆\"}]") // [{ value, label, icon }]
+
+  // ── "¿Por qué elegirnos?" — antes hardcodeado en Home.jsx (WhyUsSection/FEATURES) ──
+  whyUsTitle    String @default("¿Por qué elegirnos?")
+  whyUsSubtitle String @default("Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.")
+  whyUsFeatures Json   @default("[{\"icon\":\"✂️\",\"title\":\"Estética premium\",\"desc\":\"Cortes, baños y tratamientos con productos cosméticos de alta gama garantizando calidad y cuidado.\"},{\"icon\":\"🛍️\",\"title\":\"Venta de alimento\",\"desc\":\"Alimento de calidad a la puerta de tu casa. Pregunta por nuestro servicio a domicilio.\"},{\"icon\":\"🐕\",\"title\":\"Servicio de paseos\",\"desc\":\"Tu mejor amigo merece ejercicio y diversión. Contamos con paseadores certificados.\"},{\"icon\":\"📅\",\"title\":\"Agenda en línea\",\"desc\":\"Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.\"}]") // [{ icon, title, desc }]
 
   // ── Footer editable ──────────────────────────────────────────────────────
   footerLinks Json @default("[]") // [{ label, url }]

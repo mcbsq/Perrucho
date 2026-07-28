@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
 import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
+import { appointmentsApi } from '../api/apiClient';
 // Logo: pon tu archivo como src/assets/logo.png para activarlo
 // import logoTPS from '../assets/logo.png';
 const logoTPS = null;
@@ -69,6 +70,20 @@ const BookingExpressModal = ({ onClose, settings }) => {
         ownerName: '', ownerPhone: '', petName: '', breed: '', age: '', weight: '',
         date: '', time: '',
     });
+    const [fullSlots, setFullSlots] = useState([]);
+    const [slotsLoading, setSlotsLoading] = useState(false);
+
+    // Consulta qué horarios ya están llenos ese día — sin esto, el selector
+    // mostraba todos los horarios como disponibles aunque ya tuvieran cita
+    // (bug reportado por clientes reales de Taylor's).
+    useEffect(() => {
+        if (!form.date) { setFullSlots([]); return; }
+        setSlotsLoading(true);
+        appointmentsApi.getAvailability(form.date)
+            .then(res => setFullSlots(res.fullSlots || []))
+            .catch(() => setFullSlots([]))
+            .finally(() => setSlotsLoading(false));
+    }, [form.date]);
 
     const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -181,14 +196,20 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         </div>
                         <div className="bx-field">
                             <label>Horario *</label>
+                            {slotsLoading && <small className="field-hint">Consultando disponibilidad...</small>}
                             <div className="bx-time-grid">
-                                {availableTimes.map(t => (
-                                    <button key={t} type="button"
-                                        className={`bx-time-slot ${form.time === t ? 'active' : ''}`}
-                                        onClick={() => setForm(prev => ({ ...prev, time: t }))}>
-                                        {t}
-                                    </button>
-                                ))}
+                                {availableTimes.map(t => {
+                                    const isFull = fullSlots.includes(t);
+                                    return (
+                                        <button key={t} type="button"
+                                            className={`bx-time-slot ${form.time === t ? 'active' : ''} ${isFull ? 'bx-time-slot--full' : ''}`}
+                                            disabled={isFull}
+                                            title={isFull ? 'Sin disponibilidad' : t}
+                                            onClick={() => setForm(prev => ({ ...prev, time: t }))}>
+                                            {t}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                         {error && <p className="bx-error">{error}</p>}
@@ -330,23 +351,26 @@ const FEATURES = [
     { icon: '📅', title: 'Agenda en línea',           desc: 'Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.' },
 ];
 
-const WhyUsSection = () => (
-    <section className="content-section why-us-section">
-        <h3>¿Por qué elegirnos?</h3>
-        <p className="section-sub">
-            Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.
-        </p>
-        <div className="features-grid">
-            {FEATURES.map(f => (
-                <div className="feature-card" key={f.title}>
-                    <div className="feature-icon">{f.icon}</div>
-                    <h4>{f.title}</h4>
-                    <p>{f.desc}</p>
-                </div>
-            ))}
-        </div>
-    </section>
-);
+const WhyUsSection = ({ settings }) => {
+    const features = settings?.whyUsFeatures?.length ? settings.whyUsFeatures : FEATURES;
+    return (
+        <section className="content-section why-us-section">
+            <h3>{settings?.whyUsTitle || '¿Por qué elegirnos?'}</h3>
+            <p className="section-sub">
+                {settings?.whyUsSubtitle || 'Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.'}
+            </p>
+            <div className="features-grid">
+                {features.map((f, i) => (
+                    <div className="feature-card" key={f.title || i}>
+                        <div className="feature-icon">{f.icon}</div>
+                        <h4>{f.title}</h4>
+                        <p>{f.desc}</p>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+};
 
 // ─── Card de producto destacado ───────────────────────────────────────────────
 const ProductCard = ({ item }) => {
@@ -425,10 +449,10 @@ const Home = () => {
                         ? <img src={settings?.logoUrl || logoTPS} alt={settings?.businessName || "Taylor's Pet Services"} className="hero-logo" />
                         : <p className="hero-brand-name">{settings?.businessName || "Taylor's Pet Services"}</p>
                     }
-                    <p className="hero-tagline">Grooming · Tienda · Guardería · Paseos</p>
+                    <p className="hero-tagline">{settings?.heroTagline || 'Grooming · Tienda · Guardería · Paseos'}</p>
                     <h1 className="hero-title">{settings?.slogan || 'El servicio que tú y tu mejor amigo merecen'}</h1>
                     <p className="hero-subtitle">
-                        Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.
+                        {settings?.heroSubtitle || 'Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.'}
                     </p>
                     <div className="hero-actions">
                         <button className="reserve-button hero-cta-main" onClick={() => authAction('/servicios')}>
@@ -479,7 +503,7 @@ const Home = () => {
             </section>
 
             {/* ── ¿POR QUÉ NOSOTROS? ── */}
-            <WhyUsSection />
+            <WhyUsSection settings={settings} />
 
             {/* ── PRODUCTOS DESTACADOS ── */}
             <section className="content-section">

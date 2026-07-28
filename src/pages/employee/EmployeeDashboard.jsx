@@ -9,6 +9,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
+import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import {
     FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt,
     FaNotesMedical, FaClock, FaTimes, FaSave,
@@ -397,12 +398,20 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
     </>;
 };
 
+const EMPLOYEE_ONBOARDING_STEPS=[
+    {icon:'👋',title:'¡Bienvenido!',description:'Este es tu panel de trabajo diario. Te mostramos rápido las secciones principales.'},
+    {icon:'📅',title:'Agenda',description:'Aquí ves y confirmas las citas del día, asignas horarios y marcas el avance de cada servicio.'},
+    {icon:'🐾',title:'Clientes y Pacientes',description:'Consulta y registra clientes y sus mascotas cuando lo necesites.'},
+    {icon:'🧾',title:'Punto de venta',description:'Registra cobros de productos y servicios, y genera la nota de venta (recibo) al finalizar.'},
+];
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const EmployeeDashboard = () => {
     const {products,pets,clients,services,settings,addClient,updateClient,addPet,updatePet,addSale,updateProduct,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
     const {notify, NotifyNode} = useNotify();
+    const {show:showOnboarding,dismiss:dismissOnboarding,reopen:reopenOnboarding}=useOnboarding('employee',user?.id);
 
     const [tab,setTab]=useState('agenda');
     const [searchTerm,setSearchTerm]=useState('');
@@ -740,10 +749,13 @@ const EmployeeDashboard = () => {
                     </div>}
                 </div>
                 <div className="emp-topbar-right">
+                    <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <span className="emp-greeting"><FaUserTie/> Hola, <strong>{user?.name||'Empleado'}</strong></span>
                     <button className="emp-logout-btn" onClick={logout}><FaSignOutAlt/></button>
                 </div>
             </header>
+
+            {showOnboarding && <OnboardingTour steps={EMPLOYEE_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
             <aside className="emp-sidebar">
                 <nav className="emp-sidebar-nav">{NAV.map(item=><button key={item.id} className={`emp-nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');}} title={item.label}>{item.icon}<span className="emp-nav-label">{item.label}</span></button>)}</nav>

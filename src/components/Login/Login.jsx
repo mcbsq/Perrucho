@@ -105,6 +105,10 @@ const Login = () => {
                         />
                     </div>
 
+                    <div className="login-forgot">
+                        <Link to="/olvide-contrasena">¿Olvidaste tu contraseña?</Link>
+                    </div>
+
                     <button
                         type="submit"
                         className="login-button"

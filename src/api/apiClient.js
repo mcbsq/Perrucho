@@ -84,6 +84,12 @@ export const authApi = {
 
   me: () =>
     api.get('/me'),
+
+  forgotPassword: (email) =>
+    api.post('/auth/forgot-password', { email }),
+
+  resetPassword: (token, newPassword) =>
+    api.post('/auth/reset-password', { token, newPassword }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,6 +164,9 @@ export const appointmentsApi = {
   getById:      (id)          => api.get(`/appointments/${encodeURIComponent(id)}`),
   getByClient:  (clientId)    => api.get(`/appointments?clientId=${encodeURIComponent(clientId)}`),
   getByDate:    (date)        => api.get(`/appointments?date=${encodeURIComponent(date)}`),
+  // Pública — no requiere sesión (la usa el booking express para saber qué
+  // horarios ya están llenos sin exponer datos de otras citas).
+  getAvailability: (date)      => api.get(`/appointments/availability?date=${encodeURIComponent(date)}`),
   create:       (data)        => api.post('/appointments', data),
   update:       (id, data)    => api.put(`/appointments/${encodeURIComponent(id)}`, data),
   patch:        (id, data)    => api.patch(`/appointments/${encodeURIComponent(id)}`, data),
@@ -181,6 +190,15 @@ export const salesApi = {
   update:  (id, data)    => api.put(`/sales/${encodeURIComponent(id)}`, data),
   patch:   (id, data)    => api.patch(`/sales/${encodeURIComponent(id)}`, data),
   delete:  (id)          => api.delete(`/sales/${encodeURIComponent(id)}`),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPENSES (egresos/gastos)
+// ─────────────────────────────────────────────────────────────────────────────
+export const expensesApi = {
+  getAll: () => api.get('/expenses'),
+  create: (data) => api.post('/expenses', data),
+  delete: (id) => api.delete(`/expenses/${encodeURIComponent(id)}`),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

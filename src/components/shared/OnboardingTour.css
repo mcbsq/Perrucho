@@ -1,0 +1,38 @@
+/* src/components/shared/OnboardingTour.css */
+.onboarding-overlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 5000; padding: 20px; backdrop-filter: blur(2px);
+}
+.onboarding-card {
+    background: white; border-radius: 24px; padding: 32px 28px 24px;
+    max-width: 380px; width: 100%; text-align: center; position: relative;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.25);
+    animation: onboarding-pop 0.25s ease;
+}
+@keyframes onboarding-pop {
+    from { opacity: 0; transform: scale(0.92) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.onboarding-close {
+    position: absolute; top: 14px; right: 14px; background: #f1f2f6; border: none;
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer; color: #636e72;
+    display: flex; align-items: center; justify-content: center;
+}
+.onboarding-icon { font-size: 2.6rem; margin-bottom: 8px; }
+.onboarding-card h3 { margin: 0 0 8px; font-size: 1.15rem; }
+.onboarding-card p { margin: 0 0 18px; color: #636e72; font-size: 0.92rem; line-height: 1.5; }
+.onboarding-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 20px; }
+.onboarding-dot { width: 7px; height: 7px; border-radius: 50%; background: #e2e8f0; transition: all 0.2s; }
+.onboarding-dot.active { background: var(--color-accent, #74b9ff); width: 20px; border-radius: 4px; }
+.onboarding-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.onboarding-skip { background: none; border: none; color: #94a3b8; font-weight: 600; cursor: pointer; margin-right: auto; font-size: 0.85rem; }
+.onboarding-btn { border: none; border-radius: 12px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
+.onboarding-btn--primary { background: var(--color-accent, #74b9ff); color: white; }
+.onboarding-btn--secondary { background: #f1f2f6; color: #636e72; }
+
+.onboarding-help-btn {
+    background: none; border: none; color: #94a3b8; font-size: 1.15rem;
+    cursor: pointer; display: flex; align-items: center; padding: 6px;
+}
+.onboarding-help-btn:hover { color: var(--color-accent, #74b9ff); }

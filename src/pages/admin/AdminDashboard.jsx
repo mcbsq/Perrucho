@@ -14,6 +14,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
+import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import * as XLSX from 'xlsx';
 import {
     FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers,
@@ -22,7 +23,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaExclamationTriangle, FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaWhatsapp
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -406,7 +407,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
 };
 
 // ─── Modales de reporte ───────────────────────────────────────────────────────
-const SalesModal = ({sales,onClose}) => {
+const SalesModal = ({sales,onClose,onShowReceipt}) => {
     const now=new Date();
     const months=Array.from({length:4},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-i,1);return{label:`${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`,year:d.getFullYear(),month:d.getMonth()};});
     const [sel,setSel]=useState(0);
@@ -417,8 +418,107 @@ const SalesModal = ({sales,onClose}) => {
     return <Modal title="Ventas del mes" onClose={onClose} wide>
         <div className="modal-filters">{months.map((m,i)=><button key={i} className={`pill-btn ${sel===i?'active':''}`} onClick={()=>setSel(i)}>{m.label}</button>)}<button className="pill-btn export-btn" onClick={exportExcel}><FaFileExcel/> Exportar</button></div>
         <div className="modal-summary-row"><span>Total</span><span className="modal-total">${total.toLocaleString()}</span></div>
-        <table className="modal-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Método</th><th>Estado</th><th>Monto</th></tr></thead>
-        <tbody>{filtered.length===0?<tr><td colSpan="5" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=><tr key={s.id}><td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.paymentMethod||'efectivo'}</td><td>{s.status||'pagado'}</td><td className="td-amount">${Number(getSaleAmount(s)).toLocaleString()}</td></tr>)}</tbody></table>
+        <table className="modal-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Método</th><th>Estado</th><th>Monto</th><th></th></tr></thead>
+        <tbody>{filtered.length===0?<tr><td colSpan="6" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=><tr key={s.id}><td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.paymentMethod||'efectivo'}</td><td>{s.status||'pagado'}</td><td className="td-amount">${Number(getSaleAmount(s)).toLocaleString()}</td><td><button type="button" className="ds-btn-icon" title="Ver recibo" onClick={()=>onShowReceipt(s)}><FaReceipt/></button></td></tr>)}</tbody></table>
+    </Modal>;
+};
+
+// ─── NOTA DE VENTA (recibo digital) — punto 9 del feedback del cliente ────────
+// Se imprime/guarda como PDF con Ctrl+P (window.print), sin depender de
+// ninguna librería nueva. #receipt-print-area es lo único visible al imprimir
+// (ver regla @media print en AdminDashboard.css).
+const ReceiptModal = ({sale,settings,client,onClose}) => {
+    const items=sale.items?.length?sale.items:[{name:getSaleLabel(sale),quantity:1,price:getSaleAmount(sale)}];
+    const total=getSaleAmount(sale);
+    const dateObj=new Date(sale.date||sale.createdAt||Date.now());
+    const clientName=client?.name||sale.client?.name||'Cliente mostrador';
+    const clientPhone=client?.phone||sale.client?.phone;
+
+    const handleWhatsApp=()=>{
+        const lines=items.map(i=>`• ${i.quantity}x ${i.name} — $${Number(i.price*i.quantity).toLocaleString()}`).join('\n');
+        const msg=`🧾 *Nota de venta — ${settings?.businessName||"Taylor's Pet Services"}*\n\n${lines}\n\n*Total: $${Number(total).toLocaleString()}*\nFecha: ${dateObj.toLocaleDateString('es-MX')}\nMétodo de pago: ${sale.paymentMethod||'efectivo'}\n\n¡Gracias por tu preferencia! 🐾`;
+        const phone=(clientPhone||'').replace(/\D/g,'');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+    };
+
+    return <Modal title="🧾 Nota de venta" onClose={onClose}>
+        <div id="receipt-print-area" className="receipt-sheet">
+            <div className="receipt-header">
+                {settings?.logoUrl && <img src={settings.logoUrl} alt="" className="receipt-logo"/>}
+                <h3>{settings?.businessName||"Taylor's Pet Services"}</h3>
+                <p className="muted-text">{settings?.businessAddress}</p>
+                <p className="muted-text">{settings?.whatsappNumber}</p>
+            </div>
+            <div className="receipt-meta">
+                <span>Folio #{sale.id}</span>
+                <span>{dateObj.toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}</span>
+            </div>
+            <div className="receipt-meta">
+                <span>Cliente: {clientName}</span>
+                <span>Pago: {sale.paymentMethod||'efectivo'}</span>
+            </div>
+            <table className="modal-table receipt-items">
+                <thead><tr><th>Concepto</th><th>Cant.</th><th>Precio</th></tr></thead>
+                <tbody>{items.map((i,idx)=><tr key={idx}><td>{i.name||i.product?.name}</td><td>{i.quantity}</td><td className="td-amount">${Number(i.price*i.quantity).toLocaleString()}</td></tr>)}</tbody>
+            </table>
+            <div className="receipt-total-row"><span>TOTAL</span><strong>${Number(total).toLocaleString()}</strong></div>
+            <p className="receipt-footer">¡Gracias por confiar en nosotros! 🐾</p>
+        </div>
+        <div className="form-actions form-actions--end" style={{marginTop:16}}>
+            {clientPhone && <button className="btn-secondary" onClick={handleWhatsApp}><FaWhatsapp/> Enviar por WhatsApp</button>}
+            <button className="btn-primary" onClick={()=>window.print()}><FaReceipt/> Imprimir / Guardar PDF</button>
+        </div>
+    </Modal>;
+};
+
+const ADMIN_ONBOARDING_STEPS=[
+    {icon:'👋',title:'¡Bienvenido a Taylor\'s!',description:'Este es tu panel de administrador. Te mostramos rápido cómo moverte por el sistema.'},
+    {icon:'📊',title:'Panel de control',description:'Aquí ves tus ventas, egresos, citas del día y clientes de un vistazo. Toca cada tarjeta para ver el detalle.'},
+    {icon:'🧾',title:'Punto de venta',description:'Desde "Venta" registras cobros de productos y servicios, y generas la nota de venta (recibo digital) al terminar.'},
+    {icon:'🐾',title:'Clientes, Pacientes y Agenda',description:'Administra clientes y mascotas, y desde "Citas hoy" abres la agenda para asignar horarios.'},
+    {icon:'✂️',title:'Servicios e Inventario',description:'Da de alta tus servicios (con precio por tamaño o personalizado) y productos con su stock.'},
+    {icon:'🎨',title:'Personalización',description:'En "Sitio" puedes cambiar el logo, colores, textos del inicio y más — sin tocar código.'},
+];
+const EXPENSE_CATEGORIES=['Renta','Servicios','Insumos','Nómina','Mantenimiento','Otro'];
+const ExpensesModal = ({expenses,onClose,onAdd,onDelete}) => {
+    const now=new Date();
+    const months=Array.from({length:4},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-i,1);return{label:`${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`,year:d.getFullYear(),month:d.getMonth()};});
+    const [sel,setSel]=useState(0);
+    const {year,month}=months[sel];
+    const filtered=expenses.filter(e=>isSameMonth(e.date,year,month));
+    const total=filtered.reduce((a,e)=>a+Number(e.amount),0);
+
+    const [form,setForm]=useState({concept:'',amount:'',category:'Otro'});
+    const [saving,setSaving]=useState(false);
+    const handleAdd=async(e)=>{
+        e.preventDefault();
+        if(!form.concept||!form.amount)return;
+        setSaving(true);
+        try{await onAdd({...form,amount:Number(form.amount)});setForm({concept:'',amount:'',category:'Otro'});}
+        finally{setSaving(false);}
+    };
+
+    return <Modal title="Egresos / gastos" onClose={onClose} wide>
+        <form onSubmit={handleAdd} className="modal-filters" style={{flexWrap:'wrap',gap:8,marginBottom:12}}>
+            <input placeholder="Concepto (ej. Renta local)" value={form.concept} onChange={e=>setForm({...form,concept:e.target.value})} style={{flex:2,minWidth:160}} className="date-input" required/>
+            <input type="number" placeholder="Monto" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} style={{flex:1,minWidth:100}} className="date-input" required/>
+            <select value={form.category} onChange={e=>setForm({...form,category:e.target.value})} className="date-input" style={{flex:1,minWidth:120}}>
+                {EXPENSE_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+            <button type="submit" className="pill-btn export-btn" disabled={saving}>{saving?'Guardando...':'+ Agregar'}</button>
+        </form>
+        <div className="modal-filters">{months.map((m,i)=><button key={i} className={`pill-btn ${sel===i?'active':''}`} onClick={()=>setSel(i)}>{m.label}</button>)}</div>
+        <div className="modal-summary-row"><span>Total</span><span className="modal-total" style={{color:'#e63946'}}>${total.toLocaleString()}</span></div>
+        <table className="modal-table"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Monto</th><th></th></tr></thead>
+        <tbody>{filtered.length===0?<tr><td colSpan="5" className="empty-td">Sin egresos este mes</td></tr>:filtered.map(e=>
+            <tr key={e.id}>
+                <td>{new Date(e.date).toLocaleDateString('es-MX')}</td>
+                <td>{e.concept}</td>
+                <td>{e.category}</td>
+                <td className="td-amount">${Number(e.amount).toLocaleString()}</td>
+                <td><button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={()=>onDelete(e.id)}><FaTrashAlt/></button></td>
+            </tr>
+        )}</tbody></table>
     </Modal>;
 };
 
@@ -455,10 +555,11 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
+    const {services,products,pets,clients,sales,expenses,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast}=useToast();
     const {notify, NotifyNode} = useNotify();
+    const {show:showOnboarding,dismiss:dismissOnboarding,reopen:reopenOnboarding}=useOnboarding('admin',user?.id);
 
     const [tab,setTab]=useState('control');
     const [searchTerm,setSearchTerm]=useState('');
@@ -491,18 +592,21 @@ const AdminDashboard = () => {
     const [posPaymentMethod,setPosPaymentMethod]=useState('efectivo');
     const [posSaleStatus,setPosSaleStatus]=useState('pagado');
     const [showCheckout,setShowCheckout]=useState(false);
+    const [receiptSale,setReceiptSale]=useState(null);
 
     const now=new Date(),todayStr_=todayISO();
     const stats=useMemo(()=>{
         const ms=sales.filter(s=>isSameMonth(s.date||s.createdAt,now.getFullYear(),now.getMonth()));
+        const me=expenses.filter(e=>isSameMonth(e.date,now.getFullYear(),now.getMonth()));
         const ta=appointments.filter(a=>a.date===todayStr_);
         return{
             monthSales:ms.reduce((a,s)=>a+Number(getSaleAmount(s)),0),
+            monthExpenses:me.reduce((a,e)=>a+Number(e.amount),0),
             appointmentsCount:ta.length,
             totalClients:clients.length,
             lowStock:products.filter(p=>Number(p.stock)<5).length
         };
-    },[sales,appointments,clients,products,todayStr_]);
+    },[sales,expenses,appointments,clients,products,todayStr_]);
 
     // ── POS con nuevo formato de addSale ──────────────────────────────────────
     // item.variantName distingue líneas de carrito de un mismo producto con
@@ -531,7 +635,7 @@ const AdminDashboard = () => {
         try{
             const allProducts = cart.every(i=>i.type==='product');
             const allServices = cart.every(i=>i.type==='service');
-            await addSale({
+            const savedSale = await addSale({
                 items: cart.map(i=>({
                     name:      i.name||i.title,
                     price:     i.price,
@@ -539,7 +643,10 @@ const AdminDashboard = () => {
                     productId: i.type==='product' ? i.id : undefined,
                 })),
                 total:         +cartTotal.toFixed(2),
-                clientId:      posClientId||null,
+                // FIX: <select> siempre da string — Prisma exige Int para
+                // clientId y tronaba con "Error del servidor" cada vez que
+                // se elegía un cliente en el checkout del POS.
+                clientId:      posClientId?Number(posClientId):null,
                 type:          allProducts?'product':allServices?'service':'mixed',
                 paymentMethod: posPaymentMethod,
                 status:        posSaleStatus,
@@ -559,6 +666,7 @@ const AdminDashboard = () => {
             }
             setCart([]);setPosClientId('');setShowCheckout(false);
             addToast('¡Venta procesada!','success');
+            setReceiptSale(savedSale);
         }catch(err){addToast(`Error al procesar: ${err.message}`,'error');}
     };
 
@@ -570,6 +678,13 @@ const AdminDashboard = () => {
     const handleSaveProduct=async(form)=>{try{form.id?await updateProduct(form.id,form):await addProduct(form);addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);}addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveSettings=async(form)=>{try{const {id,...data}=form;await updateSettings(data);addToast('Configuración guardada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+
+    const handleAddExpense=async(data)=>{try{await addExpense(data);addToast('Egreso agregado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleDeleteExpense=async(id)=>{
+        const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:'¿Eliminar este egreso?',message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
+        if(!ok)return;
+        try{await deleteExpense(id);addToast('Egreso eliminado','info');}catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
 
     const handleDelete=async(type,id,label)=>{
         const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:`¿Eliminar "${label}"?`,message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
@@ -714,7 +829,9 @@ const AdminDashboard = () => {
             <div className="toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {NotifyNode}
 
-            {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)}/>}
+            {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)} onShowReceipt={setReceiptSale}/>}
+            {receiptSale &&<ReceiptModal sale={receiptSale} settings={settings} client={clients.find(c=>String(c.id)===String(receiptSale.clientId))} onClose={()=>setReceiptSale(null)}/>}
+            {activeModal==='egresos'  &&<ExpensesModal expenses={expenses} onClose={()=>setActiveModal(null)} onAdd={handleAddExpense} onDelete={handleDeleteExpense}/>}
             {activeModal==='clientes' &&<ClientsReportModal sales={sales} clients={clients} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='stock'    &&<StockModal products={products} onClose={()=>setActiveModal(null)}/>}
 
@@ -791,10 +908,13 @@ const AdminDashboard = () => {
                     </div>}
                 </div>
                 <div className="topbar-right">
+                    <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <div className="user-pill"><FaUserShield/><span>{user?.name}</span></div>
                     <button className="logout-pill" onClick={logout}><FaSignOutAlt/></button>
                 </div>
             </header>
+
+            {showOnboarding && <OnboardingTour steps={ADMIN_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
             <aside className="admin-sidebar">
                 <nav className="sidebar-nav">{NAV.map(item=><button key={item.id} className={`nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');setSearchFocus(false);}} title={item.label}>{item.icon}<span className="nav-label">{item.label}</span></button>)}</nav>
@@ -807,6 +927,7 @@ const AdminDashboard = () => {
                     <div className="page-header"><h2>Panel de control</h2><p>{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</p></div>
                     <div className="stats-grid">
                         <div className="stat-card stat-card--blue clickable" onClick={()=>setActiveModal('ventas')}><span className="stat-label">Ventas del mes</span><span className="stat-value">${stats.monthSales.toLocaleString()}</span><span className="stat-hint">Ver detalle →</span></div>
+                        <div className="stat-card stat-card--red clickable" onClick={()=>setActiveModal('egresos')}><span className="stat-label">Egresos del mes</span><span className="stat-value">${stats.monthExpenses.toLocaleString()}</span><span className="stat-hint">Ver detalle →</span></div>
                         <div className="stat-card stat-card--teal clickable" onClick={()=>setShowCalendar(true)}><span className="stat-label">Citas hoy</span><span className="stat-value">{stats.appointmentsCount}</span><span className="stat-hint">Ver agenda →</span></div>
                         <div className="stat-card stat-card--purple clickable" onClick={()=>setActiveModal('clientes')}><span className="stat-label">Clientes</span><span className="stat-value">{stats.totalClients}</span><span className="stat-hint">Reporte →</span></div>
                         <div className="stat-card stat-card--red clickable" onClick={()=>setActiveModal('stock')}><span className="stat-label">Stock crítico</span><span className="stat-value">{stats.lowStock}</span><span className="stat-hint">Ver →</span></div>
