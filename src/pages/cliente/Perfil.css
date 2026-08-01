@@ -22,17 +22,6 @@
     --perfil-card-bg: white;
 }
 
-:root[data-theme="dark"] {
-    --perfil-bg:            #0e1420;
-    --perfil-white:         #171e2e;
-    --perfil-card-bg:       #171e2e;
-    --perfil-dark:          #e8ecf5;
-    --perfil-muted:         #8b95ab;
-    --perfil-shadow:        0 4px 20px rgba(0,0,0,0.45);
-    --perfil-tab-active-bg: #2a3450;
-}
-[data-theme="dark"] body { background: #0e1420; }
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Loading ─────────────────────────────────────────────────────────────── */

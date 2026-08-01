@@ -70,36 +70,3 @@ export const applyBrandColor = (primaryColor) => {
     VARS_DARK.forEach(v => root.setProperty(v, shade(primaryColor, -0.28)));
     root.setProperty('--brand-primary-light', shade(primaryColor, 0.35));
 };
-
-// ── Modo oscuro / claro ──────────────────────────────────────────────────────
-// El sitio no fue construido con variables CSS de color en cada componente
-// (colores hardcodeados en ~30 archivos .css), así que en vez de re-escribir
-// cada archivo, invertimos el documento completo (técnica usada por
-// lectores de modo oscuro tipo Dark Reader): html{filter:invert(1)
-// hue-rotate(180deg)} oscurece TODO de forma real y consistente, y luego
-// volvemos a invertir imágenes/video/iframes para que no se vean como
-// negativos fotográficos.
-const THEME_KEY = 'perrucho_theme'; // 'light' | 'dark' — preferencia explícita del usuario en ESTE navegador
-
-export const getStoredTheme = () => {
-    try { return localStorage.getItem(THEME_KEY); } catch { return null; }
-};
-
-export const applyThemeMode = (mode) => {
-    document.documentElement.setAttribute('data-theme', mode === 'dark' ? 'dark' : 'light');
-};
-
-// Resuelve el tema inicial: preferencia guardada del usuario > default del
-// negocio (Settings.defaultTheme) > prefers-color-scheme del sistema.
-export const resolveInitialTheme = (businessDefault) => {
-    const stored = getStoredTheme();
-    if (stored === 'light' || stored === 'dark') return stored;
-    if (businessDefault === 'light' || businessDefault === 'dark') return businessDefault;
-    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
-    return 'light';
-};
-
-export const setUserTheme = (mode) => {
-    try { localStorage.setItem(THEME_KEY, mode); } catch {}
-    applyThemeMode(mode);
-};

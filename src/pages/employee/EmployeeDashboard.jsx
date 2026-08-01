@@ -10,7 +10,6 @@ import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
-import ThemeToggle from '../../components/shared/ThemeToggle';
 import {
     FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt,
     FaNotesMedical, FaClock, FaTimes, FaSave,
@@ -763,7 +762,6 @@ const EmployeeDashboard = () => {
                     </div>}
                 </div>
                 <div className="emp-topbar-right">
-                    <ThemeToggle/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <span className="emp-greeting"><FaUserTie/> Hola, <strong>{user?.name||'Empleado'}</strong></span>
                     <button className="emp-logout-btn" onClick={logout}><FaSignOutAlt/></button>

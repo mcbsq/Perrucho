@@ -24,30 +24,6 @@
     --sidebar-solid:   #1e272e;
 }
 
-/* Modo oscuro — paleta propia (no invert), pensada para que los colores de
-   marca (--accent-*) se sigan viendo naturales sobre fondos oscuros.
-   IMPORTANTE: se escala a .admin-layout (no a :root) porque --text-muted/
-   --sidebar-bg/--bg-main/--text-main son nombres de variable SIN prefijo que
-   también leen páginas públicas (Services.css, Shop.css, Navbar.css, etc.) —
-   sobreescribirlas en :root se filtraría fuera del admin y volvía invisibles
-   textos ahí. Ver overrides equivalentes para el público en index.css. */
-[data-theme="dark"] .admin-layout {
-    --bg-main:            #0e1420;
-    --card-bg:            #171e2e;
-    --text-main:          #e8ecf5;
-    --text-muted:         #8b95ab;
-    /* --sidebar-bg se usa mayormente como color de TEXTO (encabezados,
-       montos) en este archivo — por eso se aclara aquí. El fondo real del
-       sidebar/botones oscuros usa --sidebar-solid, que se queda oscuro. */
-    --sidebar-bg:         #e8ecf5;
-    --sidebar-solid:      #0a0f18;
-    --card-shadow:        0 4px 20px rgba(0,0,0,0.45);
-    --card-border:        #262f42;
-    --card-border-strong: #333e56;
-    background: var(--bg-main);
-    min-height: 100vh;
-}
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 .admin-layout {

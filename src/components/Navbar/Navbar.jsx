@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { useAuth } from '../../contexts/AuthContext';
-import ThemeToggle from '../shared/ThemeToggle';
 
 import logoTPS from '../../assets/logo.png';
 
@@ -88,7 +87,6 @@ const Navbar = () => {
                 </nav>
 
                 <div className="navbar-actions">
-                    <ThemeToggle />
                     {isLoggedIn ? (
                         <>
                             <span className="user-greeting">Hola, <strong>{user.name.split(' ')[0]}</strong></span>

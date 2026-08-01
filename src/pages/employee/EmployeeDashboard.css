@@ -27,21 +27,6 @@
     --emp-sidebar-solid: #1e272e;
 }
 
-:root[data-theme="dark"] {
-    --emp-bg:        #0e1420;
-    --emp-white:     #171e2e;
-    --emp-card-bg:   #171e2e;
-    --emp-text:      #e8ecf5;
-    --emp-muted:     #8b95ab;
-    /* --emp-sidebar se usa mayormente como color de TEXTO — el fondo real
-       del sidebar usa --emp-sidebar-solid, que se queda oscuro. */
-    --emp-sidebar:   #e8ecf5;
-    --emp-sidebar-solid: #0a0f18;
-    --emp-shadow:    0 4px 20px rgba(0,0,0,0.45);
-    --emp-border:    #262f42;
-}
-[data-theme="dark"] body { background: #0e1420; }
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 .emp-layout {

@@ -9,7 +9,7 @@ import Footer            from './components/Footer/Footer';
 import WhatsAppButton    from './components/WhatsAppButton/WhatsAppButton';
 import Chatbot           from './components/Chatbot/Chatbot';
 import ProtectedRoute    from './components/ProtectedRoute';
-import { applyBrandColor, applyBrandSecondaryColor, applyFontFamily, applyThemeMode, resolveInitialTheme, getStoredTheme } from './utils/theme';
+import { applyBrandColor, applyBrandSecondaryColor, applyFontFamily } from './utils/theme';
 
 // ── Páginas ───────────────────────────────────────────────────────────────────
 import Home              from './pages/Home';
@@ -48,13 +48,6 @@ const BrandThemeBridge = () => {
     useEffect(() => {
         applyFontFamily(settings?.fontFamily);
     }, [settings?.fontFamily]);
-    // Modo oscuro/claro: si el usuario ya eligió uno en este navegador, se
-    // respeta; si no, se usa el default del negocio (Personalización) o el
-    // del sistema operativo.
-    useEffect(() => {
-        if (getStoredTheme()) return; // el usuario ya tiene preferencia propia
-        applyThemeMode(resolveInitialTheme(settings?.defaultTheme));
-    }, [settings?.defaultTheme]);
     return null;
 };
 
