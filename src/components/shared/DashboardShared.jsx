@@ -893,12 +893,6 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
                         <option value="serif">Serif (clásica)</option>
                         <option value="mono">Monoespaciada</option>
                     </select>
-                    <label>Tema por defecto</label>
-                    <select value={form.defaultTheme || 'auto'} onChange={e => set({ defaultTheme: e.target.value })}>
-                        <option value="auto">Automático (según el dispositivo)</option>
-                        <option value="light">Claro</option>
-                        <option value="dark">Oscuro</option>
-                    </select>
                 </div>
             </section>
 

@@ -15,7 +15,6 @@ import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
-import ThemeToggle from '../../components/shared/ThemeToggle';
 import * as XLSX from 'xlsx';
 import {
     FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers,
@@ -1047,7 +1046,6 @@ const AdminDashboard = () => {
                     </div>}
                 </div>
                 <div className="topbar-right">
-                    <ThemeToggle/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <div className="user-pill"><FaUserShield/><span>{user?.name}</span></div>
                     <button className="logout-pill" onClick={logout}><FaSignOutAlt/></button>
