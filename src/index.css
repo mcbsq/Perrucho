@@ -23,26 +23,76 @@ code {
 .theme-toggle-btn:hover { background: rgba(0, 0, 0, 0.12); transform: translateY(-1px); }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   MODO OSCURO
-   El sitio se construyó con cientos de colores hardcodeados por componente
-   en vez de variables (y el src/styles/tokens.css pensado para eso nunca se
-   importó en ningún lado) — reescribir cada .css uno por uno para tener un
-   modo oscuro "a mano" no es viable ahora. En su lugar invertimos TODO el
-   documento (misma técnica que usan extensiones tipo Dark Reader) y luego
-   re-invertimos imágenes/video/iframes para que no salgan como negativos.
-   Resultado: modo oscuro real y consistente en absolutamente toda la
-   interfaz (público + ambos dashboards), con una sola regla.
+   MODO OSCURO — paleta real por superficie (se reemplazó el hack de
+   invert(1) hue-rotate(180deg): distorsionaba el tono de los colores de
+   marca — el azul/lavanda terminaban viéndose naranja/verdoso).
+
+   Estas son las variables "públicas" (sitio, Navbar, Footer, modales de
+   reserva, Perfil). El admin y el empleado redeclaran las mismas variables
+   sin prefijo (--text-muted, --sidebar-bg, --bg-main, --text-main) dentro
+   de su propio contenedor (.admin-layout) con su propia paleta — como son
+   descendientes más cercanos, esas ganan ahí sin afectar al resto del sitio.
    ═══════════════════════════════════════════════════════════════════════ */
-html[data-theme="dark"] {
-  filter: invert(1) hue-rotate(180deg);
-  background: #fff;
+html { transition: background-color 0.2s ease, color 0.2s ease; }
+
+:root[data-theme="dark"] {
+  --pub-bg:        #0e1420;
+  --pub-card-bg:   #171e2e;
+  --bg-main:       #0e1420;
+  --text-main:     #e8ecf5;
+  --text-muted:    #94a3b8;
+  --nav-bg-glass:  rgba(14, 20, 32, 0.88);
+  --color-bg-white:  #171e2e;
+  --color-bg-page:   #0e1420;
+  --color-text-main: #e8ecf5;
+  --color-text-muted:#94a3b8;
+  --color-text-hint: #64748b;
+  --pub-feature-card:   rgba(255,255,255,0.06);
+  --pub-feature-border: rgba(255,255,255,0.1);
+  /* DashboardShared.css (formularios/modales compartidos por Admin, Empleado
+     y Perfil) */
+  --ds-card-bg: #171e2e;
+  --ds-text:    #e8ecf5;
+  --ds-muted:   #8b95ab;
+  --ds-border:  #2a3346;
+  /* --color-brand NO se sobreescribe globalmente: en Home.css se usa tanto
+     como color de texto (títulos) como fondo (.trust-strip, degradado CTA).
+     Los títulos que la usan como texto se corrigen abajo, selector por
+     selector — el fondo se queda igual (ya es azul marino oscuro, se ve
+     bien en los dos modos). */
+  /* --sidebar-bg NO se sobreescribe aquí a propósito: en páginas públicas se
+     reusa tanto para texto de encabezados como para fondo de botones (ej.
+     .btn-reserve). Si se aclarara para el texto, los botones que la usan
+     como fondo oscuro perderían contraste con su texto blanco. */
 }
-html[data-theme="dark"] img,
-html[data-theme="dark"] video,
-html[data-theme="dark"] picture,
-html[data-theme="dark"] iframe,
-html[data-theme="dark"] embed,
-html[data-theme="dark"] .no-invert {
-  filter: invert(1) hue-rotate(180deg);
+[data-theme="dark"] body { background: #0e1420; color: #e8ecf5; }
+[data-theme="dark"] .services-header h1,
+[data-theme="dark"] .card-body h2,
+[data-theme="dark"] .info-tag,
+[data-theme="dark"] .product-card-capsule h2,
+[data-theme="dark"] .shop-page-container h1,
+[data-theme="dark"] .contact-page h1,
+[data-theme="dark"] .contact-page h2,
+[data-theme="dark"] .contact-page h3,
+[data-theme="dark"] .mobile-menu-toggle,
+[data-theme="dark"] .nav-links-mobile .nav-item,
+[data-theme="dark"] .top-transparent.is-page .nav-access-btn,
+[data-theme="dark"] .top-transparent.is-page .nav-icon,
+[data-theme="dark"] .top-transparent.is-page .user-greeting,
+[data-theme="dark"] .nav-item,
+[data-theme="dark"] .user-greeting,
+[data-theme="dark"] .navbar-logo,
+[data-theme="dark"] .top-transparent.is-page .navbar-logo,
+[data-theme="dark"] .how-title,
+[data-theme="dark"] .how-step-title,
+[data-theme="dark"] .content-section h3,
+[data-theme="dark"] .feature-card h4,
+[data-theme="dark"] .service-card h3 {
+  color: #e8ecf5;
 }
-html { transition: filter 0.2s ease; }
+/* content-section h3 usa background-clip:text con un degradado que incluye
+   --color-brand — hay que redeclarar el degradado completo, no solo color. */
+[data-theme="dark"] .content-section h3 {
+  background: linear-gradient(135deg, #e8ecf5, var(--color-accent, #74b9ff));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}

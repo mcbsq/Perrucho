@@ -5,7 +5,7 @@
    ========================================================================== */
 .shop-page-container {
     padding: 160px 5% 80px;
-    background: #f8fafc;
+    background: var(--pub-bg, #f8fafc);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -61,7 +61,7 @@
     padding: 10px 24px;
     border-radius: 999px;
     border: 1.5px solid #e2e8f0;
-    background: white;
+    background: var(--pub-card-bg, white);
     font-size: 0.88rem;
     font-weight: 700;
     color: var(--text-muted, #636e72);
@@ -97,7 +97,7 @@
    CARD DE PRODUCTO
    ========================================================================== */
 .product-card-capsule {
-    background: white;
+    background: var(--pub-card-bg, white);
     border-radius: 48px;
     padding: 36px;
     display: flex;
@@ -237,7 +237,7 @@
     font-size: 0.78rem;
     font-weight: 700;
     color: #185FA5;
-    background: white;
+    background: var(--pub-card-bg, white);
     padding: 4px 10px;
     border-radius: 999px;
 }
@@ -303,7 +303,7 @@
     width: 40px; height: 40px;
     border-radius: 50%;
     border: 2px solid #e2e8f0;
-    background: white;
+    background: var(--pub-card-bg, white);
     color: var(--sidebar-bg, #2d3446);
     font-size: 0.9rem;
     cursor: pointer;
