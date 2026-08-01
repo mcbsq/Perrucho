@@ -29,6 +29,7 @@ import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
 import { calcServicePrice, weightRangeLabel } from '../../utils/pricingRules';
 import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
+import { shopToClientOnConfirmation as emailOnConfirmation, shopToClientOnFinished as emailOnFinished, openEmail } from '../../utils/emailNotify';
 import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
 import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
@@ -534,15 +535,19 @@ const EmployeeDashboard = () => {
     // en la práctica. Ahora es automática e inmediata: en cuanto la cita pasa a
     // Confirmada o Finalizada, se abre WhatsApp con el mensaje ya listo — el
     // empleado solo presiona enviar, sin paso de confirmación intermedio.
+    // Abre WhatsApp (si hay teléfono) Y el cliente de correo del sistema
+    // operativo (si hay email) — nunca un correo fijo del servidor: cada
+    // empleado/admin envía desde su propia cuenta configurada en su equipo.
     const notifyClientByWhatsApp = (appt, newStatus) => {
         if(newStatus!=='Confirmada'&&newStatus!=='Completada'&&newStatus!=='Finalizada')return;
         const petId=getApptPetId(appt);
         const pet=pets.find(p=>String(p.id)===String(petId));
         const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
         const clientPhone = owner?.phone || getApptClientPhone(appt);
+        const clientEmail = owner?.email;
 
-        if(!clientPhone){
-            addToast('No se notificó: el cliente no tiene teléfono registrado','info');
+        if(!clientPhone&&!clientEmail){
+            addToast('No se notificó: el cliente no tiene teléfono ni correo registrado','info');
             return;
         }
 
@@ -555,12 +560,20 @@ const EmployeeDashboard = () => {
             time:        getApptTime(appt),
         };
 
-        const url = (newStatus==='Confirmada')
-            ? shopToClientOnConfirmation(baseInfo)
-            : shopToClientOnFinished(baseInfo);
-
-        const opened = openWhatsApp(url);
-        addToast(opened ? 'WhatsApp abierto para notificar al cliente' : 'No se pudo generar el mensaje de WhatsApp', opened ? 'info' : 'error');
+        let opened=false;
+        if(clientPhone){
+            const url = (newStatus==='Confirmada')
+                ? shopToClientOnConfirmation(baseInfo)
+                : shopToClientOnFinished(baseInfo);
+            opened = openWhatsApp(url) || opened;
+        }
+        if(clientEmail){
+            const mailUrl = (newStatus==='Confirmada')
+                ? emailOnConfirmation({...baseInfo,clientEmail})
+                : emailOnFinished({...baseInfo,clientEmail});
+            opened = openEmail(mailUrl) || opened;
+        }
+        addToast(opened ? 'Se abrió WhatsApp/correo para notificar al cliente' : 'No se pudo generar la notificación', opened ? 'info' : 'error');
     };
 
     // FIX: addSale con nuevo formato + objetos anidados
