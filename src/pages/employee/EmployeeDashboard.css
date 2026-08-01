@@ -22,7 +22,25 @@
     --emp-topbar-h:    64px;
     --emp-sidebar-w:   68px;
     --emp-ease:        cubic-bezier(0.25, 1, 0.5, 1);
+    --emp-card-bg:     white;
+    --emp-border:      #f1f2f6;
+    --emp-sidebar-solid: #1e272e;
 }
+
+:root[data-theme="dark"] {
+    --emp-bg:        #0e1420;
+    --emp-white:     #171e2e;
+    --emp-card-bg:   #171e2e;
+    --emp-text:      #e8ecf5;
+    --emp-muted:     #8b95ab;
+    /* --emp-sidebar se usa mayormente como color de TEXTO — el fondo real
+       del sidebar usa --emp-sidebar-solid, que se queda oscuro. */
+    --emp-sidebar:   #e8ecf5;
+    --emp-sidebar-solid: #0a0f18;
+    --emp-shadow:    0 4px 20px rgba(0,0,0,0.45);
+    --emp-border:    #262f42;
+}
+[data-theme="dark"] body { background: #0e1420; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -140,7 +158,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     width: 220px; transition: all 0.3s;
 }
 .emp-search-bar:focus-within {
-    background: white; border-color: var(--emp-primary);
+    background: var(--emp-card-bg, white); border-color: var(--emp-primary);
     width: 260px; box-shadow: 0 0 0 3px rgba(162,155,254,0.15);
 }
 .emp-search-bar input {
@@ -176,7 +194,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    ========================================================================== */
 .emp-sidebar {
     grid-row: 2; width: var(--emp-sidebar-w);
-    background: var(--emp-sidebar);
+    background: var(--emp-sidebar-solid, var(--emp-sidebar));
     display: flex; flex-direction: column;
     align-items: center; padding: 16px 0 20px;
     position: sticky; top: var(--emp-topbar-h);
@@ -399,7 +417,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     display: flex; justify-content: space-between; align-items: center;
     padding: 20px 24px 16px;
     border-bottom: 1px solid #f0eeff;
-    position: sticky; top: 0; background: white; z-index: 1;
+    position: sticky; top: 0; background: var(--emp-card-bg, white); z-index: 1;
 }
 .emp-modal-header h3 { font-size: 1.05rem; color: var(--emp-deep); display: flex; align-items: center; }
 .emp-modal-close {
@@ -441,7 +459,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     color: var(--emp-text); resize: vertical; transition: all 0.25s; line-height: 1.6;
 }
 .exp-textarea.sm { min-height: 60px; }
-.exp-textarea:focus { outline: none; border-color: var(--emp-primary); background: white; box-shadow: 0 0 0 4px rgba(162,155,254,0.15); }
+.exp-textarea:focus { outline: none; border-color: var(--emp-primary); background: var(--emp-card-bg, white); box-shadow: 0 0 0 4px rgba(162,155,254,0.15); }
 
 .exp-session-row { display: flex; gap: 10px; align-items: flex-end; }
 .exp-session-row .exp-textarea { flex: 1; }
@@ -534,7 +552,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .emp-form-grid select:focus,
 .emp-form-grid textarea:focus {
     outline: none; border-color: var(--emp-primary);
-    background: white; box-shadow: 0 0 0 4px rgba(162,155,254,0.15);
+    background: var(--emp-card-bg, white); box-shadow: 0 0 0 4px rgba(162,155,254,0.15);
 }
 .emp-form-actions { display: flex; gap: 10px; margin-top: 16px; }
 .emp-price-preview {
@@ -696,7 +714,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .cal-nav-btn:hover { background: var(--emp-primary); color: white; }
 .cal-today-btn {
     padding: 6px 14px; border-radius: 8px;
-    background: white; border: 1.5px solid #ede9fe;
+    background: var(--emp-card-bg, white); border: 1.5px solid #ede9fe;
     color: var(--emp-deep); font-weight: 700; font-size: 0.82rem;
     cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif;
 }
@@ -708,7 +726,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .cal-view-switcher { display: flex; align-items: center; gap: 4px; }
 .cal-view-btn {
     padding: 6px 14px; border-radius: 8px;
-    border: 1.5px solid #ede9fe; background: white;
+    border: 1.5px solid #ede9fe; background: var(--emp-card-bg, white);
     color: var(--emp-muted); font-weight: 700; font-size: 0.82rem;
     cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif;
 }
@@ -724,7 +742,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .cal-form-grid input,
 .cal-form-grid select {
     padding: 9px 12px; border-radius: 10px;
-    border: 1.5px solid #ede9fe; background: white;
+    border: 1.5px solid #ede9fe; background: var(--emp-card-bg, white);
     font-family: 'Quicksand', sans-serif; font-size: 0.88rem; color: var(--emp-text);
 }
 .cal-form-grid input:focus,
@@ -746,7 +764,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 .cal-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .cal-cell {
-    min-height: 90px; background: white; border-radius: 8px;
+    min-height: 90px; background: var(--emp-card-bg, white); border-radius: 8px;
     padding: 6px; border: 1px solid #f0eeff;
     cursor: pointer; transition: background 0.2s;
     display: flex; flex-direction: column; gap: 3px; overflow: hidden;
@@ -897,7 +915,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 .appt-popup {
     width: 300px;
-    background: white;
+    background: var(--emp-card-bg, white);
     border-radius: 16px;
     box-shadow: 0 8px 40px rgba(30,39,46,0.18), 0 2px 8px rgba(30,39,46,0.08);
     overflow: hidden;
@@ -1582,7 +1600,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 .adp {
     width: 300px;
-    background: white;
+    background: var(--emp-card-bg, white);
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(108,92,231,0.18), 0 2px 8px rgba(0,0,0,0.08);
     border: 1px solid rgba(162,155,254,0.2);
@@ -1774,7 +1792,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    ═══════════════════════════════════════════════════════════════════════════ */
 .adp {
     width: 300px;
-    background: white;
+    background: var(--emp-card-bg, white);
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(108,92,231,0.18), 0 2px 8px rgba(0,0,0,0.08);
     border: 1px solid rgba(162,155,254,0.2);

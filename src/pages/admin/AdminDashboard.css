@@ -20,6 +20,32 @@
     --topbar-h:        64px;
     --sidebar-w:       68px;
     --ease-md:         cubic-bezier(0.25, 1, 0.5, 1);
+    --card-bg:         white;
+    --sidebar-solid:   #1e272e;
+}
+
+/* Modo oscuro — paleta propia (no invert), pensada para que los colores de
+   marca (--accent-*) se sigan viendo naturales sobre fondos oscuros.
+   IMPORTANTE: se escala a .admin-layout (no a :root) porque --text-muted/
+   --sidebar-bg/--bg-main/--text-main son nombres de variable SIN prefijo que
+   también leen páginas públicas (Services.css, Shop.css, Navbar.css, etc.) —
+   sobreescribirlas en :root se filtraría fuera del admin y volvía invisibles
+   textos ahí. Ver overrides equivalentes para el público en index.css. */
+[data-theme="dark"] .admin-layout {
+    --bg-main:            #0e1420;
+    --card-bg:            #171e2e;
+    --text-main:          #e8ecf5;
+    --text-muted:         #8b95ab;
+    /* --sidebar-bg se usa mayormente como color de TEXTO (encabezados,
+       montos) en este archivo — por eso se aclara aquí. El fondo real del
+       sidebar/botones oscuros usa --sidebar-solid, que se queda oscuro. */
+    --sidebar-bg:         #e8ecf5;
+    --sidebar-solid:      #0a0f18;
+    --card-shadow:        0 4px 20px rgba(0,0,0,0.45);
+    --card-border:        #262f42;
+    --card-border-strong: #333e56;
+    background: var(--bg-main);
+    min-height: 100vh;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -133,7 +159,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .admin-top-bar {
     grid-column: 1 / -1;
     height: var(--topbar-h);
-    background: white;
+    background: var(--card-bg, white);
     border-bottom: 1px solid rgba(0,0,0,0.06);
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 28px 0 20px;
@@ -157,7 +183,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     color: var(--text-muted); font-size: 0.85rem;
 }
 .search-bar-global:focus-within {
-    background: white; border-color: var(--accent-blue);
+    background: var(--card-bg, white); border-color: var(--accent-blue);
     width: 300px; box-shadow: 0 0 0 3px rgba(116,185,255,0.15);
 }
 .search-bar-global input {
@@ -198,7 +224,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    ========================================================================== */
 .admin-sidebar {
     grid-row: 2; width: var(--sidebar-w);
-    background: var(--sidebar-bg);
+    background: var(--sidebar-solid, var(--sidebar-bg));
     display: flex; flex-direction: column;
     align-items: center; padding: 16px 0 20px;
     position: sticky; top: var(--topbar-h);
@@ -256,7 +282,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 
 .stat-card {
-    background: white; border-radius: var(--radius-lg);
+    background: var(--card-bg, white); border-radius: var(--radius-lg);
     padding: 24px 20px; box-shadow: var(--card-shadow);
     display: flex; flex-direction: column; gap: 6px;
     transition: transform 0.3s var(--ease-md), box-shadow 0.3s;
@@ -287,7 +313,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
 }
 .panel-card {
-    background: white; border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden;
+    background: var(--card-bg, white); border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden;
 }
 .panel-card-header { padding: 18px 24px 0; }
 .panel-card-header h4 {
@@ -299,7 +325,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .empty-chart { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 20px 0; }
 .svc-bar-row { display: flex; align-items: center; gap: 10px; }
 .svc-bar-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); min-width: 72px; }
-.svc-bar-track { flex: 1; height: 10px; background: #f1f2f6; border-radius: 5px; overflow: hidden; }
+.svc-bar-track { flex: 1; height: 10px; background: var(--card-border, #f1f2f6); border-radius: 5px; overflow: hidden; }
 .svc-bar-fill  { height: 100%; border-radius: 5px; transition: width 0.6s var(--ease-md); }
 .svc-bar-val   { font-size: 0.78rem; font-weight: 700; color: var(--text-main); min-width: 52px; text-align: right; }
 
@@ -325,7 +351,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-box {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: var(--radius-lg);
     width: 100%; max-width: 520px;
     max-height: 85vh; overflow-y: auto;
@@ -342,13 +368,13 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .modal-header {
     display: flex; justify-content: space-between; align-items: center;
     padding: 20px 24px 16px;
-    border-bottom: 1px solid #f1f2f6;
-    position: sticky; top: 0; background: white; z-index: 1;
+    border-bottom: 1px solid var(--card-border, #f1f2f6);
+    position: sticky; top: 0; background: var(--card-bg, white); z-index: 1;
 }
 .modal-header h3 { font-size: 1.05rem; color: var(--sidebar-bg); display: flex; align-items: center; }
 .modal-close {
     width: 32px; height: 32px; border-radius: 8px;
-    background: #f1f2f6; border: none; cursor: pointer;
+    background: var(--card-border, #f1f2f6); border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     color: var(--text-muted); transition: all 0.2s;
 }
@@ -358,7 +384,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .modal-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .pill-btn {
     padding: 6px 14px; border-radius: var(--radius-pill);
-    border: 1.5px solid #e0e4ea; background: white;
+    border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white);
     font-size: 0.82rem; font-weight: 700;
     color: var(--text-muted); cursor: pointer;
     transition: all 0.2s; font-family: 'Quicksand', sans-serif;
@@ -388,7 +414,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px;
     color: var(--text-muted); font-family: 'Montserrat', sans-serif;
 }
-.modal-table td { padding: 10px 14px; border-bottom: 1px solid #f1f2f6; }
+.modal-table td { padding: 10px 14px; border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .modal-table tr:last-child td { border-bottom: none; }
 .modal-table tr:hover td { background: #f7f9fc; }
 .empty-td { text-align: center; color: var(--text-muted); padding: 24px; font-style: italic; }
@@ -396,13 +422,13 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 .date-input {
     padding: 7px 12px; border-radius: 8px;
-    border: 1.5px solid #e0e4ea; background: white;
+    border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white);
     font-size: 0.88rem; font-family: 'Quicksand', sans-serif;
     color: var(--text-main); cursor: pointer;
 }
 .date-input:focus { outline: none; border-color: var(--accent-blue); }
 
-.patient-row { border: 1px solid #f1f2f6; border-radius: var(--radius-md); padding: 14px; margin-bottom: 12px; }
+.patient-row { border: 1px solid var(--card-border, #f1f2f6); border-radius: var(--radius-md); padding: 14px; margin-bottom: 12px; }
 .patient-row-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .patient-row-header strong { font-size: 0.92rem; color: var(--sidebar-bg); }
 .muted-text { color: var(--text-muted); font-size: 0.8rem; }
@@ -419,8 +445,8 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     border-radius: 8px; padding: 8px 12px;
     font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
 }
-.appt-chip:hover  { background: white; border-color: var(--accent-lavender); }
-.appt-chip.selected { background: white; border-color: var(--accent-blue); }
+.appt-chip:hover  { background: var(--card-bg, white); border-color: var(--accent-lavender); }
+.appt-chip.selected { background: var(--card-bg, white); border-color: var(--accent-blue); }
 .chip-price { margin-left: auto; font-weight: 700; color: var(--accent-blue); font-family: 'Montserrat', sans-serif; }
 
 .appt-detail {
@@ -431,22 +457,22 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .appt-detail h5 { font-size: 0.8rem; color: var(--accent-blue); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.8px; }
 .detail-row {
     display: flex; justify-content: space-between;
-    padding: 6px 0; border-bottom: 1px solid #f1f2f6; font-size: 0.85rem;
+    padding: 6px 0; border-bottom: 1px solid var(--card-border, #f1f2f6); font-size: 0.85rem;
 }
 .detail-row:last-child { border-bottom: none; }
 .detail-row span { color: var(--text-muted); }
 
-.history-entry { display: flex; gap: 10px; padding: 6px 0; font-size: 0.8rem; border-bottom: 1px dashed #f1f2f6; }
+.history-entry { display: flex; gap: 10px; padding: 6px 0; font-size: 0.8rem; border-bottom: 1px dashed var(--card-border, #f1f2f6); }
 .history-date { color: var(--accent-lavender); font-weight: 700; white-space: nowrap; }
 
-.client-report-block { border: 1px solid #f1f2f6; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; }
+.client-report-block { border: 1px solid var(--card-border, #f1f2f6); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; }
 .client-report-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg-main); }
 .client-report-header strong { font-size: 0.9rem; }
 .client-report-header .td-amount { margin-left: auto; }
 .client-report-items { padding: 4px 0; }
 .client-report-item {
     display: flex; justify-content: space-between;
-    padding: 8px 14px; font-size: 0.85rem; border-bottom: 1px solid #f1f2f6;
+    padding: 8px 14px; font-size: 0.85rem; border-bottom: 1px solid var(--card-border, #f1f2f6);
 }
 .client-report-item:last-child { border-bottom: none; }
 
@@ -460,7 +486,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 .stock-critical-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 0; border-bottom: 1px solid #f1f2f6;
+    padding: 12px 0; border-bottom: 1px solid var(--card-border, #f1f2f6);
 }
 .stock-critical-row:last-child { border-bottom: none; }
 .stock-badge-wrap { display: flex; align-items: center; gap: 10px; }
@@ -471,7 +497,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .checkout-modal-note { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px; }
 .checkout-client-select {
     width: 100%; padding: 10px 14px; border-radius: var(--radius-md);
-    border: 1.5px solid #e0e4ea; background: var(--bg-main);
+    border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--bg-main);
     font-family: 'Quicksand', sans-serif; font-size: 0.9rem;
     color: var(--text-main); margin-bottom: 16px;
 }
@@ -484,7 +510,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .checkout-item-row { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; }
 .checkout-total-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 0; border-top: 2px solid #f1f2f6;
+    padding: 10px 0; border-top: 2px solid var(--card-border, #f1f2f6);
     font-size: 0.9rem; color: var(--text-muted);
 }
 .checkout-total-row strong { font-family: 'Montserrat', sans-serif; font-size: 1.3rem; color: var(--sidebar-bg); }
@@ -492,7 +518,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 /* ==========================================================================
    TABLAS
    ========================================================================== */
-.table-card { background: white; border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden; margin-top: 24px; }
+.table-card { background: var(--card-bg, white); border-radius: var(--radius-lg); box-shadow: var(--card-shadow); overflow: hidden; margin-top: 24px; }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
     background: var(--bg-main); padding: 14px 20px; text-align: left;
@@ -500,7 +526,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     text-transform: uppercase; letter-spacing: 0.8px;
     color: var(--text-muted); font-weight: 700;
 }
-.data-table td { padding: 14px 20px; border-bottom: 1px solid #f1f2f6; font-size: 0.9rem; font-weight: 500; }
+.data-table td { padding: 14px 20px; border-bottom: 1px solid var(--card-border, #f1f2f6); font-size: 0.9rem; font-weight: 500; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: #f7f9fc; }
 .actions-cell { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
@@ -515,11 +541,11 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    FORMULARIOS
    ========================================================================== */
 .dashboard-form {
-    background: white; border-radius: var(--radius-lg);
+    background: var(--card-bg, white); border-radius: var(--radius-lg);
     padding: 28px 32px; box-shadow: var(--card-shadow);
     margin-bottom: 24px; border: 1px solid rgba(116,185,255,0.1);
 }
-.form-title { font-size: 1rem; color: var(--accent-blue); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #f1f2f6; }
+.form-title { font-size: 1rem; color: var(--accent-blue); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--card-border, #f1f2f6); }
 
 .input-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .input-span2 { grid-column: span 2; }
@@ -528,7 +554,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .input-grid select,
 .input-grid textarea {
     width: 100%; padding: 11px 15px; border-radius: var(--radius-md);
-    border: 1.5px solid #f1f2f6; background: var(--bg-main);
+    border: 1.5px solid var(--card-border, #f1f2f6); background: var(--bg-main);
     font-size: 0.9rem; font-family: 'Quicksand', sans-serif;
     font-weight: 500; color: var(--text-main); transition: all 0.25s;
 }
@@ -536,7 +562,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .input-grid select:focus,
 .input-grid textarea:focus {
     outline: none; border-color: var(--accent-blue);
-    background: white; box-shadow: 0 0 0 4px rgba(116,185,255,0.12);
+    background: var(--card-bg, white); box-shadow: 0 0 0 4px rgba(116,185,255,0.12);
 }
 
 .form-actions { display: flex; gap: 12px; margin-top: 20px; }
@@ -551,12 +577,12 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(85,239,196,0.35); background: #00b894; color: white; }
 
 .btn-secondary {
-    padding: 11px 20px; background: #f1f2f6; color: var(--text-muted);
+    padding: 11px 20px; background: var(--card-border, #f1f2f6); color: var(--text-muted);
     border: none; border-radius: var(--radius-md);
     font-weight: 700; font-family: 'Quicksand', sans-serif; font-size: 0.88rem;
     cursor: pointer; transition: all 0.2s;
 }
-.btn-secondary:hover { background: #e0e4ea; }
+.btn-secondary:hover { background: var(--card-border-strong, #e0e4ea); }
 .btn-sm { padding: 8px 16px; font-size: 0.82rem; }
 
 .btn-icon { width: 34px; height: 34px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: all 0.2s; }
@@ -583,7 +609,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .pos-search-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .search-input-wrapper {
     display: flex; align-items: center; gap: 10px;
-    background: white; border: 1.5px solid #f1f2f6;
+    background: var(--card-bg, white); border: 1.5px solid var(--card-border, #f1f2f6);
     border-radius: var(--radius-md); padding: 10px 14px;
     flex: 1; min-width: 200px; color: var(--text-muted); transition: border-color 0.2s;
 }
@@ -593,7 +619,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .pos-filters { display: flex; gap: 6px; }
 .pos-filters button {
     padding: 8px 16px; border-radius: var(--radius-pill);
-    border: 1.5px solid #f1f2f6; background: white;
+    border: 1.5px solid var(--card-border, #f1f2f6); background: var(--card-bg, white);
     font-weight: 700; font-size: 0.82rem; color: var(--text-muted);
     cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif;
 }
@@ -601,8 +627,8 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .pos-card {
-    background: white; border-radius: var(--radius-md); padding: 16px 12px;
-    text-align: center; border: 1.5px solid #f1f2f6; cursor: pointer;
+    background: var(--card-bg, white); border-radius: var(--radius-md); padding: 16px 12px;
+    text-align: center; border: 1.5px solid var(--card-border, #f1f2f6); cursor: pointer;
     transition: all 0.2s var(--ease-md);
     display: flex; flex-direction: column; align-items: center; gap: 6px;
     box-shadow: var(--card-shadow);
@@ -611,7 +637,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .pos-card--service:hover { border-color: var(--accent-mint); }
 /* FIX: tarjeta deshabilitada para productos sin stock */
 .pos-card--disabled { opacity: 0.5; cursor: not-allowed; }
-.pos-card--disabled:hover { transform: none; border-color: #f1f2f6; box-shadow: var(--card-shadow); }
+.pos-card--disabled:hover { transform: none; border-color: var(--card-border, #f1f2f6); box-shadow: var(--card-shadow); }
 
 .pos-card-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; margin-bottom: 4px; }
 .pos-card-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; margin-bottom: 4px; }
@@ -633,8 +659,8 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     margin-top: -4px;
 }
 
-.pos-cart { background: white; border-radius: var(--radius-lg); border: 1px solid #f1f2f6; box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: sticky; top: 20px; }
-.pos-cart-header { padding: 16px 20px; border-bottom: 1px solid #f1f2f6; display: flex; justify-content: space-between; align-items: center; }
+.pos-cart { background: var(--card-bg, white); border-radius: var(--radius-lg); border: 1px solid var(--card-border, #f1f2f6); box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: sticky; top: 20px; }
+.pos-cart-header { padding: 16px 20px; border-bottom: 1px solid var(--card-border, #f1f2f6); display: flex; justify-content: space-between; align-items: center; }
 .pos-cart-header h4 { display: flex; align-items: center; gap: 8px; font-size: 1rem; color: var(--sidebar-bg); }
 .clear-cart-btn { background: none; border: none; color: var(--accent-red); font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: 'Quicksand', sans-serif; }
 .pos-cart-items { padding: 12px; min-height: 180px; max-height: 300px; overflow-y: auto; }
@@ -645,12 +671,12 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .cart-item-price { font-size: 0.8rem; color: var(--accent-blue); font-weight: 700; }
 .cart-item button { background: none; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s; }
 .cart-item button:hover { color: var(--accent-red); }
-.pos-cart-footer { padding: 16px 20px; border-top: 2px dashed #f1f2f6; background: var(--bg-main); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.pos-cart-footer { padding: 16px 20px; border-top: 2px dashed var(--card-border, #f1f2f6); background: var(--bg-main); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 .cart-total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 0.9rem; font-weight: 600; }
 .cart-total-amount { font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--sidebar-bg); }
 .checkout-btn { width: 100%; padding: 14px; background: var(--accent-mint); color: #04342C; border: none; border-radius: var(--radius-md); font-weight: 800; font-size: 0.95rem; font-family: 'Montserrat', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s var(--ease-md); }
 .checkout-btn:hover:not(:disabled) { background: #00b894; color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(85,239,196,0.3); }
-.checkout-btn:disabled { background: #f1f2f6; color: var(--text-muted); cursor: not-allowed; }
+.checkout-btn:disabled { background: var(--card-border, #f1f2f6); color: var(--text-muted); cursor: not-allowed; }
 
 /* ==========================================================================
    PACIENTES
@@ -658,7 +684,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .pacientes-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
 .pacientes-main   { display: flex; flex-direction: column; gap: 0; }
 .pet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 8px; }
-.pet-card { background: white; border-radius: var(--radius-lg); padding: 18px 20px; display: flex; align-items: center; gap: 14px; box-shadow: var(--card-shadow); border: 1px solid #f1f2f6; transition: all 0.3s var(--ease-md); }
+.pet-card { background: var(--card-bg, white); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; align-items: center; gap: 14px; box-shadow: var(--card-shadow); border: 1px solid var(--card-border, #f1f2f6); transition: all 0.3s var(--ease-md); }
 .pet-card:hover { transform: translateY(-3px); border-color: var(--accent-blue); box-shadow: 0 10px 24px rgba(116,185,255,0.12); }
 .pet-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-blue), var(--accent-lavender)); color: white; font-weight: 800; font-size: 1.1rem; font-family: 'Montserrat', sans-serif; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pet-info  { flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -668,15 +694,15 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .pet-actions   { display: flex; gap: 6px; }
 
 /* Agenda panel */
-.agenda-panel { background: white; border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--card-shadow); border: 1px solid rgba(162,155,254,0.15); position: sticky; top: 20px; display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
-.agenda-panel-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid #f1f2f6; }
+.agenda-panel { background: var(--card-bg, white); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--card-shadow); border: 1px solid rgba(162,155,254,0.15); position: sticky; top: 20px; display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
+.agenda-panel-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .agenda-panel-header h4 { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: var(--sidebar-bg); }
 .appo-form { display: flex; flex-direction: column; gap: 10px; background: #f8faff; border: 2px dashed var(--accent-lavender); border-radius: var(--radius-md); padding: 16px; animation: fadeIn 0.3s ease; }
 .appo-form select,
 .appo-form input[type="time"],
 .appo-form input[type="date"] {
     padding: 9px 12px; border-radius: 10px;
-    border: 1.5px solid #e0e4ea; background: white;
+    border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white);
     font-family: 'Quicksand', sans-serif; font-size: 0.88rem; color: var(--text-main);
 }
 .appo-form select:focus,
@@ -686,8 +712,8 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .agenda-list { display: flex; flex-direction: column; gap: 10px; }
 .empty-msg { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px 0; }
 .agenda-ticket { background: #f9f9ff; border: 1.5px solid transparent; border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.25s var(--ease-md); }
-.agenda-ticket:hover { background: white; border-color: var(--accent-lavender); transform: translateX(4px); }
-.agenda-ticket.selected { background: white; border-color: var(--accent-blue); box-shadow: 0 4px 14px rgba(116,185,255,0.18); }
+.agenda-ticket:hover { background: var(--card-bg, white); border-color: var(--accent-lavender); transform: translateX(4px); }
+.agenda-ticket.selected { background: var(--card-bg, white); border-color: var(--accent-blue); box-shadow: 0 4px 14px rgba(116,185,255,0.18); }
 .ticket-time { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 700; color: var(--accent-lavender); background: #efeeff; padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
 .ticket-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .ticket-body strong { font-size: 0.88rem; color: var(--sidebar-bg); }
@@ -766,7 +792,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 .appt-popup {
     width: 300px;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 16px;
     box-shadow: 0 8px 40px rgba(30,39,46,0.18), 0 2px 8px rgba(30,39,46,0.08);
     overflow: hidden;
@@ -788,7 +814,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .appt-popup-header {
     display: flex; align-items: flex-start; gap: 10px;
     padding: 14px 14px 10px;
-    border-bottom: 1px solid #f1f2f6;
+    border-bottom: 1px solid var(--card-border, #f1f2f6);
 }
 .appt-popup-avatar {
     width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
@@ -802,7 +828,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .appt-popup-owner        { color: var(--accent-blue) !important; font-weight: 700 !important; }
 .appt-popup-close {
     width: 26px; height: 26px; border-radius: 6px;
-    background: #f1f2f6; border: none; cursor: pointer;
+    background: var(--card-border, #f1f2f6); border: none; cursor: pointer;
     color: #636e72; font-size: 0.72rem;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; transition: all 0.15s;
@@ -832,7 +858,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .appt-popup-notes p { font-size: 0.78rem; color: #2d3436; line-height: 1.4; }
 .appt-popup-actions {
     display: flex; gap: 6px; padding: 10px 14px 14px;
-    border-top: 1px solid #f1f2f6;
+    border-top: 1px solid var(--card-border, #f1f2f6);
 }
 .appt-popup-btn {
     flex: 1; padding: 8px 10px; border: none; border-radius: 8px;
@@ -883,7 +909,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .appt-popup {
     position: fixed;
     width: 300px;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: var(--radius-lg);
     box-shadow:
         0 8px 32px rgba(116,185,255,0.18),
@@ -906,7 +932,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     left: 50%;
     width: 12px;
     height: 12px;
-    background: white;
+    background: var(--card-bg, white);
     border-left: 1px solid rgba(116,185,255,0.2);
     border-top: 1px solid rgba(116,185,255,0.2);
     transform: translateX(-50%) rotate(45deg);
@@ -929,7 +955,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     align-items: center;
     gap: 10px;
     padding: 12px 14px 10px;
-    border-bottom: 1px solid #f1f2f6;
+    border-bottom: 1px solid var(--card-border, #f1f2f6);
 }
 
 .appt-popup-avatar {
@@ -976,7 +1002,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     width: 26px;
     height: 26px;
     border-radius: 6px;
-    background: #f1f2f6;
+    background: var(--card-border, #f1f2f6);
     border: none;
     cursor: pointer;
     display: flex;
@@ -1059,7 +1085,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     display: flex;
     gap: 6px;
     padding: 10px 14px 12px;
-    border-top: 1px solid #f1f2f6;
+    border-top: 1px solid var(--card-border, #f1f2f6);
     flex-wrap: wrap;
 }
 
@@ -1160,7 +1186,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 .cal-nav-btn {
     width: 32px; height: 32px; border-radius: 8px;
-    border: 1.5px solid #e0e4ea; background: white;
+    border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     color: var(--text-muted); font-size: 0.78rem; transition: all 0.2s;
 }
@@ -1221,7 +1247,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 
 .search-bar-global.focused {
-    background: white;
+    background: var(--card-bg, white);
     border-color: var(--accent-blue);
     box-shadow: 0 0 0 3px rgba(116,185,255,0.15);
     width: 320px;
@@ -1232,7 +1258,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     top: calc(100% + 8px);
     left: 0;
     width: 380px;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: var(--radius-lg);
     border: 1.5px solid rgba(116,185,255,0.2);
     box-shadow: 0 16px 40px rgba(0,0,0,0.12);
@@ -1255,7 +1281,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     text-align: center;
 }
 
-.search-section { border-bottom: 1px solid #f1f2f6; }
+.search-section { border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .search-section:last-child { border-bottom: none; }
 
 .search-section-label {
@@ -1315,7 +1341,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 .cal-nav-btn {
     width: 30px; height: 30px; border-radius: 8px;
-    border: 1.5px solid #e0e4ea; background: white;
+    border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     color: var(--text-muted); font-size: 0.75rem; transition: all 0.2s;
 }
@@ -1360,7 +1386,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 /* ── Pop-up de detalle de cita ───────────────────────────────────────── */
 .appt-detail-popup {
     width: 300px;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.06);
     border: 1px solid rgba(116,185,255,0.2);
@@ -1372,12 +1398,12 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 .adp-bar    { height: 4px; width: 100%; }
-.adp-header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid #f1f2f6; }
+.adp-header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .adp-body   { padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; }
 .adp-row    { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-main); }
 .adp-icon   { color: var(--accent-blue); font-size: 0.75rem; flex-shrink: 0; }
 .adp-price  { margin-left: auto; font-family: 'Montserrat', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--sidebar-bg); }
-.adp-footer { padding: 10px 14px 12px; border-top: 1px solid #f1f2f6; }
+.adp-footer { padding: 10px 14px 12px; border-top: 1px solid var(--card-border, #f1f2f6); }
 .adp-gcal-btn {
     display: flex; align-items: center; gap: 7px;
     width: 100%; padding: 9px 14px;
@@ -1402,13 +1428,13 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .new-appt-grid input[type="date"],
 .new-appt-grid input[type="time"] {
     width: 100%; padding: 9px 12px; border-radius: var(--radius-md);
-    border: 1.5px solid #f1f2f6; background: var(--bg-main);
+    border: 1.5px solid var(--card-border, #f1f2f6); background: var(--bg-main);
     font-family: 'Quicksand', sans-serif; font-size: 0.88rem;
     color: var(--text-main); transition: all 0.2s;
 }
 .new-appt-grid select:focus,
 .new-appt-grid input:focus {
-    outline: none; border-color: var(--accent-blue); background: white;
+    outline: none; border-color: var(--accent-blue); background: var(--card-bg, white);
     box-shadow: 0 0 0 3px rgba(116,185,255,0.12);
 }
 
@@ -1450,11 +1476,11 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 /* ── Búsqueda global ──────────────────────────────────────────────────── */
 .search-bar-wrapper { position: relative; }
-.search-bar-global.focused { background: white; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(116,185,255,0.15); width: 320px; }
-.search-panel { position: absolute; top: calc(100% + 8px); left: 0; width: 380px; background: white; border-radius: var(--radius-lg); border: 1.5px solid rgba(116,185,255,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.12); z-index: 500; max-height: 420px; overflow-y: auto; animation: dropIn 0.15s ease; }
+.search-bar-global.focused { background: var(--card-bg, white); border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(116,185,255,0.15); width: 320px; }
+.search-panel { position: absolute; top: calc(100% + 8px); left: 0; width: 380px; background: var(--card-bg, white); border-radius: var(--radius-lg); border: 1.5px solid rgba(116,185,255,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.12); z-index: 500; max-height: 420px; overflow-y: auto; animation: dropIn 0.15s ease; }
 @keyframes dropIn { from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);} }
 .search-panel-empty { padding: 20px 16px; font-size: 0.88rem; color: var(--text-muted); text-align: center; }
-.search-section { border-bottom: 1px solid #f1f2f6; }
+.search-section { border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .search-section:last-child { border-bottom: none; }
 .search-section-label { display: flex; align-items: center; gap: 6px; padding: 8px 14px 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); background: var(--bg-main); }
 .search-count { background: var(--accent-blue); color: white; font-size: 0.65rem; padding: 1px 6px; border-radius: var(--radius-pill); }
@@ -1477,14 +1503,14 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 
 .pet-card-v2 {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 20px;
     padding: 16px 18px;
     display: flex;
     align-items: flex-start;
     gap: 14px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.05);
-    border: 1.5px solid #f1f2f6;
+    border: 1.5px solid var(--card-border, #f1f2f6);
     transition: all 0.3s cubic-bezier(0.25,1,0.5,1);
     position: relative;
 }
@@ -1510,7 +1536,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     bottom: -4px;
     right: -4px;
     font-size: 1rem;
-    background: white;
+    background: var(--card-bg, white);
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -1640,7 +1666,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: var(--sidebar-bg);
+    background: var(--sidebar-solid, var(--sidebar-bg));
     color: white;
     border: none;
     border-radius: var(--radius-md);
@@ -1671,19 +1697,19 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     justify-content: space-between;
     align-items: center;
     padding: 4px 0 14px;
-    border-bottom: 1px solid #f1f2f6;
+    border-bottom: 1px solid var(--card-border, #f1f2f6);
     margin-bottom: 14px;
     flex-wrap: wrap;
     gap: 10px;
 }
 .admin-cal-nav { display: flex; align-items: center; gap: 6px; }
-.cal-nav-btn { width: 30px; height: 30px; border-radius: 8px; background: #f0f4ff; border: 1.5px solid #e0e4ea; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; transition: all 0.2s; }
+.cal-nav-btn { width: 30px; height: 30px; border-radius: 8px; background: #f0f4ff; border: 1.5px solid var(--card-border-strong, #e0e4ea); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; transition: all 0.2s; }
 .cal-nav-btn:hover { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-.cal-today-btn { padding: 6px 14px; border-radius: 8px; background: white; border: 1.5px solid #e0e4ea; color: var(--text-main); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
+.cal-today-btn { padding: 6px 14px; border-radius: 8px; background: var(--card-bg, white); border: 1.5px solid var(--card-border-strong, #e0e4ea); color: var(--text-main); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
 .cal-today-btn:hover { background: #f0f4ff; border-color: var(--accent-blue); }
 .cal-period-label { font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--sidebar-bg); margin-left: 8px; }
 .admin-cal-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.cal-view-btn { padding: 6px 14px; border-radius: 8px; border: 1.5px solid #e0e4ea; background: white; color: var(--text-muted); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
+.cal-view-btn { padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white); color: var(--text-muted); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
 .cal-view-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
 
 /* Formulario nueva cita */
@@ -1691,7 +1717,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .admin-cal-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
 .admin-cal-form-grid select,
 .admin-cal-form-grid input[type="date"],
-.admin-cal-form-grid input[type="time"] { padding: 9px 12px; border-radius: 10px; border: 1.5px solid #e0e4ea; background: white; font-family: 'Quicksand', sans-serif; font-size: 0.88rem; color: var(--text-main); }
+.admin-cal-form-grid input[type="time"] { padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white); font-family: 'Quicksand', sans-serif; font-size: 0.88rem; color: var(--text-main); }
 .admin-cal-form-grid select:focus,
 .admin-cal-form-grid input:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(116,185,255,0.12); }
 
@@ -1703,7 +1729,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .admin-cal-month-header { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 6px; }
 .admin-cal-day-label { text-align: center; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--accent-blue); padding: 5px 0; letter-spacing: 0.5px; }
 .admin-cal-month-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
-.admin-cal-cell { min-height: 88px; background: white; border-radius: 8px; padding: 6px; border: 1px solid #f1f2f6; cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; transition: background 0.15s; }
+.admin-cal-cell { min-height: 88px; background: var(--card-bg, white); border-radius: 8px; padding: 6px; border: 1px solid var(--card-border, #f1f2f6); cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; transition: background 0.15s; }
 .admin-cal-cell:hover { background: #faf8ff; border-color: var(--accent-lavender); }
 .admin-cal-cell--empty { background: transparent; border-color: transparent; cursor: default; }
 .admin-cal-cell--today { border-color: var(--accent-blue); background: #f0f6ff; }
@@ -1715,7 +1741,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 /* ── Vista Semana ── */
 .admin-cal-week { display: flex; flex-direction: column; height: 500px; }
-.admin-cal-week-header { display: grid; grid-template-columns: 52px repeat(7,1fr); border-bottom: 1px solid #f1f2f6; flex-shrink: 0; }
+.admin-cal-week-header { display: grid; grid-template-columns: 52px repeat(7,1fr); border-bottom: 1px solid var(--card-border, #f1f2f6); flex-shrink: 0; }
 .admin-cal-gutter { width: 52px; }
 .admin-cal-wdl { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; cursor: pointer; transition: background 0.2s; border-radius: 8px; }
 .admin-cal-wdl:hover { background: #f0f4ff; }
@@ -1734,7 +1760,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 /* ── Vista Día ── */
 .admin-cal-day { display: flex; flex-direction: column; height: 500px; }
-.admin-cal-day-label { font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 800; color: var(--sidebar-bg); padding: 4px 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f2f6; flex-shrink: 0; text-transform: capitalize; }
+.admin-cal-day-label { font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 800; color: var(--sidebar-bg); padding: 4px 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--card-border, #f1f2f6); flex-shrink: 0; text-transform: capitalize; }
 .admin-cal-day-count { font-size: 0.75rem; background: #e6f1fb; color: var(--accent-dark, #185FA5); padding: 3px 10px; border-radius: 20px; font-weight: 700; }
 .admin-cal-day-scroll { flex: 1; overflow-y: auto; }
 .admin-cal-day-row { display: grid; grid-template-columns: 52px 1fr; min-height: 62px; border-bottom: 1px solid #f8f5ff; }
@@ -1756,7 +1782,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 /* ── Pop-up detalle de cita (adp) ── */
 .adp {
     width: 300px;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.06);
     border: 1px solid rgba(116,185,255,0.2);
@@ -1765,12 +1791,12 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 @keyframes adpIn { from{opacity:0;transform:scale(0.9) translateY(6px);}to{opacity:1;transform:scale(1) translateY(0);} }
 .adp-bar    { height: 4px; width: 100%; }
-.adp-header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid #f1f2f6; }
+.adp-header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .adp-body   { padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; }
 .adp-row    { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-main); }
 .adp-icon   { color: var(--accent-blue); font-size: 0.75rem; flex-shrink: 0; }
 .adp-price  { margin-left: auto; font-family: 'Montserrat', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--sidebar-bg); }
-.adp-footer { padding: 10px 14px 12px; border-top: 1px solid #f1f2f6; display: flex; flex-direction: column; gap: 6px; }
+.adp-footer { padding: 10px 14px 12px; border-top: 1px solid var(--card-border, #f1f2f6); display: flex; flex-direction: column; gap: 6px; }
 .adp-gcal-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 8px 14px; background: #e6f1fb; color: #185FA5; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
 .adp-gcal-btn:hover { background: #185FA5; color: white; }
 .adp-cobrar-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 9px 14px; background: #e1f5ee; color: #085041; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
@@ -1810,11 +1836,11 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 /* ── Búsqueda global ──────────────────────────────────────────────────── */
 .search-bar-wrapper { position: relative; }
-.search-bar-global.focused { background: white; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(116,185,255,0.15); width: 320px; }
-.search-panel { position: absolute; top: calc(100% + 8px); left: 0; width: 380px; background: white; border-radius: var(--radius-lg); border: 1.5px solid rgba(116,185,255,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.12); z-index: 500; max-height: 420px; overflow-y: auto; animation: dropIn 0.15s ease; }
+.search-bar-global.focused { background: var(--card-bg, white); border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(116,185,255,0.15); width: 320px; }
+.search-panel { position: absolute; top: calc(100% + 8px); left: 0; width: 380px; background: var(--card-bg, white); border-radius: var(--radius-lg); border: 1.5px solid rgba(116,185,255,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.12); z-index: 500; max-height: 420px; overflow-y: auto; animation: dropIn 0.15s ease; }
 @keyframes dropIn { from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);} }
 .search-panel-empty { padding: 20px 16px; font-size: 0.88rem; color: var(--text-muted); text-align: center; }
-.search-section { border-bottom: 1px solid #f1f2f6; }
+.search-section { border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .search-section:last-child { border-bottom: none; }
 .search-section-label { display: flex; align-items: center; gap: 6px; padding: 8px 14px 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); background: var(--bg-main); }
 .search-count { background: var(--accent-blue); color: white; font-size: 0.65rem; padding: 1px 6px; border-radius: var(--radius-pill); }
@@ -1837,14 +1863,14 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 
 .pet-card-v2 {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 20px;
     padding: 16px 18px;
     display: flex;
     align-items: flex-start;
     gap: 14px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.05);
-    border: 1.5px solid #f1f2f6;
+    border: 1.5px solid var(--card-border, #f1f2f6);
     transition: all 0.3s cubic-bezier(0.25,1,0.5,1);
     position: relative;
 }
@@ -1870,7 +1896,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     bottom: -4px;
     right: -4px;
     font-size: 1rem;
-    background: white;
+    background: var(--card-bg, white);
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -2000,7 +2026,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: var(--sidebar-bg);
+    background: var(--sidebar-solid, var(--sidebar-bg));
     color: white;
     border: none;
     border-radius: var(--radius-md);
@@ -2031,19 +2057,19 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     justify-content: space-between;
     align-items: center;
     padding: 4px 0 14px;
-    border-bottom: 1px solid #f1f2f6;
+    border-bottom: 1px solid var(--card-border, #f1f2f6);
     margin-bottom: 14px;
     flex-wrap: wrap;
     gap: 10px;
 }
 .admin-cal-nav { display: flex; align-items: center; gap: 6px; }
-.cal-nav-btn { width: 30px; height: 30px; border-radius: 8px; background: #f0f4ff; border: 1.5px solid #e0e4ea; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; transition: all 0.2s; }
+.cal-nav-btn { width: 30px; height: 30px; border-radius: 8px; background: #f0f4ff; border: 1.5px solid var(--card-border-strong, #e0e4ea); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; transition: all 0.2s; }
 .cal-nav-btn:hover { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
-.cal-today-btn { padding: 6px 14px; border-radius: 8px; background: white; border: 1.5px solid #e0e4ea; color: var(--text-main); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
+.cal-today-btn { padding: 6px 14px; border-radius: 8px; background: var(--card-bg, white); border: 1.5px solid var(--card-border-strong, #e0e4ea); color: var(--text-main); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
 .cal-today-btn:hover { background: #f0f4ff; border-color: var(--accent-blue); }
 .cal-period-label { font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--sidebar-bg); margin-left: 8px; }
 .admin-cal-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.cal-view-btn { padding: 6px 14px; border-radius: 8px; border: 1.5px solid #e0e4ea; background: white; color: var(--text-muted); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
+.cal-view-btn { padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white); color: var(--text-muted); font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
 .cal-view-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
 
 /* Formulario nueva cita */
@@ -2051,7 +2077,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .admin-cal-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
 .admin-cal-form-grid select,
 .admin-cal-form-grid input[type="date"],
-.admin-cal-form-grid input[type="time"] { padding: 9px 12px; border-radius: 10px; border: 1.5px solid #e0e4ea; background: white; font-family: 'Quicksand', sans-serif; font-size: 0.88rem; color: var(--text-main); }
+.admin-cal-form-grid input[type="time"] { padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--card-border-strong, #e0e4ea); background: var(--card-bg, white); font-family: 'Quicksand', sans-serif; font-size: 0.88rem; color: var(--text-main); }
 .admin-cal-form-grid select:focus,
 .admin-cal-form-grid input:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(116,185,255,0.12); }
 
@@ -2063,7 +2089,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .admin-cal-month-header { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 6px; }
 .admin-cal-day-label { text-align: center; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--accent-blue); padding: 5px 0; letter-spacing: 0.5px; }
 .admin-cal-month-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
-.admin-cal-cell { min-height: 88px; background: white; border-radius: 8px; padding: 6px; border: 1px solid #f1f2f6; cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; transition: background 0.15s; }
+.admin-cal-cell { min-height: 88px; background: var(--card-bg, white); border-radius: 8px; padding: 6px; border: 1px solid var(--card-border, #f1f2f6); cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; transition: background 0.15s; }
 .admin-cal-cell:hover { background: #faf8ff; border-color: var(--accent-lavender); }
 .admin-cal-cell--empty { background: transparent; border-color: transparent; cursor: default; }
 .admin-cal-cell--today { border-color: var(--accent-blue); background: #f0f6ff; }
@@ -2075,7 +2101,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 /* ── Vista Semana ── */
 .admin-cal-week { display: flex; flex-direction: column; height: 500px; }
-.admin-cal-week-header { display: grid; grid-template-columns: 52px repeat(7,1fr); border-bottom: 1px solid #f1f2f6; flex-shrink: 0; }
+.admin-cal-week-header { display: grid; grid-template-columns: 52px repeat(7,1fr); border-bottom: 1px solid var(--card-border, #f1f2f6); flex-shrink: 0; }
 .admin-cal-gutter { width: 52px; }
 .admin-cal-wdl { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; cursor: pointer; transition: background 0.2s; border-radius: 8px; }
 .admin-cal-wdl:hover { background: #f0f4ff; }
@@ -2094,7 +2120,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 
 /* ── Vista Día ── */
 .admin-cal-day { display: flex; flex-direction: column; height: 500px; }
-.admin-cal-day-label { font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 800; color: var(--sidebar-bg); padding: 4px 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f2f6; flex-shrink: 0; text-transform: capitalize; }
+.admin-cal-day-label { font-family: 'Montserrat', sans-serif; font-size: 0.95rem; font-weight: 800; color: var(--sidebar-bg); padding: 4px 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--card-border, #f1f2f6); flex-shrink: 0; text-transform: capitalize; }
 .admin-cal-day-count { font-size: 0.75rem; background: #e6f1fb; color: var(--accent-dark, #185FA5); padding: 3px 10px; border-radius: 20px; font-weight: 700; }
 .admin-cal-day-scroll { flex: 1; overflow-y: auto; }
 .admin-cal-day-row { display: grid; grid-template-columns: 52px 1fr; min-height: 62px; border-bottom: 1px solid #f8f5ff; }
@@ -2116,7 +2142,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 /* ── Pop-up detalle de cita (adp) ── */
 .adp {
     width: 300px;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.06);
     border: 1px solid rgba(116,185,255,0.2);
@@ -2125,12 +2151,12 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 @keyframes adpIn { from{opacity:0;transform:scale(0.9) translateY(6px);}to{opacity:1;transform:scale(1) translateY(0);} }
 .adp-bar    { height: 4px; width: 100%; }
-.adp-header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid #f1f2f6; }
+.adp-header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 10px; border-bottom: 1px solid var(--card-border, #f1f2f6); }
 .adp-body   { padding: 10px 14px; display: flex; flex-direction: column; gap: 7px; }
 .adp-row    { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-main); }
 .adp-icon   { color: var(--accent-blue); font-size: 0.75rem; flex-shrink: 0; }
 .adp-price  { margin-left: auto; font-family: 'Montserrat', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--sidebar-bg); }
-.adp-footer { padding: 10px 14px 12px; border-top: 1px solid #f1f2f6; display: flex; flex-direction: column; gap: 6px; }
+.adp-footer { padding: 10px 14px 12px; border-top: 1px solid var(--card-border, #f1f2f6); display: flex; flex-direction: column; gap: 6px; }
 .adp-gcal-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 8px 14px; background: #e6f1fb; color: #185FA5; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
 .adp-gcal-btn:hover { background: #185FA5; color: white; }
 .adp-cobrar-btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 9px 14px; background: #e1f5ee; color: #085041; border: none; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Quicksand', sans-serif; }
@@ -2159,7 +2185,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 }
 /* ── Nota de venta (recibo digital) ── */
 .receipt-sheet {
-    background: white; border: 1px solid #e2e8f0; border-radius: 16px;
+    background: var(--card-bg, white); border: 1px solid #e2e8f0; border-radius: 16px;
     padding: 24px; max-width: 420px; margin: 0 auto;
 }
 .receipt-header { text-align: center; margin-bottom: 16px; }
