@@ -24,7 +24,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaExclamationTriangle, FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaWhatsapp
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaWhatsapp, FaEnvelope
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -45,6 +45,7 @@ import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
 import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
+import { shopToClientOnConfirmation as emailOnConfirmation, shopToClientOnFinished as emailOnFinished, openEmail } from '../../utils/emailNotify';
 import './AdminDashboard.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -547,12 +548,23 @@ const ReceiptModal = ({sale,settings,client,onClose}) => {
     const dateObj=new Date(sale.date||sale.createdAt||Date.now());
     const clientName=client?.name||sale.client?.name||'Cliente mostrador';
     const clientPhone=client?.phone||sale.client?.phone;
+    const clientEmail=client?.email||sale.client?.email;
 
     const handleWhatsApp=()=>{
         const lines=items.map(i=>`• ${i.quantity}x ${i.name} — $${Number(i.price*i.quantity).toLocaleString()}`).join('\n');
         const msg=`🧾 *Nota de venta — ${settings?.businessName||"Taylor's Pet Services"}*\n\n${lines}\n\n*Total: $${Number(total).toLocaleString()}*\nFecha: ${dateObj.toLocaleDateString('es-MX')}\nMétodo de pago: ${sale.paymentMethod||'efectivo'}\n\n¡Gracias por tu preferencia! 🐾`;
         const phone=(clientPhone||'').replace(/\D/g,'');
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+    };
+
+    // mailto: — abre el cliente de correo que ya tenga configurado el
+    // empleado/admin en su equipo (el que use el sistema operativo), no un
+    // correo fijo del sistema. El propio empleado revisa y presiona enviar.
+    const handleEmail=()=>{
+        const lines=items.map(i=>`• ${i.quantity}x ${i.name} — $${Number(i.price*i.quantity).toLocaleString()}`).join('\n');
+        const subject=`Nota de venta — ${settings?.businessName||"Taylor's Pet Services"} #${sale.id}`;
+        const body=`Hola ${clientName},\n\nAquí tienes tu nota de venta:\n\n${lines}\n\nTotal: $${Number(total).toLocaleString()}\nFecha: ${dateObj.toLocaleDateString('es-MX')}\nMétodo de pago: ${sale.paymentMethod||'efectivo'}\n\n¡Gracias por tu preferencia! 🐾\n— ${settings?.businessName||"Taylor's Pet Services"}`;
+        window.location.href=`mailto:${encodeURIComponent(clientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     };
 
     return <Modal title="🧾 Nota de venta" onClose={onClose}>
@@ -580,6 +592,7 @@ const ReceiptModal = ({sale,settings,client,onClose}) => {
         </div>
         <div className="form-actions form-actions--end" style={{marginTop:16}}>
             {clientPhone && <button className="btn-secondary" onClick={handleWhatsApp}><FaWhatsapp/> Enviar por WhatsApp</button>}
+            {clientEmail && <button className="btn-secondary" onClick={handleEmail}><FaEnvelope/> Enviar por correo</button>}
             <button className="btn-primary" onClick={()=>window.print()}><FaReceipt/> Imprimir / Guardar PDF</button>
         </div>
     </Modal>;
@@ -826,15 +839,19 @@ const AdminDashboard = () => {
         }catch(err){addToast(`Error al agendar: ${err.message}`,'error');throw err;}
     },[appointments,empleados,pets,addToast]);
 
-    // Notificación automática e inmediata por WhatsApp al confirmar/finalizar —
-    // sin diálogo de confirmación intermedio (ver feedback del cliente).
+    // Notificación automática e inmediata al confirmar/finalizar — sin diálogo
+    // de confirmación intermedio (ver feedback del cliente). Abre WhatsApp
+    // (si hay teléfono) Y el cliente de correo del sistema operativo (si hay
+    // email) — nunca un correo fijo del servidor: cada empleado/admin envía
+    // desde su propia cuenta, la que tenga configurada en su equipo.
     const notifyClientByWhatsApp = useCallback((appt,newStatus)=>{
         if(newStatus!=='Confirmada'&&newStatus!=='Completada'&&newStatus!=='Finalizada')return;
         const petId=getApptPetId(appt);
         const pet=pets.find(p=>String(p.id)===String(petId));
         const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
         const clientPhone=owner?.phone||getApptClientPhone(appt);
-        if(!clientPhone){addToast('No se notificó: el cliente no tiene teléfono registrado','info');return;}
+        const clientEmail=owner?.email;
+        if(!clientPhone&&!clientEmail){addToast('No se notificó: el cliente no tiene teléfono ni correo registrado','info');return;}
         const baseInfo={
             clientName:  owner?.name||getApptClientName(appt)||'Cliente',
             clientPhone: clientPhone,
@@ -843,9 +860,16 @@ const AdminDashboard = () => {
             date:        appt.date,
             time:        getApptTime(appt),
         };
-        const url=(newStatus==='Confirmada')?shopToClientOnConfirmation(baseInfo):shopToClientOnFinished(baseInfo);
-        const opened=openWhatsApp(url);
-        addToast(opened?'WhatsApp abierto para notificar al cliente':'No se pudo generar el mensaje de WhatsApp',opened?'info':'error');
+        let opened=false;
+        if(clientPhone){
+            const url=(newStatus==='Confirmada')?shopToClientOnConfirmation(baseInfo):shopToClientOnFinished(baseInfo);
+            opened=openWhatsApp(url)||opened;
+        }
+        if(clientEmail){
+            const mailUrl=(newStatus==='Confirmada')?emailOnConfirmation({...baseInfo,clientEmail}):emailOnFinished({...baseInfo,clientEmail});
+            opened=openEmail(mailUrl)||opened;
+        }
+        addToast(opened?'Se abrió WhatsApp/correo para notificar al cliente':'No se pudo generar la notificación',opened?'info':'error');
     },[pets,clients,addToast]);
 
     // FIX: addSale con nuevo formato al finalizar cita
