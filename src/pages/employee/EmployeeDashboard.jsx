@@ -10,6 +10,7 @@ import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
+import NotificationBell from '../../components/shared/NotificationBell';
 import {
     FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt,
     FaNotesMedical, FaClock, FaTimes, FaSave,
@@ -66,11 +67,19 @@ const Toast = ({message,type,onClose}) => {
     useEffect(()=>{const t=setTimeout(onClose,4000);return()=>clearTimeout(t);},[onClose]);
     return <div className={`emp-toast emp-toast--${type}`}><span>{message}</span><button onClick={onClose}><FaTimes/></button></div>;
 };
+const MAX_LOG = 30;
 const useToast = () => {
     const [toasts,setToasts]=useState([]);
-    const addToast    = useCallback((m,t='info')=>setToasts(p=>[...p,{id:Date.now()+Math.random(),message:m,type:t}]),[]);
+    const [log,setLog]=useState([]);
+    const [unseenCount,setUnseenCount]=useState(0);
+    const addToast    = useCallback((m,t='info')=>{
+        setToasts(p=>[...p,{id:Date.now()+Math.random(),message:m,type:t}]);
+        setLog(p=>[{id:Date.now()+Math.random(),message:m,type:t,at:new Date()}, ...p].slice(0,MAX_LOG));
+        setUnseenCount(c=>c+1);
+    },[]);
     const removeToast = useCallback((id)=>setToasts(p=>p.filter(t=>t.id!==id)),[]);
-    return {toasts,addToast,removeToast};
+    const markSeen = useCallback(()=>setUnseenCount(0),[]);
+    return {toasts,addToast,removeToast,log,unseenCount,markSeen};
 };
 
 // ─── Modal genérico ───────────────────────────────────────────────────────────
@@ -400,17 +409,18 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
 };
 
 const EMPLOYEE_ONBOARDING_STEPS=[
-    {icon:'👋',title:'¡Bienvenido!',description:'Este es tu panel de trabajo diario. Te mostramos rápido las secciones principales.'},
-    {icon:'📅',title:'Agenda',description:'Aquí ves y confirmas las citas del día, asignas horarios y marcas el avance de cada servicio.'},
-    {icon:'🐾',title:'Clientes y Pacientes',description:'Consulta y registra clientes y sus mascotas cuando lo necesites.'},
-    {icon:'🧾',title:'Punto de venta',description:'Registra cobros de productos y servicios, y genera la nota de venta (recibo) al finalizar.'},
+    {icon:'👋',title:'¡Bienvenido!',description:'Este es tu panel de trabajo diario. Te mostramos rápido dónde está cada función.'},
+    {icon:'📅',title:'Agenda',description:'Aquí ves y confirmas las citas del día, asignas horarios y marcas el avance de cada servicio.',target:'[data-tour="employee-agenda"]'},
+    {icon:'🧾',title:'Venta',description:'Registra cobros de productos y servicios, y genera la nota de venta (recibo) al finalizar.',target:'[data-tour="employee-venta"]'},
+    {icon:'🐾',title:'Clientes',description:'Consulta y registra clientes y sus mascotas cuando lo necesites.',target:'[data-tour="employee-clientes"]'},
+    {icon:'📦',title:'Inventario',description:'Consulta el stock disponible de productos.',target:'[data-tour="employee-inventario"]'},
 ];
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const EmployeeDashboard = () => {
     const {products,pets,clients,services,settings,addClient,updateClient,addPet,updatePet,addSale,updateProduct,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
-    const {toasts,addToast,removeToast}=useToast();
+    const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
     const {notify, NotifyNode} = useNotify();
     const {show:showOnboarding,dismiss:dismissOnboarding,reopen:reopenOnboarding}=useOnboarding('employee',user?.id);
 
@@ -762,6 +772,7 @@ const EmployeeDashboard = () => {
                     </div>}
                 </div>
                 <div className="emp-topbar-right">
+                    <NotificationBell log={notifLog} unseenCount={unseenCount} onOpen={markSeen}/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <span className="emp-greeting"><FaUserTie/> Hola, <strong>{user?.name||'Empleado'}</strong></span>
                     <button className="emp-logout-btn" onClick={logout}><FaSignOutAlt/></button>
@@ -771,7 +782,7 @@ const EmployeeDashboard = () => {
             {showOnboarding && <OnboardingTour steps={EMPLOYEE_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
             <aside className="emp-sidebar">
-                <nav className="emp-sidebar-nav">{NAV.map(item=><button key={item.id} className={`emp-nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');}} title={item.label}>{item.icon}<span className="emp-nav-label">{item.label}</span></button>)}</nav>
+                <nav className="emp-sidebar-nav">{NAV.map(item=><button key={item.id} data-tour={`employee-${item.id}`} className={`emp-nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');}} title={item.label}>{item.icon}<span className="emp-nav-label">{item.label}</span></button>)}</nav>
                 <button className="emp-sidebar-logout" onClick={logout}><FaSignOutAlt/></button>
             </aside>
 

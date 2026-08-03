@@ -13,11 +13,13 @@ import loginVideo  from '../../assets/hero.mp4';
 import loginPoster from '../../assets/1.jpg';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatMexPhone, whatsAppValidationError } from '../../utils/formatPhone';
+import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 
 const Register = () => {
     const [step, setStep] = useState(1);
     const [clientData, setClientData] = useState({
-        name: '', phone: '', email: '', password: '', confirmPassword: ''
+        name: '', phone: '', email: '', password: '', confirmPassword: '',
+        securityQuestion: SECURITY_QUESTIONS[0], securityAnswer: '',
     });
     const [petData, setPetData] = useState({
         petName: '', species: 'perro', breed: '', age: '', weight: '', notes: ''
@@ -68,6 +70,10 @@ const Register = () => {
         }
         if (clientData.password.length < 6) {
             setError('La contraseña debe tener al menos 6 caracteres.');
+            return;
+        }
+        if (!clientData.securityAnswer.trim()) {
+            setError('La respuesta de seguridad es necesaria para poder recuperar tu contraseña más adelante.');
             return;
         }
         setStep(2);
@@ -136,6 +142,21 @@ const Register = () => {
                         value={clientData.confirmPassword}
                         onChange={handleClientChange} required />
                 </div>
+            </div>
+            <div className="input-group">
+                <label>Pregunta de seguridad</label>
+                <select id="securityQuestion" value={clientData.securityQuestion} onChange={handleClientChange}>
+                    {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+                </select>
+                <small className="field-hint">
+                    La usaremos para verificar tu identidad si olvidas tu contraseña — no enviamos correos.
+                </small>
+            </div>
+            <div className="input-group">
+                <label>Tu respuesta</label>
+                <input type="text" id="securityAnswer" placeholder="Tu respuesta"
+                    value={clientData.securityAnswer}
+                    onChange={handleClientChange} required />
             </div>
             <button type="submit" className="register-button primary">
                 Siguiente →

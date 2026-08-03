@@ -6,8 +6,7 @@ import { AuthProvider, setDataReloader } from './contexts/AuthContext';
 import { DataProvider, useData }         from './contexts/DataContext';
 import Navbar            from './components/Navbar/Navbar';
 import Footer            from './components/Footer/Footer';
-import WhatsAppButton    from './components/WhatsAppButton/WhatsAppButton';
-import Chatbot           from './components/Chatbot/Chatbot';
+import FloatingMenu      from './components/FloatingMenu/FloatingMenu';
 import ProtectedRoute    from './components/ProtectedRoute';
 import { applyBrandColor, applyBrandSecondaryColor, applyFontFamily } from './utils/theme';
 
@@ -19,7 +18,6 @@ import Contact           from './pages/Contact';
 import SobreNosotros     from './pages/SobreNosotros';
 import Login             from './components/Login/Login';
 import ForgotPassword    from './components/Login/ForgotPassword';
-import ResetPassword     from './components/Login/ResetPassword';
 import Register          from './components/Register/Register';
 import AdminDashboard    from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
@@ -63,8 +61,7 @@ const AppContent = () => {
     const isAuthPage =
         location.pathname === '/acceso' ||
         location.pathname === '/registro' ||
-        location.pathname === '/olvide-contrasena' ||
-        location.pathname === '/restablecer-contrasena';
+        location.pathname === '/olvide-contrasena';
 
     const hideGlobalUI = isDashboard || isAuthPage;
 
@@ -81,7 +78,6 @@ const AppContent = () => {
                     <Route path="/sobre-nosotros"  element={<SobreNosotros />} />
                     <Route path="/acceso"          element={<Login />} />
                     <Route path="/olvide-contrasena"      element={<ForgotPassword />} />
-                    <Route path="/restablecer-contrasena" element={<ResetPassword />} />
                     <Route path="/registro"        element={<Register />} />
 
                     {/* ── Dashboards protegidos ── */}
@@ -111,11 +107,10 @@ const AppContent = () => {
             {!hideGlobalUI && (
                 <>
                     <Footer />
-                    <WhatsAppButton
-                        phoneNumber="5215633252525"
-                        message="Hola, me interesa agendar una cita para mi mascota en Taylor's Pet Services."
+                    <FloatingMenu
+                        whatsappNumber="5215633252525"
+                        whatsappMessage="Hola, me interesa agendar una cita para mi mascota en Taylor's Pet Services."
                     />
-                    <Chatbot />
                 </>
             )}
         </div>

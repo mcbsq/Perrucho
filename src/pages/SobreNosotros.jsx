@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaHeart } from 'react-icons/fa';
+import { PiHeartBold, PiStarBold, PiCertificateBold, PiTrophyBold, PiScissorsBold, PiBathtubBold, PiFootprintsBold, PiShoppingBagBold, PiHouseBold, PiCarBold } from 'react-icons/pi';
 import './SobreNosotros.css';
 
 import logoTPS from '../assets/logo2.png';
@@ -10,19 +11,19 @@ const WA_NUMBER = '5215633252525';
 const WA_MSG    = encodeURIComponent('Hola, me interesa conocer más sobre Taylor\'s Pet Services.');
 
 const VALORES = [
-    { icon: '❤️', title: 'Amor por los animales', desc: 'Cada mascota es tratada como si fuera nuestra. El bienestar y comodidad de tu compañero es nuestra prioridad.' },
-    { icon: '⭐', title: 'Calidad premium',        desc: 'Utilizamos productos cosméticos de alta gama para garantizar la calidad del servicio y el cuidado que tu mascota merece.' },
-    { icon: '👨‍💼', title: 'Personal certificado',  desc: 'Contamos con personal capacitado y en constante formación para brindarte el mejor servicio del mercado.' },
-    { icon: '🏆', title: 'Experiencia',            desc: 'Más de 10 años en el mercado nos avalan. Somos una empresa establecida con amplia experiencia en el cuidado de mascotas.' },
+    { icon: PiHeartBold, title: 'Amor por los animales', desc: 'Cada mascota es tratada como si fuera nuestra. El bienestar y comodidad de tu compañero es nuestra prioridad.' },
+    { icon: PiStarBold, title: 'Calidad premium',        desc: 'Utilizamos productos cosméticos de alta gama para garantizar la calidad del servicio y el cuidado que tu mascota merece.' },
+    { icon: PiCertificateBold, title: 'Personal certificado',  desc: 'Contamos con personal capacitado y en constante formación para brindarte el mejor servicio del mercado.' },
+    { icon: PiTrophyBold, title: 'Experiencia',            desc: 'Más de 10 años en el mercado nos avalan. Somos una empresa establecida con amplia experiencia en el cuidado de mascotas.' },
 ];
 
 const SERVICIOS = [
-    { icon: '✂️', label: 'Grooming' },
-    { icon: '🛁', label: 'Baños especializados' },
-    { icon: '🐕', label: 'Paseos' },
-    { icon: '🛍️', label: 'Tienda' },
-    { icon: '🏠', label: 'Guardería (pronto)' },
-    { icon: '🚗', label: 'A domicilio' },
+    { icon: PiScissorsBold, label: 'Grooming' },
+    { icon: PiBathtubBold, label: 'Baños especializados' },
+    { icon: PiFootprintsBold, label: 'Paseos' },
+    { icon: PiShoppingBagBold, label: 'Tienda' },
+    { icon: PiHouseBold, label: 'Guardería (pronto)' },
+    { icon: PiCarBold, label: 'A domicilio' },
 ];
 
 const SobreNosotros = () => (
@@ -78,7 +79,7 @@ const SobreNosotros = () => (
                 <div className="sobre-valores-grid">
                     {VALORES.map(v => (
                         <div key={v.title} className="sobre-valor-card">
-                            <span className="sobre-valor-icon">{v.icon}</span>
+                            <span className="sobre-valor-icon"><v.icon /></span>
                             <h3>{v.title}</h3>
                             <p>{v.desc}</p>
                         </div>
@@ -95,7 +96,7 @@ const SobreNosotros = () => (
                 <div className="sobre-servicios-grid">
                     {SERVICIOS.map(s => (
                         <div key={s.label} className="sobre-servicio-chip">
-                            <span>{s.icon}</span> {s.label}
+                            <s.icon /> {s.label}
                         </div>
                     ))}
                 </div>

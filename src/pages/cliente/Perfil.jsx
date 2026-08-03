@@ -14,7 +14,7 @@ import {
     FaPaw, FaCalendarCheck, FaShoppingBag, FaSignOutAlt,
     FaTimes, FaEdit, FaPlus, FaSave,
     FaBell, FaHistory, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt,
-    FaWhatsapp, FaInfoCircle, FaBan
+    FaWhatsapp, FaInfoCircle, FaBan, FaShieldAlt
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentsApi, petsApi, salesApi, usersApi } from '../../api/apiClient';
@@ -22,6 +22,7 @@ import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
 import { formatMexPhone, whatsAppValidationError, isValidWhatsApp } from '../../utils/formatPhone';
+import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 import { canClientCancel, MIN_CANCEL_HOURS } from '../../utils/bookingRules';
 import { clientToShopOnCancelRequest, clientToShopOnCancelDone, openWhatsApp } from '../../utils/whatsappNotify';
 import './Perfil.css';
@@ -179,14 +180,20 @@ const Perfil = () => {
             return;
         }
 
+        const securityAnswer = fd.get('securityAnswer');
         const updated = {
             name:    fd.get('name'),
             email:   fd.get('email'),
             phone:   phone,
             address: fd.get('address'),
+            securityQuestion: fd.get('securityQuestion'),
         };
         try {
-            await usersApi.update(user.id, { ...myProfile, ...updated });
+            // securityAnswer solo se envía si el usuario escribió una nueva —
+            // dejar el campo vacío conserva la respuesta actual sin cambios.
+            const payload = { ...myProfile, ...updated };
+            if (securityAnswer) payload.securityAnswer = securityAnswer;
+            await usersApi.update(user.id, payload);
             setMyProfile(prev => ({ ...prev, ...updated }));
             if (updateSessionUser) updateSessionUser({ name: updated.name, email: updated.email });
             addToast('Perfil actualizado', 'success');
@@ -573,6 +580,19 @@ const Perfil = () => {
                         <div className="form-field">
                             <label><FaMapMarkerAlt /> Dirección</label>
                             <input name="address" defaultValue={myProfile?.address} placeholder="Calle y número" />
+                        </div>
+                        <div className="form-field">
+                            <label><FaShieldAlt /> Pregunta de seguridad</label>
+                            <select name="securityQuestion" defaultValue={myProfile?.securityQuestion || SECURITY_QUESTIONS[0]}>
+                                {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+                            </select>
+                            <small className="form-hint">
+                                {myProfile?.securityQuestion
+                                    ? 'La usamos para verificar tu identidad en "Olvidé mi contraseña". Deja la respuesta vacía para conservar la actual.'
+                                    : 'No tienes una pregunta de seguridad configurada — sin ella no podrás recuperar tu contraseña si la olvidas.'}
+                            </small>
+                            <input name="securityAnswer" placeholder={myProfile?.securityQuestion ? 'Nueva respuesta (opcional)' : 'Tu respuesta'}
+                                required={!myProfile?.securityQuestion} />
                         </div>
                         <div className="form-actions">
                             <button type="button" className="btn-cancel" onClick={() => { setProfileModal(false); setProfilePhoneError(''); }}>Cancelar</button>

@@ -65,6 +65,10 @@ model User {
   // "Olvidé mi contraseña" — token de un solo uso con expiración (1h)
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
+  // Recuperación 100% interna (sin SMTP): pregunta de seguridad elegida al
+  // registrarse. La respuesta se guarda hasheada, nunca en texto plano.
+  securityQuestion   String?
+  securityAnswerHash String?
 
   // Relaciones
   pets              Pet[]

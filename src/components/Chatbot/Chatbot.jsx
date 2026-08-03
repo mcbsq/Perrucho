@@ -224,12 +224,18 @@ const FormattedText = ({ text }) => {
 };
 
 // ─── Componente principal ─────────────────────────────────────────────────────
-const Chatbot = () => {
+// isOpen/onOpenChange son opcionales — si no se pasan, el componente maneja
+// su propio estado (uso original, standalone). Cuando SÍ se pasan (desde el
+// menú burbuja combinado en App.js), el botón flotante propio se puede
+// ocultar con hideFab y el control pasa al padre.
+const Chatbot = ({ isOpen: controlledOpen, onOpenChange, hideFab = false }) => {
     const { services, products } = useData();
     const { isLoggedIn }         = useAuth();
     const navigate               = useNavigate();
 
-    const [isOpen,   setIsOpen]   = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
+    const isOpen  = controlledOpen !== undefined ? controlledOpen : internalOpen;
+    const setIsOpen = onOpenChange || setInternalOpen;
     const [messages, setMessages] = useState([]);
     const [input,    setInput]    = useState('');
     const [typing,   setTyping]   = useState(false);
@@ -367,16 +373,18 @@ const Chatbot = () => {
                 </div>
             )}
 
-            <button
-                className={`chatbot-fab ${isOpen ? 'chatbot-fab--open' : ''}`}
-                onClick={() => setIsOpen(v => !v)}
-                aria-label="Abrir asistente"
-            >
-                {isOpen ? <CloseIcon /> : <ChatIcon />}
-                {!isOpen && unread > 0 && (
-                    <span className="chatbot-unread-badge">{unread}</span>
-                )}
-            </button>
+            {!hideFab && (
+                <button
+                    className={`chatbot-fab ${isOpen ? 'chatbot-fab--open' : ''}`}
+                    onClick={() => setIsOpen(v => !v)}
+                    aria-label="Abrir asistente"
+                >
+                    {isOpen ? <CloseIcon /> : <ChatIcon />}
+                    {!isOpen && unread > 0 && (
+                        <span className="chatbot-unread-badge">{unread}</span>
+                    )}
+                </button>
+            )}
         </>
     );
 };

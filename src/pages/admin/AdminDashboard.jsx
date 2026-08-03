@@ -15,6 +15,7 @@ import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
 import { appointmentsApi, usersApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
+import NotificationBell from '../../components/shared/NotificationBell';
 import * as XLSX from 'xlsx';
 import {
     FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers,
@@ -85,11 +86,22 @@ const Toast = ({message,type,onClose}) => {
     useEffect(()=>{const t=setTimeout(onClose,3500);return()=>clearTimeout(t);},[onClose]);
     return <div className={`toast toast--${type}`}><span>{message}</span><button onClick={onClose}><FaTimes/></button></div>;
 };
+// El "log" es la misma info que los toasts pero sin autodesaparecer — nutre
+// la campana de notificaciones internas (confirmaciones de lo que se hizo
+// en el panel: cita confirmada, venta registrada, stock crítico, etc).
+const MAX_LOG = 30;
 const useToast = () => {
     const [toasts,setToasts]=useState([]);
-    const addToast    = useCallback((m,t='info')=>setToasts(p=>[...p,{id:Date.now()+Math.random(),message:m,type:t}]),[]);
+    const [log,setLog]=useState([]);
+    const [unseenCount,setUnseenCount]=useState(0);
+    const addToast    = useCallback((m,t='info')=>{
+        setToasts(p=>[...p,{id:Date.now()+Math.random(),message:m,type:t}]);
+        setLog(p=>[{id:Date.now()+Math.random(),message:m,type:t,at:new Date()}, ...p].slice(0,MAX_LOG));
+        setUnseenCount(c=>c+1);
+    },[]);
     const removeToast = useCallback((id)=>setToasts(p=>p.filter(t=>t.id!==id)),[]);
-    return {toasts,addToast,removeToast};
+    const markSeen = useCallback(()=>setUnseenCount(0),[]);
+    return {toasts,addToast,removeToast,log,unseenCount,markSeen};
 };
 
 // ─── Modal genérico admin ─────────────────────────────────────────────────────
@@ -598,12 +610,14 @@ const ReceiptModal = ({sale,settings,client,onClose}) => {
 };
 
 const ADMIN_ONBOARDING_STEPS=[
-    {icon:'👋',title:'¡Bienvenido a Taylor\'s!',description:'Este es tu panel de administrador. Te mostramos rápido cómo moverte por el sistema.'},
-    {icon:'📊',title:'Panel de control',description:'Aquí ves tus ventas, egresos, citas del día y clientes de un vistazo. Toca cada tarjeta para ver el detalle.'},
-    {icon:'🧾',title:'Punto de venta',description:'Desde "Venta" registras cobros de productos y servicios, y generas la nota de venta (recibo digital) al terminar.'},
-    {icon:'🐾',title:'Clientes, Pacientes y Agenda',description:'Administra clientes y mascotas, y desde "Citas hoy" abres la agenda para asignar horarios.'},
-    {icon:'✂️',title:'Servicios e Inventario',description:'Da de alta tus servicios (con precio por tamaño o personalizado) y productos con su stock.'},
-    {icon:'🎨',title:'Personalización',description:'En "Sitio" puedes cambiar el logo, colores, textos del inicio y más — sin tocar código.'},
+    {icon:'👋',title:'¡Bienvenido a Taylor\'s!',description:'Este es tu panel de administrador. Te mostramos rápido dónde está cada función.'},
+    {icon:'📊',title:'Panel de control',description:'Aquí ves tus ventas, egresos, citas del día y clientes de un vistazo. Toca cada tarjeta para ver el detalle.',target:'[data-tour="admin-control"]'},
+    {icon:'🧾',title:'Punto de venta',description:'Desde aquí registras cobros de productos y servicios, y generas la nota de venta (recibo digital) al terminar.',target:'[data-tour="admin-pos"]'},
+    {icon:'🐾',title:'Clientes',description:'Administra los datos de tus clientes y sus mascotas registradas.',target:'[data-tour="admin-clientes"]'},
+    {icon:'✂️',title:'Servicios',description:'Da de alta tus servicios con precio por tamaño o personalizado.',target:'[data-tour="admin-servicios"]'},
+    {icon:'📦',title:'Inventario',description:'Controla tus productos y su stock disponible.',target:'[data-tour="admin-productos"]'},
+    {icon:'👤',title:'Usuarios',description:'Da de alta y administra las cuentas de tus empleados y otros administradores.',target:'[data-tour="admin-usuarios"]'},
+    {icon:'🎨',title:'Personalización',description:'En "Sitio" puedes cambiar el logo, colores, textos del inicio y más — sin tocar código.',target:'[data-tour="admin-personalizacion"]'},
 ];
 const EXPENSE_CATEGORIES=['Renta','Servicios','Insumos','Nómina','Mantenimiento','Otro'];
 const ExpensesModal = ({expenses,onClose,onAdd,onDelete}) => {
@@ -683,7 +697,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 const AdminDashboard = () => {
     const {services,products,pets,clients,sales,expenses,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
-    const {toasts,addToast,removeToast}=useToast();
+    const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
     const {notify, NotifyNode} = useNotify();
     const {show:showOnboarding,dismiss:dismissOnboarding,reopen:reopenOnboarding}=useOnboarding('admin',user?.id);
 
@@ -1046,6 +1060,7 @@ const AdminDashboard = () => {
                     </div>}
                 </div>
                 <div className="topbar-right">
+                    <NotificationBell log={notifLog} unseenCount={unseenCount} onOpen={markSeen}/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <div className="user-pill"><FaUserShield/><span>{user?.name}</span></div>
                     <button className="logout-pill" onClick={logout}><FaSignOutAlt/></button>
@@ -1055,7 +1070,7 @@ const AdminDashboard = () => {
             {showOnboarding && <OnboardingTour steps={ADMIN_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
             <aside className="admin-sidebar">
-                <nav className="sidebar-nav">{NAV.map(item=><button key={item.id} className={`nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');setSearchFocus(false);}} title={item.label}>{item.icon}<span className="nav-label">{item.label}</span></button>)}</nav>
+                <nav className="sidebar-nav">{NAV.map(item=><button key={item.id} data-tour={`admin-${item.id}`} className={`nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');setSearchFocus(false);}} title={item.label}>{item.icon}<span className="nav-label">{item.label}</span></button>)}</nav>
                 <button className="sidebar-logout" onClick={logout}><FaSignOutAlt/></button>
             </aside>
 

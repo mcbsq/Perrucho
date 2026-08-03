@@ -17,6 +17,8 @@ import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
 import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
 import { appointmentsApi } from '../api/apiClient';
+import { getServiceIcon } from '../utils/serviceIcons';
+import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
 // Logo: pon tu archivo como src/assets/logo.png para activarlo
 // import logoTPS from '../assets/logo.png';
 const logoTPS = null;
@@ -275,7 +277,7 @@ const HowItWorksSection = ({ onBookingExpress, showGuestBooking, settings }) => 
                                 <div className={`how-step-icon-wrap how-step-icon-wrap--${step.color}`}>
                                     {step.imageUrl
                                         ? <img src={step.imageUrl} alt="" className="how-step-image" />
-                                        : <span className="how-step-icon">{step.icon}</span>
+                                        : (() => { const StepIcon = getServiceIcon(step.title); return <StepIcon className="how-step-icon" />; })()
                                     }
                                 </div>
                                 <h4 className="how-step-title">{step.title}</h4>
@@ -306,11 +308,12 @@ const HowItWorksSection = ({ onBookingExpress, showGuestBooking, settings }) => 
 };
 
 // ─── Ítem de stat ─────────────────────────────────────────────────────────────
-const TrustStatItem = ({ target, suffix, label, icon }) => {
+const TrustStatItem = ({ target, suffix, label }) => {
     const { count, ref } = useCountUp(target);
+    const Icon = getServiceIcon(label);
     return (
         <div className="trust-item" ref={ref}>
-            <span className="trust-icon">{icon}</span>
+            <span className="trust-icon"><Icon /></span>
             <span className="trust-num">{count}{suffix}</span>
             <span className="trust-label">{label}</span>
         </div>
@@ -360,13 +363,16 @@ const WhyUsSection = ({ settings }) => {
                 {settings?.whyUsSubtitle || 'Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.'}
             </p>
             <div className="features-grid">
-                {features.map((f, i) => (
-                    <div className="feature-card" key={f.title || i}>
-                        <div className="feature-icon">{f.icon}</div>
-                        <h4>{f.title}</h4>
-                        <p>{f.desc}</p>
-                    </div>
-                ))}
+                {features.map((f, i) => {
+                    const Icon = getServiceIcon(f.title);
+                    return (
+                        <div className="feature-card" key={f.title || i}>
+                            <div className="feature-icon"><Icon /></div>
+                            <h4>{f.title}</h4>
+                            <p>{f.desc}</p>
+                        </div>
+                    );
+                })}
             </div>
         </section>
     );
@@ -375,12 +381,12 @@ const WhyUsSection = ({ settings }) => {
 // ─── Card de producto destacado ───────────────────────────────────────────────
 const ProductCard = ({ item }) => {
     const authAction = useAuthAction();
-    const icon = item.icon || (item.category?.includes('Aliment') ? '🍖' : item.category?.includes('Higien') ? '🛁' : '🎁');
+    const Icon = getServiceIcon(item.category || item.name);
     return (
         <div className="service-card product-card">
             {item.imageUrl
                 ? <img src={item.imageUrl} alt="" className="product-photo" />
-                : <div className="service-icon product-icon">{icon}</div>
+                : <div className="service-icon product-icon"><Icon /></div>
             }
             <h3>{item.name}</h3>
             <p>{item.description || `Categoría: ${item.category}`}</p>
@@ -417,18 +423,30 @@ const CTASection = ({ onBookingExpress, showGuestBooking }) => {
     );
 };
 
+const CLIENT_ONBOARDING_STEPS = [
+    {icon:'👋',title:'¡Bienvenido a Taylor\'s!',description:'Creaste tu cuenta con éxito. Te mostramos rápido dónde está cada cosa.'},
+    {icon:'📅',title:'Reservar cita',description:'Desde aquí agendas una cita para tu mascota en minutos.',target:'[data-tour="home-reservar"]'},
+    {icon:'✂️',title:'Servicios',description:'Consulta todos nuestros servicios y sus precios por tamaño de mascota.',target:'[data-tour="nav-servicios"]'},
+    {icon:'🛍️',title:'Tienda',description:'Compra productos para tu mascota directamente desde aquí.',target:'[data-tour="nav-tienda"]'},
+    {icon:'👤',title:'Tu perfil',description:'Aquí ves tus citas, tus compras y los datos de tus mascotas.',target:'[data-tour="nav-perfil"]'},
+];
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 const Home = () => {
     const { isLoggedIn, user } = useAuth();
     const { services, products, loading, settings } = useData();
     const authAction = useAuthAction();
     const [showBookingExpress, setShowBookingExpress] = useState(false);
+    const isNewClient = isLoggedIn && user?.role === 'cliente';
+    const { show: showOnboarding, dismiss: dismissOnboarding } = useOnboarding('client', isNewClient ? user?.id : null);
 
     // El toggle viene de settings (admin puede apagarlo)
     const guestBookingEnabled = settings?.allowGuestBooking !== false;
 
     return (
         <div className="home-page-container">
+
+            {showOnboarding && isNewClient && <OnboardingTour steps={CLIENT_ONBOARDING_STEPS} onClose={dismissOnboarding} />}
 
             {/* ── HERO CON VIDEO (o imagen si el admin eligió una) ── */}
             <div className="capsule-banner">
@@ -455,7 +473,7 @@ const Home = () => {
                         {settings?.heroSubtitle || 'Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.'}
                     </p>
                     <div className="hero-actions">
-                        <button className="reserve-button hero-cta-main" onClick={() => authAction('/servicios')}>
+                        <button className="reserve-button hero-cta-main" data-tour="home-reservar" onClick={() => authAction('/servicios')}>
                             Reservar cita
                         </button>
                         {guestBookingEnabled && (
