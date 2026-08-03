@@ -13,6 +13,7 @@ import {
     FaFeather, FaPlus, FaExclamationTriangle, FaCheckCircle,
     FaClock, FaTag, FaLayerGroup
 } from 'react-icons/fa';
+import { getServiceIcon } from '../../utils/serviceIcons';
 import { formatMexPhone } from '../../utils/formatPhone';
 import BreedCombobox from '../BreedCombobox/BreedCombobox';
 import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
@@ -230,6 +231,11 @@ export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) 
                     <label>Correo electrónico</label>
                     <input type="email" placeholder="correo@ejemplo.com" value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })} required />
+                    {isEdit && <>
+                        <label>Restablecer contraseña</label>
+                        <input type="password" placeholder="Vacío = no cambiar" value={form.password || ''}
+                            onChange={e => setForm({ ...form, password: e.target.value })} />
+                    </>}
                     {/* Campos extra configurados en Personalización → Giro de negocio */}
                     {extraFields.map(f => (
                         <React.Fragment key={f.key}>
@@ -359,11 +365,13 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
 };
 
 // ─── SERVICE CARD ─────────────────────────────────────────────────────────────
-export const ServiceCard = ({ service, onEdit, onDelete }) => (
+export const ServiceCard = ({ service, onEdit, onDelete }) => {
+    const Icon = getServiceIcon(service.title || service.category);
+    return (
     <div className="ds-card ds-service-card">
         {service.imageUrl
             ? <img src={service.imageUrl} alt="" className="ds-service-photo" />
-            : <div className="ds-service-icon">{service.icon || '✂️'}</div>
+            : <div className="ds-service-icon"><Icon /></div>
         }
         <div className="ds-card-body">
             <div className="ds-card-name">{service.title}</div>
@@ -396,7 +404,8 @@ export const ServiceCard = ({ service, onEdit, onDelete }) => (
             <button className="ds-btn-icon ds-btn-icon--del"  onClick={() => onDelete(service.id, service.title)}><FaTrash /></button>
         </div>
     </div>
-);
+    );
+};
 
 // ─── CATEGORY FIELD (select + "Otro" con texto libre) ─────────────────────────
 // El valor guardado sigue siendo un string plano en `category` (sin cambios de
@@ -472,9 +481,6 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                         knownOptions={['Estética', 'Higiene', 'Médico']}
                         onChange={category => setForm({ ...form, category })}
                     />
-                    <label>Ícono (emoji)</label>
-                    <input placeholder="🛁 ✂️ 🐾 💉" value={form.icon}
-                        onChange={e => setForm({ ...form, icon: e.target.value })} />
                     <label>Foto</label>
                     <ImagePicker value={form.imageUrl} onChange={url => setForm({ ...form, imageUrl: url })} maxDim={700} />
                     <label>Descripción</label>
@@ -568,11 +574,12 @@ export const ProductCard = ({ product, onEdit, onDelete }) => {
     const isLow  = Number(product.stock) < 5 && Number(product.stock) > 0;
     const isOut  = Number(product.stock) === 0;
     const variants = product.variants || [];
+    const ProdIcon = getServiceIcon(product.category || product.name);
     return (
         <div className={`ds-card ds-product-card ${isOut ? 'ds-card--out' : isLow ? 'ds-card--low' : ''}`}>
             {product.imageUrl
                 ? <img src={product.imageUrl} alt="" className="ds-service-photo" />
-                : <div className="ds-product-icon">📦</div>
+                : <div className="ds-product-icon"><ProdIcon /></div>
             }
             <div className="ds-card-body">
                 <div className="ds-card-name">{product.name}</div>

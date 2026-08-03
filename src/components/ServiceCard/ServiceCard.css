@@ -55,9 +55,9 @@
 .svc-card:hover .svc-icon-wrap {
     transform: scale(1.12) rotate(6deg);
 }
-.svc-icon-wrap--blue     { background: var(--color-surface-blue, #e6f1fb); }
-.svc-icon-wrap--lavender { background: var(--color-surface-lavender, #f0eeff); }
-.svc-icon-wrap--mint     { background: var(--color-surface-mint, #e1f5ee); }
+.svc-icon-wrap--blue     { background: var(--color-surface-blue, #e6f1fb); color: var(--color-accent, #74b9ff); }
+.svc-icon-wrap--lavender { background: var(--color-surface-lavender, #f0eeff); color: var(--color-lavender, #a29bfe); }
+.svc-icon-wrap--mint     { background: var(--color-surface-mint, #e1f5ee); color: var(--color-mint-dark, #1D9E75); }
 .svc-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .svc-icon { font-size: 2.6rem; }

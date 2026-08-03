@@ -228,10 +228,10 @@
     display: flex; align-items: center; justify-content: center; transition: transform 0.4s;
 }
 .how-step:hover .how-step-icon-wrap { transform: scale(1.1) rotate(5deg); }
-.how-step-icon-wrap--blue     { background: var(--color-surface-blue, #e6f1fb); }
-.how-step-icon-wrap--lavender { background: var(--color-surface-lavender, #f0eeff); }
-.how-step-icon-wrap--mint     { background: var(--color-surface-mint, #e1f5ee); }
-.how-step-icon { font-size: 2rem; }
+.how-step-icon-wrap--blue     { background: var(--color-surface-blue, #e6f1fb); color: var(--color-accent, #74b9ff); }
+.how-step-icon-wrap--lavender { background: var(--color-surface-lavender, #f0eeff); color: var(--color-lavender, #a29bfe); }
+.how-step-icon-wrap--mint     { background: var(--color-surface-mint, #e1f5ee); color: var(--color-mint-dark, #1D9E75); }
+.how-step-icon { font-size: 1.9rem; }
 .how-step-image { width: 100%; height: 100%; object-fit: cover; border-radius: 24px; }
 .how-step-title { font-size: 1rem; font-weight: 800; color: var(--color-brand, #2d3446); text-align: center; }
 .how-step-desc  { font-size: 0.88rem; color: var(--color-text-muted, #888); line-height: 1.6; text-align: center; }
@@ -284,7 +284,7 @@
 }
 .trust-item:last-child { border-right: none; }
 .trust-item:hover { background: rgba(255,255,255,0.04); }
-.trust-icon { font-size: 1.8rem; margin-bottom: 4px; }
+.trust-icon { font-size: 1.8rem; margin-bottom: 4px; color: var(--color-accent, #74b9ff); display: flex; justify-content: center; }
 .trust-num  { font-size: 2.6rem; font-weight: 900; color: white; line-height: 1; }
 .trust-label { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.55); text-align: center; text-transform: uppercase; letter-spacing: 0.8px; }
 
@@ -318,7 +318,7 @@
     transition: var(--transition-bounce, all 0.4s cubic-bezier(0.175,0.885,0.32,1.275));
 }
 .feature-card:hover { transform: translateY(-10px); box-shadow: 0 30px 60px rgba(116,185,255,0.12); }
-.feature-icon { font-size: 2.8rem; margin-bottom: 16px; }
+.feature-icon { font-size: 2.4rem; margin-bottom: 16px; color: var(--color-accent, #74b9ff); display: flex; justify-content: center; }
 .feature-card h4 { font-size: 1.15rem; font-weight: 800; color: var(--color-brand, #2d3446); margin-bottom: 10px; }
 .feature-card p  { font-size: 0.95rem; color: var(--color-text-muted, #888); line-height: 1.7; }
 
@@ -337,12 +337,13 @@
     box-shadow: 0 40px 80px rgba(116,185,255,0.15); border-color: var(--color-accent, #74b9ff);
 }
 .service-icon {
-    font-size: 4rem; width: 120px; height: 120px; background: var(--pub-card-bg, white);
+    font-size: 3rem; width: 120px; height: 120px; background: var(--pub-card-bg, white);
+    color: var(--color-accent, #74b9ff);
     display: flex; align-items: center; justify-content: center; border-radius: 40px;
     margin-bottom: 25px; box-shadow: 0 15px 30px rgba(0,0,0,0.05);
     transition: var(--transition-bounce, all 0.5s ease);
 }
-.service-card:hover .service-icon { transform: translateY(-10px) rotate(5deg); background: var(--color-accent, #74b9ff); }
+.service-card:hover .service-icon { transform: translateY(-10px) rotate(5deg); background: var(--color-accent, #74b9ff); color: white; }
 .service-card h3 { font-size: 1.8rem; margin-bottom: 15px; color: var(--color-brand, #2d3446); }
 .service-card p {
     color: var(--color-text-muted, #888); font-size: 1.05rem; line-height: 1.8; margin-bottom: 20px;

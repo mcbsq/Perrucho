@@ -447,8 +447,9 @@
 
 /* ══ SERVICE CARD ═════════════════════════════════════════════════════ */
 .ds-service-icon {
-    font-size: 2rem; width: 52px; height: 52px;
-    background: #f8fafc; border-radius: 14px;
+    font-size: 1.6rem; width: 52px; height: 52px;
+    background: var(--color-surface-blue, #e6f1fb); color: var(--color-accent, #74b9ff);
+    border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
@@ -461,8 +462,9 @@
 
 /* ══ PRODUCT CARD ═════════════════════════════════════════════════════ */
 .ds-product-icon {
-    font-size: 2rem; width: 52px; height: 52px;
-    background: #f8fafc; border-radius: 14px;
+    font-size: 1.6rem; width: 52px; height: 52px;
+    background: var(--color-surface-mint, #e1f5ee); color: var(--color-mint-dark, #1D9E75);
+    border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }

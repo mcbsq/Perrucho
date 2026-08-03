@@ -9,6 +9,7 @@
 import React, { useState } from 'react';
 import './ServiceCard.css';
 import { WEIGHT_RANGES, calcServicePrice } from '../../utils/pricingRules';
+import { getServiceIcon } from '../../utils/serviceIcons';
 
 // ── Helpers: color e ícono por defecto si la BD no los trae ──────────────────
 export function inferColor(service) {
@@ -20,15 +21,11 @@ export function inferColor(service) {
     return 'blue';
 }
 
+// Ícono real (librería, no emoji) inferido del título/categoría del servicio
+// — reemplaza el emoji que el admin podía escribir a mano (feedback del
+// cliente: se veían genéricos/inconsistentes entre sistemas operativos).
 export function inferIcon(service) {
-    const cat   = (service.category || '').toLowerCase();
-    const title = (service.title    || '').toLowerCase();
-    if (title.includes('baño')  || cat.includes('higien')) return '🛁';
-    if (title.includes('corte') || cat.includes('estét'))  return '✂️';
-    if (title.includes('uña'))                             return '🐾';
-    if (title.includes('vacun'))                           return '💉';
-    if (cat.includes('veter')   || cat.includes('médic'))  return '🏥';
-    return '🐾';
+    return getServiceIcon(service.title || service.category);
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
@@ -56,7 +53,7 @@ const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
         : calcServicePrice(service, representativeWeight[selectedRange]);
 
     const color = service.color || inferColor(service);
-    const icon  = service.icon  || inferIcon(service);
+    const Icon  = inferIcon(service);
 
     return (
         <div className={`svc-card svc-card--${color}`}>
@@ -67,7 +64,7 @@ const ServiceCard = ({ service, onReserve, isLoggedIn }) => {
             <div className={`svc-icon-wrap svc-icon-wrap--${color}`}>
                 {service.imageUrl
                     ? <img src={service.imageUrl} alt="" className="svc-photo" />
-                    : <span className="svc-icon">{icon}</span>
+                    : <span className="svc-icon"><Icon /></span>
                 }
             </div>
 

@@ -4,23 +4,12 @@ import { useNavigate }     from 'react-router-dom';
 import { useData }         from '../contexts/DataContext';
 import { useAuth }         from '../contexts/AuthContext';
 import ProductModal        from '../pages/ProductModal';
+import { getServiceIcon }  from '../utils/serviceIcons';
 import './Shop.css';
-
-// ─── Ícono por categoría ──────────────────────────────────────────────────────
-const getCategoryIcon = (product) => {
-    if (product.icon) return product.icon;
-    const cat = (product.category || '').toLowerCase();
-    if (cat.includes('aliment'))   return '🍖';
-    if (cat.includes('higien'))    return '🛁';
-    if (cat.includes('accesorio')) return '🎀';
-    if (cat.includes('farmacia'))  return '💊';
-    if (cat.includes('juguete'))   return '🎾';
-    return '🎁';
-};
 
 // ─── Card de producto ─────────────────────────────────────────────────────────
 const ProductCard = ({ product, onBuy, isLoggedIn }) => {
-    const icon     = getCategoryIcon(product);
+    const Icon     = getServiceIcon(product.category || product.name);
     const lowStock = Number(product.stock) <= 5 && Number(product.stock) > 0;
     const noStock  = Number(product.stock) === 0;
 
@@ -31,7 +20,7 @@ const ProductCard = ({ product, onBuy, isLoggedIn }) => {
             <div className="product-image-box">
                 {product.imageUrl
                     ? <img src={product.imageUrl} alt={product.name} />
-                    : <span className="product-icon-placeholder">{icon}</span>
+                    : <span className="product-icon-placeholder"><Icon /></span>
                 }
                 {noStock  && <span className="stock-tag stock-tag--none">Agotado</span>}
                 {lowStock && <span className="stock-tag stock-tag--low">¡Pocas piezas!</span>}

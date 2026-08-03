@@ -11,10 +11,13 @@
     padding: 0;
 }
 
-/* 2. Configuración del Fondo (CRUCIAL para ver las partículas) */
-/* Aseguramos que el fondo de los elementos principales sea transparente */
+/* 2. Configuración del Fondo */
+/* Antes era transparente "para ver las partículas" de un componente
+   (ParticlesBackground) que ya no se usa en ninguna página — dejaba
+   pasar el fondo negro del navegador en cualquier vista sin su propio
+   background explícito (bug reportado: "el perfil tiene fondo negro"). */
 body, #root, .app-container {
-    background-color: transparent;
+    background-color: #ffffff;
     min-height: 100vh;
     font-family: var(--brand-font, 'Roboto', sans-serif);
 }
@@ -29,9 +32,8 @@ body, #root, .app-container {
 
 /* 4. Contenedor Principal de la Página (donde van las Rutas) */
 .main-content {
-    
-    flex-grow: 1; 
+    flex-grow: 1;
     padding-top: 0;
-    background-color: none; 
+    background-color: inherit;
 }
 

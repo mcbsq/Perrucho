@@ -4,12 +4,34 @@
     display: flex; align-items: center; justify-content: center;
     z-index: 5000; padding: 20px; backdrop-filter: blur(2px);
 }
+/* Paso anclado a un elemento real: el oscurecimiento lo aporta el
+   box-shadow del spotlight (deja ese elemento iluminado), así que aquí
+   quitamos el fondo plano para no oscurecer doble. */
+.onboarding-overlay--spotlight { background: transparent; backdrop-filter: none; }
+
+.onboarding-spotlight {
+    position: fixed; z-index: 5001; border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.6);
+    outline: 2px solid var(--color-accent, #74b9ff);
+    outline-offset: 2px;
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
 .onboarding-card {
     background: white; border-radius: 24px; padding: 32px 28px 24px;
     max-width: 380px; width: 100%; text-align: center; position: relative;
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.25);
     animation: onboarding-pop 0.25s ease;
+    z-index: 5002;
 }
+.onboarding-card--anchored {
+    max-width: 320px;
+    text-align: left;
+    transition: top 0.25s ease, left 0.25s ease;
+}
+.onboarding-card--anchored .onboarding-icon { font-size: 1.8rem; margin-bottom: 4px; }
+.onboarding-card--anchored .onboarding-dots { justify-content: flex-start; }
 @keyframes onboarding-pop {
     from { opacity: 0; transform: scale(0.92) translateY(8px); }
     to   { opacity: 1; transform: scale(1) translateY(0); }

@@ -92,6 +92,8 @@ export const AuthProvider = ({ children }) => {
                 email:    clientData.email,
                 phone:    clientData.phone   || '',
                 password: clientData.password || 'perrucho123',
+                securityQuestion: clientData.securityQuestion || '',
+                securityAnswer:   clientData.securityAnswer   || '',
             };
 
             // Si viene mascota, la enviamos junto al registro

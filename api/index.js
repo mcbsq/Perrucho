@@ -13,7 +13,6 @@ const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { verifyToken, requireRole, requireOwnerOrRole } = require('../middleware/auth');
-const { sendPasswordResetEmail } = require('./mailer');
 
 // ── Singleton de Prisma para serverless (patrón Booz) ────────────────────────
 if (!global.prisma) {
@@ -73,10 +72,10 @@ const authLimiter = rateLimit({
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-// Nunca exponer el password en respuestas
+// Nunca exponer el password, hashes ni tokens de recuperación en respuestas
 const safeUser = (user) => {
   if (!user) return null;
-  const { password: _, ...rest } = user;
+  const { password: _p, securityAnswerHash: _sa, resetToken: _rt, resetTokenExpiry: _rte, ...rest } = user;
   return rest;
 };
 
@@ -115,7 +114,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
 // POST /api/signup  — registro de cliente con mascota (flujo booking express)
 app.post('/api/signup', publicWriteLimiter, async (req, res) => {
   try {
-    const { name, email, phone, password, pet } = req.body;
+    const { name, email, phone, password, securityQuestion, securityAnswer, pet } = req.body;
     if (!name || !email)
       return res.status(400).json({ error: 'Nombre y email requeridos' });
 
@@ -123,6 +122,13 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
     if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
 
     const hash = await bcrypt.hash(password || 'perrucho123', 10);
+    // Pregunta de seguridad — único mecanismo de "olvidé mi contraseña" sin
+    // depender de SMTP. La respuesta se normaliza (minúsculas, sin espacios
+    // extra) antes de hashear para no penalizar variaciones triviales al
+    // verificarla después.
+    const answerHash = securityAnswer
+      ? await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10)
+      : null;
 
     const newUser = await prisma.user.create({
       data: {
@@ -131,6 +137,8 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
         password: hash,
         phone: phone || null,
         role: 'cliente',
+        securityQuestion: securityQuestion || null,
+        securityAnswerHash: answerHash,
         // Si viene mascota, la crea en la misma transacción
         pets: pet ? {
           create: {
@@ -153,31 +161,52 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
   }
 });
 
-// POST /api/auth/forgot-password — solicita un enlace de restablecimiento.
-// Siempre responde { ok: true } exista o no el email, para no permitir
-// enumerar cuentas registradas a partir de la respuesta.
-app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
+// "Olvidé mi contraseña" 100% interno — sin SMTP ni servicio de correo de
+// terceros. El sistema recupera la cuenta verificando la pregunta de
+// seguridad elegida en el registro; solo al responderla correctamente se
+// emite un token de un solo uso (mismas columnas resetToken/resetTokenExpiry
+// que antes usaba el flujo por correo) que habilita el cambio de contraseña.
+
+// POST /api/auth/security-question — devuelve la pregunta configurada.
+// Respuesta genérica (hasQuestion:false) si el email no existe o no tiene
+// pregunta configurada, para no revelar cuentas registradas.
+app.post('/api/auth/security-question', authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email requerido' });
 
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (user) {
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
-      await prisma.user.update({ where: { id: user.id }, data: { resetToken, resetTokenExpiry } });
-
-      const base = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const resetUrl = `${base}/restablecer-contrasena?token=${resetToken}`;
-      const sent = await sendPasswordResetEmail({ to: user.email, name: user.name, resetUrl }).catch(err => {
-        console.error('sendPasswordResetEmail', err);
-        return false;
-      });
-      if (!sent) console.warn(`[forgot-password] Correo no enviado (SMTP no configurado). Enlace para ${user.email}: ${resetUrl}`);
+    if (user && user.securityQuestion && user.securityAnswerHash) {
+      return res.json({ hasQuestion: true, question: user.securityQuestion });
     }
-    res.json({ ok: true });
+    res.json({ hasQuestion: false });
   } catch (err) {
-    console.error('POST /api/auth/forgot-password', err);
+    console.error('POST /api/auth/security-question', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/auth/verify-answer — valida la respuesta y, si es correcta,
+// emite un token de restablecimiento de un solo uso (válido 15 min).
+app.post('/api/auth/verify-answer', authLimiter, async (req, res) => {
+  try {
+    const { email, answer } = req.body;
+    if (!email || !answer) return res.status(400).json({ error: 'Respuesta requerida' });
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user || !user.securityAnswerHash) {
+      return res.status(400).json({ error: 'No se pudo verificar la respuesta.' });
+    }
+
+    const valid = await bcrypt.compare(answer.trim().toLowerCase(), user.securityAnswerHash);
+    if (!valid) return res.status(400).json({ error: 'Respuesta incorrecta.' });
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    await prisma.user.update({ where: { id: user.id }, data: { resetToken, resetTokenExpiry } });
+    res.json({ resetToken });
+  } catch (err) {
+    console.error('POST /api/auth/verify-answer', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -257,7 +286,12 @@ app.get('/api/users/:id', verifyToken, requireOwnerOrRole('administrador', 'empl
 // PUT /api/users/:id — actualizar perfil
 app.put('/api/users/:id', verifyToken, requireOwnerOrRole('administrador'), async (req, res) => {
   try {
-    const { password, role, ...data } = req.body; // no permitir cambiar password/role aquí
+    const { password, role, securityAnswer, ...data } = req.body; // no permitir cambiar password/role aquí
+    // Permite configurar/actualizar la pregunta de seguridad desde el perfil
+    // (necesario para cuentas creadas antes de que existiera este campo).
+    if (securityAnswer) {
+      data.securityAnswerHash = await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10);
+    }
     const user = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
       data,
@@ -349,6 +383,12 @@ app.post('/api/clients', publicWriteLimiter, async (req, res) => {
 app.put('/api/clients/:id', verifyToken, requireOwnerOrRole('administrador', 'empleado'), async (req, res) => {
   try {
     const { password, confirmPassword, role, ...data } = req.body;
+    // Solo admin/empleado pueden fijar la contraseña de un cliente aquí — es
+    // el respaldo para clientes que aún no configuraron su pregunta de
+    // seguridad y por lo tanto no pueden usar "Olvidé mi contraseña" solos.
+    if (password && ['administrador', 'empleado'].includes(req.user.role)) {
+      data.password = await bcrypt.hash(password, 10);
+    }
     const client = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
       data,

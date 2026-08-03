@@ -4,7 +4,11 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { useAuth } from '../../contexts/AuthContext';
 
-import logoTPS from '../../assets/logo.png';
+// Logo completo de la marca (antes se mostraba solo el ícono de huella sin
+// texto, y el archivo original traía tanto espacio en blanco alrededor que
+// al limitarlo a la altura del navbar prácticamente desaparecía — se recortó
+// el PNG a su contenido real).
+import logoTPS from '../../assets/logo2.png';
 
 const MenuIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
@@ -81,8 +85,8 @@ const Navbar = () => {
 
                 <nav className="nav-links-desktop">
                     <NavLink to="/"               className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
-                    <NavLink to="/servicios"       className={navClass}>Servicios</NavLink>
-                    <NavLink to="/tienda"          className={navClass}>Tienda</NavLink>
+                    <NavLink to="/servicios"       className={navClass} data-tour="nav-servicios">Servicios</NavLink>
+                    <NavLink to="/tienda"          className={navClass} data-tour="nav-tienda">Tienda</NavLink>
                     <NavLink to="/sobre-nosotros"  className={navClass}>Sobre nosotros</NavLink>
                 </nav>
 
@@ -90,7 +94,7 @@ const Navbar = () => {
                     {isLoggedIn ? (
                         <>
                             <span className="user-greeting">Hola, <strong>{user.name.split(' ')[0]}</strong></span>
-                            <NavLink to="/perfil" className="nav-icon" title="Mi Perfil"><ProfileIcon /></NavLink>
+                            <NavLink to="/perfil" className="nav-icon" title="Mi Perfil" data-tour="nav-perfil"><ProfileIcon /></NavLink>
                             <button className="nav-icon nav-icon--logout" title="Cerrar Sesión" onClick={handleLogout}><LogoutIcon /></button>
                         </>
                     ) : (
