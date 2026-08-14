@@ -18,6 +18,11 @@ const Login = () => {
     const navigate   = useNavigate();
     const location   = useLocation();
 
+    // Multi-tenant: Login vive bajo /:businessSlug/acceso — el primer
+    // segmento de la URL es el slug del negocio actual.
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const homePath = `/${businessSlug}`;
+
     // Si el usuario venía de una página protegida, lo regresamos ahí tras login
     const from = location.state?.from || null;
 
@@ -38,7 +43,7 @@ const Login = () => {
                 } else if (loggedUser.role === 'empleado') {
                     navigate('/employee-dashboard');
                 } else {
-                    navigate('/');
+                    navigate(homePath);
                 }
             } else {
                 setError('Email o contraseña incorrectos.');
@@ -106,7 +111,7 @@ const Login = () => {
                     </div>
 
                     <div className="login-forgot">
-                        <Link to="/olvide-contrasena">¿Olvidaste tu contraseña?</Link>
+                        <Link to={`${homePath}/olvide-contrasena`}>¿Olvidaste tu contraseña?</Link>
                     </div>
 
                     <button
@@ -119,8 +124,8 @@ const Login = () => {
                 </form>
 
                 <div className="login-footer">
-                    <p>¿No tienes cuenta? <Link to="/registro">Regístrate</Link></p>
-                    <Link to="/" className="login-back">← Volver al inicio</Link>
+                    <p>¿No tienes cuenta? <Link to={`${homePath}/registro`}>Regístrate</Link></p>
+                    <Link to={homePath} className="login-back">← Volver al inicio</Link>
                 </div>
             </div>
 

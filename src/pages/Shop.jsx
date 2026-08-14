@@ -1,6 +1,6 @@
 // src/pages/Shop.jsx
 import React, { useState } from 'react';
-import { useNavigate }     from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useData }         from '../contexts/DataContext';
 import { useAuth }         from '../contexts/AuthContext';
 import ProductModal        from '../pages/ProductModal';
@@ -63,12 +63,14 @@ const Shop = () => {
     const { products, loading }   = useData();
     const { isLoggedIn }          = useAuth();
     const navigate                = useNavigate();
+    const location                = useLocation();
+    const businessSlug            = location.pathname.split('/').filter(Boolean)[0] || '';
     const [selected, setSelected] = useState(null);
     const [category, setCategory] = useState('Todos');
 
     const handleBuy = (product) => {
         if (!isLoggedIn) {
-            navigate('/acceso', { state: { from: '/tienda' } });
+            navigate(`/${businessSlug}/acceso`, { state: { from: `/${businessSlug}/tienda` } });
             return;
         }
         setSelected(product);

@@ -7,11 +7,12 @@
 // 4. petData se pasa correctamente a register() como 2do argumento
 
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Register.css';
 import loginVideo  from '../../assets/hero.mp4';
 import loginPoster from '../../assets/1.jpg';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { formatMexPhone, whatsAppValidationError } from '../../utils/formatPhone';
 import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 
@@ -25,11 +26,27 @@ const Register = () => {
         petName: '', species: 'perro', breed: '', age: '', weight: '', notes: ''
     });
     const [error,   setError]   = useState('');
+    // Solo se llena si el negocio ya está en modo AEGIS — el cliente no
+    // eligió su contraseña, se la mostramos una vez antes de continuar.
+    const [tempPassword, setTempPassword] = useState(null);
     const [phoneError, setPhoneError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const { register } = useAuth();
+    const { settings } = useData();
     const navigate = useNavigate();
+    const location = useLocation();
+    // Multi-tenant: Register vive bajo /:businessSlug/registro.
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const homePath = `/${businessSlug}`;
+    // Giro sin mascotas (uñas/pestañas, spa, barbería...) — se omite el paso
+    // de "tu mascota" por completo en vez de mostrar un formulario que no
+    // aplica (gap detectado: enablePets solo ocultaba el sidebar de staff).
+    const petsEnabled = settings?.enablePets !== false;
+    // Negocio en modo AEGIS: AEGIS genera la contraseña, no el cliente — no
+    // tiene sentido pedirle que elija una ni una pregunta de seguridad (ese
+    // flujo de recuperación es exclusivo de negocios en modo local).
+    const aegisMode = settings?.authProvider === 'aegis';
 
     // Handler genérico para datos del cliente
     const handleClientChange = (e) => {
@@ -64,36 +81,48 @@ const Register = () => {
             return;
         }
 
-        if (clientData.password !== clientData.confirmPassword) {
-            setError('Las contraseñas no coinciden.');
-            return;
+        if (!aegisMode) {
+            if (clientData.password !== clientData.confirmPassword) {
+                setError('Las contraseñas no coinciden.');
+                return;
+            }
+            if (clientData.password.length < 6) {
+                setError('La contraseña debe tener al menos 6 caracteres.');
+                return;
+            }
+            if (!clientData.securityAnswer.trim()) {
+                setError('La respuesta de seguridad es necesaria para poder recuperar tu contraseña más adelante.');
+                return;
+            }
         }
-        if (clientData.password.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
-            return;
+        if (petsEnabled) {
+            setStep(2);
+        } else {
+            completeRegistration();
         }
-        if (!clientData.securityAnswer.trim()) {
-            setError('La respuesta de seguridad es necesaria para poder recuperar tu contraseña más adelante.');
-            return;
-        }
-        setStep(2);
     };
 
     // ── Submit final ─────────────────────────────────────────────────────────
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const completeRegistration = async () => {
         setError('');
         setLoading(true);
         try {
-            // Pasar petData como 2do argumento — AuthContext.register lo crea
-            const newUser = await register(clientData, petData);
-            if (newUser) navigate('/');
-            else setError('Error en el registro. Intenta de nuevo.');
+            // Pasar petData como 2do argumento — AuthContext.register lo crea.
+            // Si el giro no maneja mascotas, no se manda petData.
+            const newUser = await register(clientData, petsEnabled ? petData : null);
+            if (!newUser) { setError('Error en el registro. Intenta de nuevo.'); return; }
+            if (newUser.tempPassword) setTempPassword(newUser.tempPassword);
+            else navigate(homePath);
         } catch (err) {
             setError(err.message || 'Error al conectar con el servidor.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        completeRegistration();
     };
 
     // ── Step 1: datos del dueño ───────────────────────────────────────────────
@@ -129,37 +158,45 @@ const Register = () => {
                     value={clientData.email}
                     onChange={handleClientChange} required />
             </div>
-            <div className="row-group">
-                <div className="input-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="••••••••"
-                        value={clientData.password}
-                        onChange={handleClientChange} required />
-                </div>
-                <div className="input-group">
-                    <label>Confirmar</label>
-                    <input type="password" id="confirmPassword" placeholder="••••••••"
-                        value={clientData.confirmPassword}
-                        onChange={handleClientChange} required />
-                </div>
-            </div>
-            <div className="input-group">
-                <label>Pregunta de seguridad</label>
-                <select id="securityQuestion" value={clientData.securityQuestion} onChange={handleClientChange}>
-                    {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
-                </select>
-                <small className="field-hint">
-                    La usaremos para verificar tu identidad si olvidas tu contraseña — no enviamos correos.
-                </small>
-            </div>
-            <div className="input-group">
-                <label>Tu respuesta</label>
-                <input type="text" id="securityAnswer" placeholder="Tu respuesta"
-                    value={clientData.securityAnswer}
-                    onChange={handleClientChange} required />
-            </div>
-            <button type="submit" className="register-button primary">
-                Siguiente →
+            {aegisMode ? (
+                <p className="field-hint field-hint--info">
+                    ℹ️ Al crear tu cuenta te daremos una contraseña temporal en pantalla — la cambias en tu primer inicio de sesión.
+                </p>
+            ) : (
+                <>
+                    <div className="row-group">
+                        <div className="input-group">
+                            <label>Contraseña</label>
+                            <input type="password" id="password" placeholder="••••••••"
+                                value={clientData.password}
+                                onChange={handleClientChange} required />
+                        </div>
+                        <div className="input-group">
+                            <label>Confirmar</label>
+                            <input type="password" id="confirmPassword" placeholder="••••••••"
+                                value={clientData.confirmPassword}
+                                onChange={handleClientChange} required />
+                        </div>
+                    </div>
+                    <div className="input-group">
+                        <label>Pregunta de seguridad</label>
+                        <select id="securityQuestion" value={clientData.securityQuestion} onChange={handleClientChange}>
+                            {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+                        </select>
+                        <small className="field-hint">
+                            La usaremos para verificar tu identidad si olvidas tu contraseña — no enviamos correos.
+                        </small>
+                    </div>
+                    <div className="input-group">
+                        <label>Tu respuesta</label>
+                        <input type="text" id="securityAnswer" placeholder="Tu respuesta"
+                            value={clientData.securityAnswer}
+                            onChange={handleClientChange} required />
+                    </div>
+                </>
+            )}
+            <button type="submit" className="register-button primary" disabled={loading}>
+                {petsEnabled ? 'Siguiente →' : (loading ? 'Registrando...' : 'Crear cuenta')}
             </button>
         </form>
     );
@@ -255,30 +292,50 @@ const Register = () => {
                 <div className="register-logo">🐾</div>
                 <h2>Crear cuenta</h2>
 
-                {/* Stepper */}
-                <div className="step-indicator">
-                    <div className={`step ${step >= 1 ? 'active' : ''}`}>
-                        <div className="step-circle">1</div>
-                        <span>Tus datos</span>
+                {/* Stepper — solo tiene sentido con 2 pasos (giro con mascotas) */}
+                {petsEnabled && (
+                    <div className="step-indicator">
+                        <div className={`step ${step >= 1 ? 'active' : ''}`}>
+                            <div className="step-circle">1</div>
+                            <span>Tus datos</span>
+                        </div>
+                        <div className="step-line" />
+                        <div className={`step ${step >= 2 ? 'active' : ''}`}>
+                            <div className="step-circle">2</div>
+                            <span>Tu mascota</span>
+                        </div>
                     </div>
-                    <div className="step-line" />
-                    <div className={`step ${step >= 2 ? 'active' : ''}`}>
-                        <div className="step-circle">2</div>
-                        <span>Tu mascota</span>
-                    </div>
-                </div>
+                )}
 
                 {/* Error */}
                 {error && <div className="error-message">{error}</div>}
 
-                {/* Formulario por paso */}
-                {step === 1 ? renderStep1() : renderStep2()}
+                {tempPassword ? (
+                    // El negocio ya está en modo AEGIS — no elegiste tu
+                    // contraseña, se generó una temporal que solo se muestra
+                    // esta vez. Guárdala o cámbiala al volver a entrar.
+                    <div className="temp-password-notice">
+                        <p>Tu cuenta se creó con una contraseña temporal:</p>
+                        <p className="temp-password-value">{tempPassword}</p>
+                        <p className="field-hint">
+                            Guárdala — la necesitarás la próxima vez que inicies sesión. Podrás cambiarla desde tu perfil.
+                        </p>
+                        <button type="button" className="register-button primary" onClick={() => navigate(homePath)}>
+                            Entendido, continuar
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        {/* Formulario por paso — sin mascotas, todo pasa en el paso 1 */}
+                        {(!petsEnabled || step === 1) ? renderStep1() : renderStep2()}
 
-                {/* Footer */}
-                <div className="register-footer">
-                    <p>¿Ya tienes cuenta? <Link to="/acceso">Inicia sesión</Link></p>
-                    <Link to="/" className="register-back">← Volver al inicio</Link>
-                </div>
+                        {/* Footer */}
+                        <div className="register-footer">
+                            <p>¿Ya tienes cuenta? <Link to={`${homePath}/acceso`}>Inicia sesión</Link></p>
+                            <Link to={homePath} className="register-back">← Volver al inicio</Link>
+                        </div>
+                    </>
+                )}
 
             </div>
         </div>

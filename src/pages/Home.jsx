@@ -8,7 +8,7 @@
 // guestName, para que el empleado/admin pueda usarlo al confirmar.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Home.css';
 import bannerImage from '../assets/1.jpg';
 import heroVideo   from '../assets/hero.mp4';
@@ -24,12 +24,17 @@ import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTo
 const logoTPS = null;
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
+// Multi-tenant: `destination` llega como ruta relativa al negocio actual
+// (ej. '/servicios') — se antepone el slug tomado de la URL en curso.
 const useAuthAction = () => {
     const { isLoggedIn } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
     return (destination) => {
-        if (isLoggedIn) navigate(destination);
-        else navigate('/acceso', { state: { from: destination } });
+        const target = `/${businessSlug}${destination}`;
+        if (isLoggedIn) navigate(target);
+        else navigate(`/${businessSlug}/acceso`, { state: { from: target } });
     };
 };
 
@@ -400,6 +405,8 @@ const ProductCard = ({ item }) => {
 // ─── CTA final ────────────────────────────────────────────────────────────────
 const CTASection = ({ onBookingExpress, showGuestBooking }) => {
     const authAction = useAuthAction();
+    const location = useLocation();
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
     return (
         <section className="cta-section">
             <div className="cta-inner">
@@ -414,7 +421,7 @@ const CTASection = ({ onBookingExpress, showGuestBooking }) => {
                             Reserva rápida
                         </button>
                     )}
-                    <Link to="/sobre-nosotros" className="cta-btn cta-secondary">
+                    <Link to={`/${businessSlug}/sobre-nosotros`} className="cta-btn cta-secondary">
                         Conócenos
                     </Link>
                 </div>

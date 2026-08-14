@@ -46,6 +46,46 @@ enum SaleType {
 }
 
 // ─────────────────────────────────────────────
+// BUSINESS (multi-tenant — cada negocio vive aislado bajo su propio slug,
+// ej. perrucho.com/taylors, perrucho.com/empresa2)
+// ─────────────────────────────────────────────
+
+model Business {
+  id   Int    @id @default(autoincrement())
+  slug String @unique // URL: perrucho.com/<slug>
+  name String
+
+  // Giro del negocio — texto libre que indexa a src/config/giroPresets.js
+  // (banco de plantillas: veterinaria, uñas y pestañas, spa, etc). No es un
+  // enum a propósito: agregar un giro nuevo debe ser solo código, sin migración.
+  giro String @default("mascotas")
+
+  // Identidad AEGIS de este negocio — nullable hasta confirmar con AEGIS si
+  // cada negocio tiene su propio tenant o comparten uno con scoping interno.
+  aegisTenantId String?
+
+  // "local" (password propio, bcrypt) | "aegis" (AEGIS es dueño de las
+  // credenciales) — permite migrar cada negocio a AEGIS de uno en uno sin
+  // tener que cortar todos al mismo tiempo.
+  authProvider String @default("local")
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users        User[]
+  pets         Pet[]
+  services     Service[]
+  products     Product[]
+  appointments Appointment[]
+  expenses     Expense[]
+  sales        Sale[]
+  // Settings.businessId todavía no es @unique (se aprieta en la migración de
+  // "tightening" de Fase 1) — hasta entonces la relación inversa es a lista,
+  // no 1:1, para que Prisma no exija unicidad prematura.
+  settings     Settings[]
+}
+
+// ─────────────────────────────────────────────
 // USER (unifica users + clients del db.json)
 // ─────────────────────────────────────────────
 
@@ -53,8 +93,18 @@ model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
-  password  String
+  // AEGIS es dueño de las credenciales para negocios con authProvider
+  // "aegis" (ver Business.authProvider) — esas filas no llevan password,
+  // solo aegisUserId. Los negocios que sigan en "local" (ej. Taylor's,
+  // hasta su propio cutover) siguen usando password con bcrypt como hoy.
+  password    String?
+  aegisUserId String? @unique
   role      Role     @default(cliente)
+  // Multi-tenant: nullable por ahora — Fase 1 solo agrega y respalda la
+  // columna (backfill a Taylor's), sin tocar código de aplicación todavía.
+  // Se aprieta a NOT NULL + uniqueness compuesta con email en una migración
+  // posterior, una vez que el código de Fase 2 ya la escriba en cada insert.
+  businessId Int?
   phone     String?
   address   String?
   capacity  Int?     // solo empleados: cuántas citas simultáneas puede atender
@@ -71,6 +121,7 @@ model User {
   securityAnswerHash String?
 
   // Relaciones
+  business          Business?     @relation(fields: [businessId], references: [id])
   pets              Pet[]
   appointments      Appointment[]        // citas donde este user es el cliente
   assignedAppointments Appointment[]     @relation("AssignedEmployee")
@@ -83,18 +134,20 @@ model User {
 // ─────────────────────────────────────────────
 
 model Pet {
-  id        Int      @id @default(autoincrement())
-  petName   String
-  species   String   @default("perro")
-  breed     String?
-  weight    String?
-  notes     String?
-  status    String   @default("activo") // activo | inactivo
-  history   Json     @default("[]")
-  ownerId   Int
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  petName    String
+  species    String   @default("perro")
+  breed      String?
+  weight     String?
+  notes      String?
+  status     String   @default("activo") // activo | inactivo
+  history    Json     @default("[]")
+  ownerId    Int
+  businessId Int? // multi-tenant — ver nota en User.businessId
+  createdAt  DateTime @default(now())
 
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  business     Business?     @relation(fields: [businessId], references: [id])
   appointments Appointment[]
 }
 
@@ -132,6 +185,9 @@ model Service {
   priceJumbo   Int @default(0)
   price        Int @default(0) // fallback / precio base
 
+  businessId Int? // multi-tenant — ver nota en User.businessId
+  business   Business? @relation(fields: [businessId], references: [id])
+
   appointments        Appointment[]
   appointmentExtras   AppointmentExtra[]
 }
@@ -153,6 +209,9 @@ model Product {
   // stock — si está vacío, el producto se vende como una sola unidad.
   variants    Json    @default("[]") // [{ name, price, stock }]
 
+  businessId Int? // multi-tenant — ver nota en User.businessId
+  business   Business? @relation(fields: [businessId], references: [id])
+
   saleItems SaleItem[]
 }
 
@@ -173,12 +232,14 @@ model Appointment {
   notes      String?
   guestName  String?           // booking express sin cuenta — nombre del dueño
   guestPhone String?           // booking express sin cuenta — WhatsApp para confirmar
+  businessId Int?              // multi-tenant — ver nota en User.businessId
   createdAt  DateTime          @default(now())
 
-  client   User?    @relation(fields: [clientId], references: [id])
-  pet      Pet?     @relation(fields: [petId], references: [id])
-  service  Service? @relation(fields: [serviceId], references: [id])
-  employee User?    @relation("AssignedEmployee", fields: [employeeId], references: [id])
+  client   User?     @relation(fields: [clientId], references: [id])
+  pet      Pet?      @relation(fields: [petId], references: [id])
+  service  Service?  @relation(fields: [serviceId], references: [id])
+  employee User?     @relation("AssignedEmployee", fields: [employeeId], references: [id])
+  business Business? @relation(fields: [businessId], references: [id])
 
   extras AppointmentExtra[] // servicios adicionales (punto 3 del cliente)
   sale   Sale?
@@ -210,8 +271,10 @@ model Expense {
   notes     String?
   date      DateTime @default(now())
   createdBy Int?
+  businessId Int? // multi-tenant — ver nota en User.businessId
 
-  creator User? @relation(fields: [createdBy], references: [id])
+  creator  User?     @relation(fields: [createdBy], references: [id])
+  business Business? @relation(fields: [businessId], references: [id])
 }
 
 // ─────────────────────────────────────────────
@@ -229,9 +292,11 @@ model Sale {
   type          SaleType      @default(service)
   notes         String?
   date          DateTime      @default(now())
+  businessId    Int? // multi-tenant — ver nota en User.businessId
 
   client      User?        @relation(fields: [clientId], references: [id])
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  business    Business?    @relation(fields: [businessId], references: [id])
   items       SaleItem[]
 }
 
@@ -256,7 +321,16 @@ model SaleItem {
 // ─────────────────────────────────────────────
 
 model Settings {
-  id                  Int     @id @default(1) // siempre un solo registro
+  // Multi-tenant: ya no es un singleton (@default(1) chocaba con cualquier
+  // negocio nuevo — bug real encontrado al probar la Fase 4). Un registro
+  // por negocio, identificado por businessId (ver nota abajo).
+  id                  Int     @id @default(autoincrement())
+  // Multi-tenant: nullable por ahora (Fase 1 solo agrega+respalda). Pasará a
+  // @unique NOT NULL en la migración de "tightening" de Fase 1, momento en
+  // el que Settings deja de ser un singleton y pasa a 1 fila por negocio —
+  // el @default(1) de arriba se elimina en ese mismo paso.
+  businessId          Int?
+  business            Business? @relation(fields: [businessId], references: [id])
   allowGuestBooking   Boolean @default(true)  // toggle admin: booking express on/off
   whatsappNumber      String  @default("5633252525")
   businessAddress     String  @default("Montevideo No. 157, Col. Lindavista, GAM, CDMX")

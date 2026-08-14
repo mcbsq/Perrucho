@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
                 };
             }
 
-            const { token, user: userData } = await authApi.signup(payload);
+            const { token, user: userData, tempPassword } = await authApi.signup(payload);
             persistSession(token, userData);
             setUser(userData);
 
@@ -116,7 +116,11 @@ export const AuthProvider = ({ children }) => {
                 _reloadClientsAndPets().catch(() => {});
             }
 
-            return userData;
+            // tempPassword solo viene si el negocio ya está en modo AEGIS —
+            // el cliente no eligió su contraseña, se la mostramos una vez
+            // aquí para que la use si vuelve a entrar. No se guarda en el
+            // estado de sesión (userData sigue limpio para el resto de la app).
+            return tempPassword ? { ...userData, tempPassword } : userData;
         } catch (err) {
             console.error('Error en registro:', err);
             if (err.status === 409) throw new Error('Ya existe una cuenta con ese correo.');

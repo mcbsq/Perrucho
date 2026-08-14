@@ -16,11 +16,21 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 // ── Token helpers ─────────────────────────────────────────────────────────────
 const getToken = () => localStorage.getItem('perrucho_token');
 
+// ── Multi-tenant: slug del negocio actual ────────────────────────────────────
+// Lo fija BusinessLayout al resolver la URL (/:businessSlug/...) — el backend
+// lo usa (middleware/tenant.js, header X-Business-Slug) para saber a qué
+// negocio pertenece una request pública que todavía no trae JWT. Una vez
+// autenticado, el propio JWT ya carga el businessId y este header deja de
+// ser necesario, pero no está de más seguir mandándolo.
+let activeBusinessSlug = null;
+export const setActiveBusinessSlug = (slug) => { activeBusinessSlug = slug || null; };
+
 const authHeaders = () => {
   const token = getToken();
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(activeBusinessSlug ? { 'X-Business-Slug': activeBusinessSlug } : {}),
   };
 };
 
@@ -210,6 +220,13 @@ export const expensesApi = {
 export const settingsApi = {
   get:    ()     => api.get('/settings'),
   update: (data) => api.put('/settings', data),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUSINESS (multi-tenant — resolución de slug → negocio)
+// ─────────────────────────────────────────────────────────────────────────────
+export const businessApi = {
+  getBySlug: (slug) => api.get(`/business/${encodeURIComponent(slug)}`),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

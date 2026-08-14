@@ -47,8 +47,15 @@ const Navbar = () => {
     const [scrolled, setScrolled]               = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    // Multi-tenant: el Navbar solo se renderiza en páginas públicas
+    // (hideGlobalUI=false en App.js), que ahora siempre viven bajo
+    // /:businessSlug/... — el primer segmento de la URL ES el slug.
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const withSlug = (path) => `/${businessSlug}${path}`;
+    const homePath = withSlug('');
+
     // Páginas con hero oscuro — navbar con letras blancas
-    const isHome = location.pathname === '/' || location.pathname === '/sobre-nosotros';
+    const isHome = location.pathname === homePath || location.pathname === withSlug('/sobre-nosotros');
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 100);
@@ -58,10 +65,10 @@ const Navbar = () => {
 
     useEffect(() => { setIsMobileMenuOpen(false); }, [location.pathname]);
 
-    const handleLogout = () => { logout(); navigate('/'); };
+    const handleLogout = () => { logout(); navigate(homePath); };
 
     const handleHomeClick = (e) => {
-        if (location.pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        if (location.pathname === homePath) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
 
     const navbarClasses = [
@@ -76,7 +83,7 @@ const Navbar = () => {
     return (
         <header className={navbarClasses}>
             <div className="navbar-content">
-                <NavLink to="/" className="navbar-logo" onClick={handleHomeClick}>
+                <NavLink to={homePath} className="navbar-logo" onClick={handleHomeClick}>
                     {logoTPS
                         ? <img src={logoTPS} alt="Taylor's Pet Services" className="navbar-logo-img" />
                         : <>Taylor's<span>.</span></>
@@ -84,10 +91,10 @@ const Navbar = () => {
                 </NavLink>
 
                 <nav className="nav-links-desktop">
-                    <NavLink to="/"               className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
-                    <NavLink to="/servicios"       className={navClass} data-tour="nav-servicios">Servicios</NavLink>
-                    <NavLink to="/tienda"          className={navClass} data-tour="nav-tienda">Tienda</NavLink>
-                    <NavLink to="/sobre-nosotros"  className={navClass}>Sobre nosotros</NavLink>
+                    <NavLink to={homePath}                className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
+                    <NavLink to={withSlug('/servicios')}      className={navClass} data-tour="nav-servicios">Servicios</NavLink>
+                    <NavLink to={withSlug('/tienda')}         className={navClass} data-tour="nav-tienda">Tienda</NavLink>
+                    <NavLink to={withSlug('/sobre-nosotros')} className={navClass}>Sobre nosotros</NavLink>
                 </nav>
 
                 <div className="navbar-actions">
@@ -98,7 +105,7 @@ const Navbar = () => {
                             <button className="nav-icon nav-icon--logout" title="Cerrar Sesión" onClick={handleLogout}><LogoutIcon /></button>
                         </>
                     ) : (
-                        <NavLink to="/acceso" className="nav-access-btn">
+                        <NavLink to={withSlug('/acceso')} className="nav-access-btn">
                             <UserIcon /><span>Iniciar sesión</span>
                         </NavLink>
                     )}
@@ -112,11 +119,10 @@ const Navbar = () => {
             </div>
 
             <nav className={`nav-links-mobile ${isMobileMenuOpen ? 'open' : ''}`}>
-                <NavLink to="/"              className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
-                <NavLink to="/servicios"     className={navClass}>Servicios</NavLink>
-                <NavLink to="/tienda"        className={navClass}>Tienda</NavLink>
-                <NavLink to="/sobre-nosotros" className={navClass}>Sobre nosotros</NavLink>
-                <NavLink to="/contacto"      className={navClass}>Contacto</NavLink>
+                <NavLink to={homePath}                 className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
+                <NavLink to={withSlug('/servicios')}      className={navClass}>Servicios</NavLink>
+                <NavLink to={withSlug('/tienda')}         className={navClass}>Tienda</NavLink>
+                <NavLink to={withSlug('/sobre-nosotros')} className={navClass}>Sobre nosotros</NavLink>
                 {isLoggedIn ? (
                     <>
                         <NavLink to="/perfil" className={navClass}>Mi Perfil</NavLink>
@@ -125,7 +131,7 @@ const Navbar = () => {
                         </button>
                     </>
                 ) : (
-                    <NavLink to="/acceso" className="nav-item nav-item--access">Iniciar sesión</NavLink>
+                    <NavLink to={withSlug('/acceso')} className="nav-item nav-item--access">Iniciar sesión</NavLink>
                 )}
             </nav>
         </header>

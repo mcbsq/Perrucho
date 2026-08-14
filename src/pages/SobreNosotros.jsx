@@ -1,6 +1,6 @@
 // src/pages/SobreNosotros.jsx
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaHeart } from 'react-icons/fa';
 import { PiHeartBold, PiStarBold, PiCertificateBold, PiTrophyBold, PiScissorsBold, PiBathtubBold, PiFootprintsBold, PiShoppingBagBold, PiHouseBold, PiCarBold } from 'react-icons/pi';
 import './SobreNosotros.css';
@@ -26,7 +26,12 @@ const SERVICIOS = [
     { icon: PiCarBold, label: 'A domicilio' },
 ];
 
-const SobreNosotros = () => (
+const SobreNosotros = () => {
+    const location = useLocation();
+    // Multi-tenant: vive bajo /:businessSlug/sobre-nosotros.
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const serviciosPath = `/${businessSlug}/servicios`;
+    return (
     <div className="sobre-container">
 
         {/* Hero */}
@@ -44,7 +49,7 @@ const SobreNosotros = () => (
                     <a href={`https://wa.me/${WA_NUMBER}?text=${WA_MSG}`} target="_blank" rel="noopener noreferrer" className="sobre-btn-primary">
                         <FaWhatsapp /> Contáctanos
                     </a>
-                    <Link to="/servicios" className="sobre-btn-secondary">Ver servicios →</Link>
+                    <Link to={serviciosPath} className="sobre-btn-secondary">Ver servicios →</Link>
                 </div>
             </div>
         </section>
@@ -100,7 +105,7 @@ const SobreNosotros = () => (
                         </div>
                     ))}
                 </div>
-                <Link to="/servicios" className="sobre-btn-primary" style={{ marginTop: 32, display: 'inline-flex' }}>
+                <Link to={serviciosPath} className="sobre-btn-primary" style={{ marginTop: 32, display: 'inline-flex' }}>
                     Ver catálogo completo →
                 </Link>
             </div>
@@ -156,11 +161,12 @@ const SobreNosotros = () => (
             <h2>¿Listo para consentir a tu mejor amigo?</h2>
             <p>Agenda tu cita hoy y descubre la diferencia de un servicio hecho con amor.</p>
             <div className="sobre-cta-btns">
-                <Link to="/servicios" className="sobre-btn-primary">Reservar cita</Link>
+                <Link to={serviciosPath} className="sobre-btn-primary">Reservar cita</Link>
                 <Link to="/contacto" className="sobre-btn-secondary">Contáctanos</Link>
             </div>
         </section>
     </div>
-);
+    );
+};
 
 export default SobreNosotros;

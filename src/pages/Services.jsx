@@ -1,7 +1,7 @@
 // src/pages/Services.jsx
 // ── ServiceCard ahora viene del componente compartido ─────────────────────────
 import React, { useState } from 'react';
-import { useNavigate }     from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useData }         from '../contexts/DataContext';
 import { useAuth }         from '../contexts/AuthContext';
 import ServiceModal        from '../components/ServiceModal/ServiceModal';
@@ -12,11 +12,13 @@ const Services = () => {
     const { services, loading } = useData();
     const { isLoggedIn }        = useAuth();
     const navigate              = useNavigate();
+    const location              = useLocation();
+    const businessSlug          = location.pathname.split('/').filter(Boolean)[0] || '';
     const [selected, setSelected] = useState(null);
 
     const handleReserve = (service) => {
         if (!isLoggedIn) {
-            navigate('/acceso', { state: { from: '/servicios' } });
+            navigate(`/${businessSlug}/acceso`, { state: { from: `/${businessSlug}/servicios` } });
             return;
         }
         setSelected(service);
