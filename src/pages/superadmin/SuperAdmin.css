@@ -1,0 +1,83 @@
+/* src/pages/superadmin/SuperAdmin.css */
+.sa-page {
+    min-height: 100vh;
+    background: var(--color-bg-page, #f8fafc);
+    color: var(--color-text-main, #2d3446);
+    font-family: 'Quicksand', -apple-system, sans-serif;
+}
+
+/* ── Login ── */
+.sa-page:not(.sa-page--panel) { display: flex; align-items: center; justify-content: center; padding: 24px; }
+.sa-login-card {
+    background: white; border-radius: 24px; padding: 36px 32px;
+    max-width: 380px; width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+    border: 1px solid var(--color-border-light, #eef1f5);
+}
+.sa-back {
+    display: inline-block; margin-bottom: 16px; color: var(--color-text-muted, #636e72);
+    text-decoration: none; font-size: 0.85rem; font-weight: 700;
+}
+.sa-login-card h2 { font-family: 'Montserrat', sans-serif; margin: 0 0 4px; font-size: 1.3rem; text-align: center; }
+.sa-login-sub { text-align: center; color: var(--color-text-muted, #636e72); margin: 0 0 24px; font-size: 0.88rem; }
+
+.sa-field { margin-bottom: 16px; text-align: left; }
+.sa-field label { display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; }
+.sa-field input {
+    width: 100%; padding: 11px 14px; border-radius: 10px;
+    border: 1.5px solid var(--color-border-mid, #dfe4ea); font-size: 0.92rem; font-family: inherit;
+}
+.sa-field input:focus { outline: none; border-color: var(--color-accent, #74b9ff); }
+
+.sa-error { background: #fee2e2; color: #b91c1c; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 14px; }
+
+.sa-submit {
+    width: 100%; margin-top: 6px; padding: 13px; border: none; border-radius: 12px;
+    background: var(--color-brand, #2d3446); color: white; font-weight: 700;
+    font-size: 0.95rem; cursor: pointer; font-family: inherit;
+}
+.sa-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Panel ── */
+.sa-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 6vw; background: var(--color-brand, #2d3446); color: white;
+}
+.sa-logo { font-weight: 800; font-size: 1.02rem; }
+.sa-header-user { margin-left: 14px; font-size: 0.82rem; color: rgba(255,255,255,0.65); }
+.sa-logout {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.25);
+    padding: 8px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    transition: background 0.2s;
+}
+.sa-logout:hover { background: rgba(255,255,255,0.2); }
+
+.sa-panel-body { max-width: 1100px; margin: 0 auto; padding: 36px 6vw 60px; }
+.sa-panel-body h1 { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; margin: 0 0 20px; }
+.sa-hint { color: var(--color-text-muted, #636e72); font-size: 0.9rem; }
+
+.sa-table-wrap { overflow-x: auto; background: white; border-radius: 20px; border: 1px solid var(--color-border-light, #eef1f5); box-shadow: 0 4px 16px rgba(0,0,0,0.03); }
+.sa-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 720px; }
+.sa-table th {
+    text-align: left; padding: 14px 18px; font-size: 0.72rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.4px; color: var(--color-text-hint, #94a3b8);
+    border-bottom: 1px solid var(--color-border-light, #eef1f5);
+}
+.sa-table td { padding: 14px 18px; border-bottom: 1px solid var(--color-border-light, #eef1f5); vertical-align: middle; }
+.sa-table tr:last-child td { border-bottom: none; }
+.sa-business-name { font-weight: 700; }
+.sa-business-slug { font-size: 0.78rem; color: var(--color-text-hint, #94a3b8); }
+
+.sa-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; }
+.sa-badge--ok { background: var(--color-surface-mint, #e1f5ee); color: var(--color-mint-dark, #1D9E75); }
+.sa-badge--off { background: #fee2e2; color: #b91c1c; }
+
+.sa-enter-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 700;
+    border: 1.5px solid var(--color-border-mid, #dfe4ea); background: white; cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+.sa-enter-btn:hover { background: var(--color-accent, #74b9ff); color: white; border-color: var(--color-accent, #74b9ff); }
+.sa-enter-btn:disabled { opacity: 0.6; cursor: not-allowed; }

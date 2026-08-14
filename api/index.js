@@ -516,6 +516,74 @@ app.post('/api/business/register', publicWriteLimiter, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SUPER ADMIN — cuenta única, por encima de cualquier negocio (businessId
+// null en su fila de User). No pasa por el login normal a propósito: ese
+// flujo (/api/login) siempre resuelve contra req.businessId, que para esta
+// cuenta no existe — usa prismaRaw en todo este bloque (nunca el `prisma`
+// con tenant scoping) porque cruza negocios intencionalmente.
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post('/api/superadmin/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email y contraseña requeridos' });
+
+    const user = await prismaRaw.user.findFirst({ where: { email: email.toLowerCase(), role: 'superadmin' } });
+    if (!user || !user.password) return res.status(401).json({ error: 'Credenciales incorrectas' });
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });
+
+    const token = signToken(user);
+    res.json({ token, user: safeUser(user) });
+  } catch (err) {
+    console.error('POST /api/superadmin/login', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// GET /api/superadmin/businesses — todas las empresas registradas, con
+// conteo de usuarios propio de cada una (Promise.all en vez de un JOIN: son
+// pocas empresas, y así se reutiliza prismaRaw.user.count tal cual).
+app.get('/api/superadmin/businesses', verifyToken, requireRole('superadmin'), async (req, res) => {
+  try {
+    const businesses = await prismaRaw.business.findMany({ orderBy: { createdAt: 'desc' } });
+    const withCounts = await Promise.all(businesses.map(async (b) => ({
+      ...b,
+      userCount: await prismaRaw.user.count({ where: { businessId: b.id } }),
+    })));
+    res.json(withCounts);
+  } catch (err) {
+    console.error('GET /api/superadmin/businesses', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/superadmin/businesses/:slug/enter — "entrar" a una empresa: en
+// vez de construir un panel cruzado paralelo, emite el mismo token que
+// recibiría su propio administrador al iniciar sesión — el frontend hace
+// establishSession() con él y cae directo en /:slug/admin-dashboard,
+// reutilizando 100% del panel ya existente en vez de duplicarlo.
+app.post('/api/superadmin/businesses/:slug/enter', verifyToken, requireRole('superadmin'), async (req, res) => {
+  try {
+    const business = await prismaRaw.business.findUnique({ where: { slug: req.params.slug } });
+    if (!business) return res.status(404).json({ error: 'Negocio no encontrado' });
+
+    const adminUser = await prismaRaw.user.findFirst({
+      where: { businessId: business.id, role: 'administrador' },
+      orderBy: { id: 'asc' },
+    });
+    if (!adminUser) return res.status(404).json({ error: 'Ese negocio no tiene una cuenta de administrador.' });
+
+    const token = signToken(adminUser);
+    res.json({ token, user: safeUser(adminUser), slug: business.slug });
+  } catch (err) {
+    console.error('POST /api/superadmin/businesses/:slug/enter', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 
