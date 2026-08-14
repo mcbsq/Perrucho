@@ -4,6 +4,7 @@
     background: var(--color-bg-page, #f8fafc);
     color: var(--color-text-main, #2d3446);
     font-family: 'Quicksand', -apple-system, sans-serif;
+    overflow-x: hidden;
 }
 
 .pl-header {
@@ -17,43 +18,134 @@
 }
 .pl-header-link:hover { color: var(--color-accent, #74b9ff); }
 
+/* ==========================================================================
+   HERO: cápsula con carrusel de fondo — mismo lenguaje visual que el hero
+   de un negocio ya registrado (ver .capsule-banner en Home.css), pero el
+   fondo va recorriendo un giro distinto cada pocos segundos en vez de un
+   solo video fijo, para transmitir "sirve para cualquier tipo de negocio".
+   ========================================================================== */
 .pl-hero {
-    max-width: 720px; margin: 0 auto; text-align: center;
-    padding: 60px 6vw 40px;
+    position: relative;
+    height: 88vh; min-height: 560px; width: 95%;
+    margin: 10px auto 25px;
+    border-radius: 64px;
+    overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    animation: plHeroReveal 1.1s var(--ease-smooth, ease);
 }
-.pl-eyebrow {
-    display: inline-block; background: var(--color-surface-mint, #e1f5ee);
-    color: var(--color-mint-dark, #1D9E75); font-weight: 700; font-size: 0.78rem;
-    letter-spacing: 0.4px; text-transform: uppercase;
-    padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
+
+/* Más alto que el contenedor para que el parallax tenga margen sin dejar
+   ver el borde del fondo al desplazarse. */
+.pl-hero-bg { position: absolute; inset: -60px 0; z-index: 0; will-change: transform; }
+.pl-hero-slide {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    opacity: 0; transform: scale(1);
+    transition: opacity 1.6s ease;
+    will-change: opacity;
+}
+.pl-hero-slide.is-active {
+    opacity: 1;
+    animation: plKenBurns 7.2s ease-out forwards;
+}
+@keyframes plKenBurns {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+.pl-hero-overlay {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+        linear-gradient(180deg, rgba(15, 20, 38, 0.35) 0%, rgba(12, 16, 30, 0.55) 55%, rgba(9, 12, 24, 0.82) 100%),
+        linear-gradient(100deg, rgba(20, 30, 60, 0.55) 0%, rgba(20, 30, 60, 0.05) 45%);
+}
+
+.pl-hero-content {
+    position: relative; z-index: 2;
+    max-width: 720px; margin: 0 auto; text-align: center;
+    padding: 0 6vw;
+    color: white;
+    animation: plContentUp 1s 0.15s both var(--ease-smooth, ease);
 }
 .pl-hero h1 {
-    font-family: 'Montserrat', sans-serif; font-size: clamp(2rem, 5vw, 3rem);
+    font-family: 'Montserrat', sans-serif; font-size: clamp(2rem, 5vw, 3.1rem);
     font-weight: 800; line-height: 1.15; margin: 0 0 18px; text-wrap: balance;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
 .pl-hero-sub {
-    font-size: 1.05rem; color: var(--color-text-muted, #636e72);
+    font-size: 1.05rem; color: rgba(255,255,255,0.85);
     line-height: 1.6; margin: 0 0 32px;
 }
-.pl-hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.pl-hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 34px; }
 
 .pl-cta-primary {
     display: inline-flex; align-items: center; gap: 8px;
     background: var(--color-accent, #74b9ff); color: white;
     padding: 14px 26px; border-radius: 14px; font-weight: 700; font-size: 0.98rem;
     text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 10px 24px rgba(116, 185, 255, 0.35);
+    box-shadow: 0 10px 24px rgba(116, 185, 255, 0.4);
 }
-.pl-cta-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(116, 185, 255, 0.45); }
+.pl-cta-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(116, 185, 255, 0.5); }
 .pl-cta-secondary {
     display: inline-flex; align-items: center;
     padding: 14px 24px; border-radius: 14px; font-weight: 700; font-size: 0.98rem;
-    color: var(--color-text-main, #2d3446); text-decoration: none;
-    border: 1.5px solid var(--color-border-mid, #dfe4ea); background: white;
-    transition: border-color 0.2s;
+    color: white; text-decoration: none;
+    border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: border-color 0.2s, background 0.2s;
 }
-.pl-cta-secondary:hover { border-color: var(--color-accent, #74b9ff); }
+.pl-cta-secondary:hover { border-color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.16); }
 
+/* Selector de giros mostrados — refuerza qué imagen se está viendo y deja
+   saltar manualmente en vez de solo esperar el auto-avance. */
+.pl-hero-dots {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+    max-width: 100%;
+}
+.pl-hero-dot {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+    color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    cursor: pointer; transition: background 0.25s, border-color 0.25s, color 0.25s;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.pl-hero-dot:hover { background: rgba(255,255,255,0.16); }
+.pl-hero-dot.is-active {
+    color: white; background: rgba(116, 185, 255, 0.28); border-color: var(--color-accent, #74b9ff);
+}
+.pl-hero-dot span { white-space: nowrap; }
+.pl-hero-dot svg { font-size: 0.95rem; flex-shrink: 0; }
+
+.pl-hero-scroll-cue {
+    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    z-index: 2; width: 24px; height: 38px; border-radius: 14px;
+    border: 2px solid rgba(255,255,255,0.5);
+}
+.pl-hero-scroll-cue span {
+    display: block; width: 4px; height: 8px; border-radius: 2px;
+    background: white; margin: 6px auto 0;
+    animation: plScrollCue 1.8s ease-in-out infinite;
+}
+
+@keyframes plHeroReveal {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes plContentUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes plScrollCue {
+    0% { opacity: 0; transform: translateY(0); }
+    30% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(14px); }
+}
+
+/* ==========================================================================
+   RESTO DE LA PÁGINA
+   ========================================================================== */
 .pl-features {
     max-width: 1080px; margin: 20px auto 0; padding: 40px 6vw;
     display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
@@ -62,7 +154,9 @@
     background: white; border-radius: 18px; padding: 24px 20px;
     border: 1px solid var(--color-border-light, #eef1f5);
     box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
+.pl-feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.07); }
 .pl-feature-icon {
     width: 46px; height: 46px; border-radius: 12px;
     background: var(--color-surface-blue, #e6f1fb); color: var(--color-accent, #74b9ff);
@@ -83,7 +177,9 @@
     background: white; border: 1.5px solid var(--color-border-light, #eef1f5);
     border-radius: 999px; padding: 10px 18px; font-size: 0.88rem; font-weight: 600;
     color: var(--color-text-main, #2d3446);
+    transition: transform 0.2s ease, border-color 0.2s ease;
 }
+.pl-giro-chip:hover { transform: translateY(-2px); border-color: var(--color-accent, #74b9ff); }
 .pl-giro-chip svg { color: var(--color-lavender-dark, #6c5ce7); font-size: 1.1rem; }
 
 .pl-cta-final {
@@ -96,6 +192,22 @@
     font-size: 0.82rem; border-top: 1px solid var(--color-border-light, #eef1f5);
 }
 
+/* Fade-up al entrar en pantalla */
+.pl-reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.pl-reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 640px) {
+    .pl-hero { border-radius: 36px; height: 92vh; }
+    .pl-hero-dot span { display: none; }
+    .pl-hero-dot { padding: 10px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .pl-cta-primary { transition: none; }
+    .pl-cta-primary, .pl-cta-secondary, .pl-feature-card, .pl-giro-chip { transition: none; }
+    .pl-hero, .pl-hero-content { animation: none; }
+    .pl-hero-scroll-cue span { animation: none; }
+    .pl-hero-slide { transition: opacity 0.3s ease; }
+    .pl-hero-slide.is-active { animation: none; }
+    .pl-hero-bg { transform: none !important; }
+    .pl-reveal { opacity: 1; transform: none; transition: none; }
 }
