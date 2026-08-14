@@ -610,7 +610,7 @@ const ReceiptModal = ({sale,settings,client,onClose}) => {
 };
 
 const ADMIN_ONBOARDING_STEPS=[
-    {icon:'👋',title:'¡Bienvenido a Taylor\'s!',description:'Este es tu panel de administrador. Te mostramos rápido dónde está cada función.'},
+    {icon:'👋',title:'¡Bienvenido!',description:'Este es tu panel de administrador. Te mostramos rápido dónde está cada función.'},
     {icon:'📊',title:'Panel de control',description:'Aquí ves tus ventas, egresos, citas del día y clientes de un vistazo. Toca cada tarjeta para ver el detalle.',target:'[data-tour="admin-control"]'},
     {icon:'🧾',title:'Punto de venta',description:'Desde aquí registras cobros de productos y servicios, y generas la nota de venta (recibo digital) al terminar.',target:'[data-tour="admin-pos"]'},
     {icon:'🐾',title:'Clientes',description:'Administra los datos de tus clientes y sus mascotas registradas.',target:'[data-tour="admin-clientes"]'},
@@ -1056,7 +1056,7 @@ const AdminDashboard = () => {
 
             <header className="admin-top-bar">
                 <div className="topbar-left">
-                    <span className="admin-logo">Taylor's<span>.</span></span>
+                    <span className="admin-logo">{settings?.businessName || 'Perrucho'}<span>.</span></span>
                     {tab!=='pos'&&<div className="search-bar-wrapper" ref={searchRef}>
                         <div className={`search-bar-global ${showSearchPanel?'focused':''}`}>
                             <FaSearch/><input type="text" placeholder="Buscar en todo el sistema..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} onFocus={()=>setSearchFocus(true)}/>

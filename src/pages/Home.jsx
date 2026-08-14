@@ -431,7 +431,7 @@ const CTASection = ({ onBookingExpress, showGuestBooking }) => {
 };
 
 const CLIENT_ONBOARDING_STEPS = [
-    {icon:'👋',title:'¡Bienvenido a Taylor\'s!',description:'Creaste tu cuenta con éxito. Te mostramos rápido dónde está cada cosa.'},
+    {icon:'👋',title:'¡Bienvenido!',description:'Creaste tu cuenta con éxito. Te mostramos rápido dónde está cada cosa.'},
     {icon:'📅',title:'Reservar cita',description:'Desde aquí agendas una cita para tu mascota en minutos.',target:'[data-tour="home-reservar"]'},
     {icon:'✂️',title:'Servicios',description:'Consulta todos nuestros servicios y sus precios por tamaño de mascota.',target:'[data-tour="nav-servicios"]'},
     {icon:'🛍️',title:'Tienda',description:'Compra productos para tu mascota directamente desde aquí.',target:'[data-tour="nav-tienda"]'},

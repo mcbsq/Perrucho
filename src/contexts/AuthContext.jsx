@@ -146,6 +146,15 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // ── Establecer sesión directa (alta de negocio nuevo) ─────────────────────
+    // El registro de un negocio nuevo (BusinessRegisterForm) ya recibe
+    // {token, user} listo del backend — no repite la lógica de login/signup,
+    // solo necesita guardarlo igual que cualquier otra sesión.
+    const establishSession = (token, userData) => {
+        persistSession(token, userData);
+        setUser(userData);
+    };
+
     // ── Actualizar datos de sesión (para cambios de perfil) ───────────────────
     const updateSessionUser = (updatedFields) => {
         setUser(prev => {
@@ -165,6 +174,7 @@ export const AuthProvider = ({ children }) => {
             register,
             updateSessionUser,
             changePassword,
+            establishSession,
         }}>
             {!loading && children}
         </AuthContext.Provider>
