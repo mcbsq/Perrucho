@@ -5,10 +5,10 @@
 // patrón que el registro de clientes en negocios AEGIS) y lo deja logueado
 // directo en su panel.
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { businessApi } from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { GIRO_OPTIONS, getGiroUrlLabel } from '../../config/giroPresets';
+import { GIRO_PRESETS, GIRO_OPTIONS, getGiroUrlLabel } from '../../config/giroPresets';
 import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
 import './BusinessRegisterForm.css';
 
@@ -24,12 +24,18 @@ const slugify = (text) =>
 const BusinessRegisterForm = () => {
     const { establishSession } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    // Llega preseleccionado desde una landing de giro (/uñas → "Registra tu
+    // negocio" → /crear-negocio?giro=unas) — si el valor no es un giro
+    // real, se ignora en vez de dejar el <select> en un valor inválido.
+    const giroFromQuery = searchParams.get('giro');
+    const initialGiro = (giroFromQuery && GIRO_PRESETS[giroFromQuery]) ? giroFromQuery : (GIRO_OPTIONS[0]?.value || 'mascotas');
 
     const [businessName, setBusinessName] = useState('');
     const [slug, setSlug] = useState('');
     const [slugTouched, setSlugTouched] = useState(false);
     const [slugStatus, setSlugStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
-    const [giro, setGiro] = useState(GIRO_OPTIONS[0]?.value || 'mascotas');
+    const [giro, setGiro] = useState(initialGiro);
     const [adminName, setAdminName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
     const [logoUrl, setLogoUrl] = useState('');

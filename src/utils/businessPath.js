@@ -20,7 +20,11 @@ const RESERVED_SEGMENTS = ['perfil', 'admin-dashboard', 'employee-dashboard', 's
 export const useBusinessPath = () => {
     const location = useLocation();
     const { settings } = useData();
-    const segments = location.pathname.split('/').filter(Boolean);
+    // decodeURIComponent: location.pathname llega codificado (ej. "uñas" es
+    // "u%C3%B1as") — sin esto, `giro` quedaba con el segmento crudo y
+    // React Router lo volvía a codificar al construir un <Link to>,
+    // produciendo URLs doblemente codificadas.
+    const segments = decodeURIComponent(location.pathname).split('/').filter(Boolean);
     const firstSegment = segments[0] || '';
     const isReserved = RESERVED_SEGMENTS.includes(firstSegment);
 
