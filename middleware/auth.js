@@ -25,6 +25,29 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+// ── attachUserIfPresent ─────────────────────────────────────────────────────
+// Versión "opcional" de verifyToken: si hay un JWT válido, adjunta req.user;
+// si no hay token o es inválido, sigue de largo sin bloquear la request. Se
+// monta como middleware global (antes de cualquier ruta) para que
+// middleware/tenant.js sepa el businessId de una request autenticada sin que
+// cada ruta pública tenga que declarar verifyToken. Las rutas protegidas
+// siguen exigiendo verifyToken como hasta ahora — esto no reemplaza esa
+// verificación, solo la adelanta para las rutas que no la tienen.
+const attachUserIfPresent = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token) {
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      // Token ausente/expirado/inválido en una ruta pública: no es un error,
+      // simplemente sigue sin usuario — verifyToken (si la ruta lo exige)
+      // será quien rechace la request más adelante.
+    }
+  }
+  next();
+};
+
 // ── requireRole ───────────────────────────────────────────────────────────────
 // Verifica que req.user.role esté en la lista de roles permitidos
 // Uso: requireRole('administrador') o requireRole('empleado', 'administrador')
@@ -58,4 +81,4 @@ const requireOwnerOrRole = (...roles) => {
   };
 };
 
-module.exports = { verifyToken, requireRole, requireOwnerOrRole };
+module.exports = { verifyToken, attachUserIfPresent, requireRole, requireOwnerOrRole };

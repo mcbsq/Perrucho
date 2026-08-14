@@ -11,14 +11,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
-const { PrismaClient } = require('@prisma/client');
-const { verifyToken, requireRole, requireOwnerOrRole } = require('../middleware/auth');
+const { verifyToken, attachUserIfPresent, requireRole, requireOwnerOrRole } = require('../middleware/auth');
+const { resolveBusiness } = require('../middleware/tenant');
 
-// ── Singleton de Prisma para serverless (patrón Booz) ────────────────────────
-if (!global.prisma) {
-  global.prisma = new PrismaClient();
-}
-const prisma = global.prisma;
+// Cliente Prisma con aislamiento multi-tenant automático (ver
+// api/lib/tenantClient.js) — cada prisma.<modelo> de negocio (User, Pet,
+// Service, Product, Appointment, Expense, Sale, Settings) queda filtrado por
+// el businessId de la request en curso sin que cada ruta de abajo tenga que
+// acordarse de hacerlo a mano.
+const prisma = require('./lib/tenantClient');
+// Cliente sin aislamiento — necesario para resolver el slug de un negocio,
+// que por definición pasa ANTES de saber a qué businessId pertenece la
+// request (ver api/lib/prismaRaw.js).
+const prismaRaw = require('./lib/prismaRaw');
+const aegisClient = require('./lib/aegisClient');
 
 // Mismos horarios que ofrece el booking express en el frontend
 // (src/pages/Home.jsx `availableTimes`) — mantener sincronizados.
@@ -49,6 +55,16 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '15mb' }));
+
+// ── Multi-tenant: resolver el negocio antes de cualquier ruta ────────────────
+// attachUserIfPresent decodifica el JWT si viene (sin bloquear rutas
+// públicas); resolveBusiness usa ese req.user (rutas autenticadas) o el
+// header X-Business-Slug (rutas públicas, ver middleware/tenant.js) para
+// fijar req.businessId y envolver el resto de la request en el contexto que
+// lee api/lib/tenantClient.js. Van antes de CUALQUIER ruta para no tener que
+// repetirlos en cada una.
+app.use(attachUserIfPresent);
+app.use(resolveBusiness);
 
 // ── Rate limiting para rutas públicas de booking express ─────────────────────
 // Sin esto, /api/signup, /api/clients, /api/pets y /api/appointments son
@@ -81,7 +97,7 @@ const safeUser = (user) => {
 
 const signToken = (user) =>
   jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role, businessId: user.businessId },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -91,14 +107,54 @@ const signToken = (user) =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 // POST /api/login
+// El corte a AEGIS es por negocio (Business.authProvider), no global — así
+// Taylor's sigue exactamente en el flujo de bcrypt de siempre mientras no se
+// haga su propio cutover explícito, y un negocio nuevo puede nacer
+// directamente en modo AEGIS sin afectar a los demás.
 app.post('/api/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
 
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+
+    if (business?.authProvider === 'aegis') {
+      const { data: tokens, error: loginErr } = await aegisClient.passwordLogin(email, password);
+      if (loginErr) {
+        const { body, status } = loginErr;
+        if (status === 401 || status === 403) return res.status(401).json({ error: 'Credenciales incorrectas' });
+        if (status === 503) return res.status(503).json(body);
+        console.warn('AEGIS login HTTP', status, body);
+        return res.status(502).json({ error: 'No se pudo iniciar sesión' });
+      }
+
+      const { data: profile, error: meErr } = await aegisClient.getMe(tokens.access_token);
+      if (meErr) {
+        console.error('AEGIS /v1/me falló', meErr);
+        return res.status(502).json({ error: 'No se pudo validar la sesión' });
+      }
+
+      const aegisEmail = (profile.email || '').trim().toLowerCase();
+      let user = await prisma.user.findFirst({ where: { aegisUserId: String(profile.id) } });
+      if (!user && aegisEmail) {
+        user = await prisma.user.findFirst({ where: { email: aegisEmail } });
+      }
+      if (!user) {
+        return res.status(403).json({ error: 'Cuenta no registrada en este negocio. Contacta a un administrador.' });
+      }
+
+      const token = signToken(user);
+      return res.json({
+        token,
+        user: safeUser(user),
+        mustChangePassword: Boolean(tokens.must_change_password),
+      });
+    }
+
+    // Modo local (bcrypt) — comportamiento sin cambios.
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
+    if (!user || !user.password) return res.status(401).json({ error: 'Credenciales incorrectas' });
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -121,40 +177,71 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
 
-    const hash = await bcrypt.hash(password || 'perrucho123', 10);
-    // Pregunta de seguridad — único mecanismo de "olvidé mi contraseña" sin
-    // depender de SMTP. La respuesta se normaliza (minúsculas, sin espacios
-    // extra) antes de hashear para no penalizar variaciones triviales al
-    // verificarla después.
-    const answerHash = securityAnswer
-      ? await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10)
-      : null;
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    const petData = pet ? {
+      create: {
+        petName: pet.petName,
+        species: pet.species || 'perro',
+        breed: pet.breed || null,
+        weight: pet.weight ? String(pet.weight) : null,
+        notes: pet.notes || null,
+      }
+    } : undefined;
 
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email: email.toLowerCase(),
-        password: hash,
-        phone: phone || null,
-        role: 'cliente',
-        securityQuestion: securityQuestion || null,
-        securityAnswerHash: answerHash,
-        // Si viene mascota, la crea en la misma transacción
-        pets: pet ? {
-          create: {
-            petName: pet.petName,
-            species: pet.species || 'perro',
-            breed: pet.breed || null,
-            weight: pet.weight ? String(pet.weight) : null,
-            notes: pet.notes || null,
-          }
-        } : undefined,
-      },
-      include: { pets: true },
-    });
+    let newUser, tempPassword;
+
+    if (business?.authProvider === 'aegis') {
+      // El cliente confirmó: todo usuario (incluidos los que se
+      // autorregistran) pasa por AEGIS — recibe una contraseña temporal en
+      // vez de elegir la suya, y la cambia en su primer login, igual que
+      // el personal. No se guarda password ni pregunta de seguridad local.
+      const { data: aegisUser, error: aegisErr } = await aegisClient.adminCreateUser(email, 'cliente');
+      if (aegisErr) {
+        const { body, status } = aegisErr;
+        console.warn('AEGIS adminCreateUser (signup) falló:', status, body);
+        if (status === 409) return res.status(409).json({ error: 'El email ya está registrado' });
+        return res.status(502).json({ error: 'No se pudo crear la cuenta. Intenta de nuevo.' });
+      }
+      tempPassword = aegisUser.tempPassword;
+
+      newUser = await prisma.user.create({
+        data: {
+          name,
+          email: email.toLowerCase(),
+          aegisUserId: String(aegisUser.id),
+          phone: phone || null,
+          role: 'cliente',
+          pets: petData,
+        },
+        include: { pets: true },
+      });
+    } else {
+      const hash = await bcrypt.hash(password || 'perrucho123', 10);
+      // Pregunta de seguridad — único mecanismo de "olvidé mi contraseña" sin
+      // depender de SMTP, para negocios que sigan en modo local.
+      const answerHash = securityAnswer
+        ? await bcrypt.hash(securityAnswer.trim().toLowerCase(), 10)
+        : null;
+
+      newUser = await prisma.user.create({
+        data: {
+          name,
+          email: email.toLowerCase(),
+          password: hash,
+          phone: phone || null,
+          role: 'cliente',
+          securityQuestion: securityQuestion || null,
+          securityAnswerHash: answerHash,
+          pets: petData,
+        },
+        include: { pets: true },
+      });
+    }
 
     const token = signToken(newUser);
-    res.status(201).json({ token, user: safeUser(newUser) });
+    const response = { token, user: safeUser(newUser) };
+    if (tempPassword) response.tempPassword = tempPassword;
+    res.status(201).json(response);
   } catch (err) {
     console.error('POST /api/signup', err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -250,6 +337,32 @@ app.get('/api/me', verifyToken, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// BUSINESS (multi-tenant)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/business/:slug — pública, resuelve el slug de la URL al negocio.
+// El frontend la llama primero (BusinessLayout) para saber si el slug existe
+// antes de mandar cualquier otra request con X-Business-Slug.
+app.get('/api/business/:slug', async (req, res) => {
+  try {
+    const business = await prismaRaw.business.findUnique({ where: { slug: req.params.slug } });
+    if (!business || !business.isActive) {
+      return res.status(404).json({ error: 'Negocio no encontrado' });
+    }
+    res.json({
+      id: business.id,
+      slug: business.slug,
+      name: business.name,
+      giro: business.giro,
+      authProvider: business.authProvider,
+    });
+  } catch (err) {
+    console.error('GET /api/business/:slug', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -309,8 +422,27 @@ app.post('/api/users', verifyToken, requireRole('administrador'), async (req, re
     const { password, role, ...data } = req.body;
     // Forzar rol válido — esta ruta es solo para staff, no clientes
     const validRole = ['administrador', 'empleado'].includes(role) ? role : 'empleado';
+
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    let userData;
+
+    if (business?.authProvider === 'aegis') {
+      if (!data.email) return res.status(400).json({ error: 'El correo es obligatorio' });
+      const { data: aegisUser, error: aegisErr } = await aegisClient.adminCreateUser(data.email, validRole);
+      if (aegisErr) {
+        const { body, status } = aegisErr;
+        console.warn('AEGIS adminCreateUser (staff) falló:', status, body);
+        if (status === 409) return res.status(409).json({ error: 'Email ya registrado' });
+        return res.status(502).json({ error: 'No se pudo crear el usuario en AEGIS' });
+      }
+      userData = { ...data, aegisUserId: String(aegisUser.id), role: validRole };
+      const user = await prisma.user.create({ data: userData });
+      return res.status(201).json({ ...safeUser(user), tempPassword: aegisUser.tempPassword });
+    }
+
     const hash = await bcrypt.hash(password || 'perrucho123', 10);
-    const user = await prisma.user.create({ data: { ...data, password: hash, role: validRole } });
+    userData = { ...data, password: hash, role: validRole };
+    const user = await prisma.user.create({ data: userData });
     res.status(201).json(safeUser(user));
   } catch (err) {
     console.error(err);
@@ -1048,10 +1180,23 @@ app.delete('/api/expenses/:id', verifyToken, requireRole('administrador'), async
 // ─────────────────────────────────────────────────────────────────────────────
 
 // GET /api/settings — pública (el frontend necesita saber si booking express está activo)
+// Multi-tenant: Settings ya no es un singleton fijo a id=1 (ver Fase 1) — se
+// busca por businessId (inyectado automáticamente por tenantClient vía
+// findFirst), no por un id fijo, para que funcione igual para Taylor's que
+// para cualquier negocio nuevo. `giro` viaja aparte porque vive en Business,
+// no en Settings — el frontend lo usa para elegir ruleset de íconos y copy
+// por defecto (ver src/config/giroPresets.js).
 app.get('/api/settings', async (req, res) => {
   try {
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
-    res.json(settings);
+    const settings = await prisma.settings.findFirst();
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    res.json({
+      ...settings,
+      giro: business?.giro || 'mascotas',
+      // El frontend lo usa para ocultar los campos de contraseña/pregunta de
+      // seguridad en el registro cuando AEGIS es quien genera la contraseña.
+      authProvider: business?.authProvider || 'local',
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -1061,11 +1206,11 @@ app.get('/api/settings', async (req, res) => {
 // PUT /api/settings — solo admin
 app.put('/api/settings', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
-    const settings = await prisma.settings.upsert({
-      where: { id: 1 },
-      update: req.body,
-      create: { id: 1, ...req.body },
-    });
+    const { giro, ...settingsBody } = req.body; // giro se guarda en Business, no en Settings
+    const existing = await prisma.settings.findFirst();
+    const settings = existing
+      ? await prisma.settings.update({ where: { id: existing.id }, data: settingsBody })
+      : await prisma.settings.create({ data: settingsBody });
     res.json(settings);
   } catch (err) {
     console.error(err);

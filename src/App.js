@@ -22,6 +22,12 @@ import Register          from './components/Register/Register';
 import AdminDashboard    from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import Perfil            from './pages/cliente/Perfil';
+import BusinessLayout    from './components/BusinessLayout';
+
+// Slug del único negocio que existía antes de multi-tenant — las URLs viejas
+// sin prefijo (perrucho.com/servicios, etc.) redirigen aquí en vez de romper
+// enlaces/bookmarks/QR ya publicados.
+const LEGACY_BUSINESS_SLUG = 'taylors';
 
 // ── Puente AuthContext ↔ DataContext ─────────────────────────────────────────
 const DataReloaderBridge = () => {
@@ -58,10 +64,13 @@ const AppContent = () => {
         location.pathname.startsWith('/admin-dashboard') ||
         location.pathname.startsWith('/employee-dashboard');
 
-    const isAuthPage =
-        location.pathname === '/acceso' ||
-        location.pathname === '/registro' ||
-        location.pathname === '/olvide-contrasena';
+    // Las páginas públicas ahora viven bajo /:businessSlug/..., así que
+    // "¿es una página de auth?" se decide por el último segmento de la ruta
+    // en vez de una comparación exacta de path — funciona igual con o sin
+    // el slug delante (/acceso legado, /taylors/acceso, /empresa2/acceso).
+    const segments = location.pathname.split('/').filter(Boolean);
+    const lastSegment = segments[segments.length - 1] || '';
+    const isAuthPage = !isDashboard && ['acceso', 'registro', 'olvide-contrasena'].includes(lastSegment);
 
     const hideGlobalUI = isDashboard || isAuthPage;
 
@@ -71,16 +80,27 @@ const AppContent = () => {
 
             <main className={hideGlobalUI ? 'admin-main-content' : 'main-content'}>
                 <Routes>
-                    {/* ── Rutas públicas ── */}
-                    <Route path="/"                element={<Home />} />
-                    <Route path="/servicios"       element={<Services />} />
-                    <Route path="/tienda"          element={<Shop />} />
-                    <Route path="/sobre-nosotros"  element={<SobreNosotros />} />
-                    <Route path="/acceso"          element={<Login />} />
-                    <Route path="/olvide-contrasena"      element={<ForgotPassword />} />
-                    <Route path="/registro"        element={<Register />} />
+                    {/* ── Rutas públicas, aisladas por negocio ── */}
+                    <Route path="/:businessSlug" element={<BusinessLayout />}>
+                        <Route index                element={<Home />} />
+                        <Route path="servicios"      element={<Services />} />
+                        <Route path="tienda"         element={<Shop />} />
+                        <Route path="sobre-nosotros" element={<SobreNosotros />} />
+                        <Route path="acceso"         element={<Login />} />
+                        <Route path="olvide-contrasena" element={<ForgotPassword />} />
+                        <Route path="registro"       element={<Register />} />
+                    </Route>
 
-                    {/* ── Dashboards protegidos ── */}
+                    {/* ── URLs sin slug (antes de multi-tenant) → Taylor's ── */}
+                    <Route path="/"                element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}`} replace />} />
+                    <Route path="/servicios"       element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/servicios`} replace />} />
+                    <Route path="/tienda"          element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/tienda`} replace />} />
+                    <Route path="/sobre-nosotros"  element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/sobre-nosotros`} replace />} />
+                    <Route path="/acceso"          element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/acceso`} replace />} />
+                    <Route path="/olvide-contrasena" element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/olvide-contrasena`} replace />} />
+                    <Route path="/registro"        element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/registro`} replace />} />
+
+                    {/* ── Dashboards protegidos — sin prefijo: el JWT ya trae el businessId ── */}
                     <Route path="/admin-dashboard/*" element={
                         <ProtectedRoute allowedRoles={['administrador']}>
                             <AdminDashboard />
@@ -100,7 +120,7 @@ const AppContent = () => {
                     } />
 
                     {/* ── Fallback ── */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route path="*" element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}`} replace />} />
                 </Routes>
             </main>
 

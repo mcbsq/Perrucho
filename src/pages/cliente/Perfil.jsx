@@ -17,6 +17,7 @@ import {
     FaWhatsapp, FaInfoCircle, FaBan, FaShieldAlt
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { appointmentsApi, petsApi, salesApi, usersApi } from '../../api/apiClient';
 import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/NotifyDialog.css';
@@ -86,6 +87,10 @@ const Modal = ({ title, onClose, children }) => {
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 const Perfil = () => {
     const { user, logout, updateSessionUser } = useAuth();
+    const { settings } = useData();
+    // Giro sin mascotas (uñas/pestañas, spa, barbería...) — la sección
+    // completa deja de tener sentido, no solo el tab de admin/empleado.
+    const petsEnabled = settings?.enablePets !== false;
     const { notify, NotifyNode } = useNotify();
 
     const [myPets,    setMyPets]    = useState([]);
@@ -389,8 +394,8 @@ const Perfil = () => {
                 {/* ── MAIN ── */}
                 <main className="perfil-main-content">
 
-                    {/* Mascotas */}
-                    <section className="profile-section">
+                    {/* Mascotas — solo si el negocio maneja mascotas */}
+                    {petsEnabled && <section className="profile-section">
                         <div className="section-header">
                             <h3><FaPaw /> Mis mascotas</h3>
                             <button className="btn-add" onClick={() => setPetModal({})}>
@@ -427,7 +432,7 @@ const Perfil = () => {
                                 })}
                             </div>
                         )}
-                    </section>
+                    </section>}
 
                     {/* Tabs */}
                     <section className="profile-section history-section">
@@ -435,7 +440,7 @@ const Perfil = () => {
                             {[
                                 { id: 'citas',     icon: <FaCalendarCheck />, label: 'Mis citas'        },
                                 { id: 'compras',   icon: <FaShoppingBag />,   label: 'Compras'          },
-                                { id: 'historial', icon: <FaHistory />,        label: 'Historial clínico'},
+                                ...(petsEnabled ? [{ id: 'historial', icon: <FaHistory />, label: 'Historial clínico' }] : []),
                             ].map(t => (
                                 <button key={t.id}
                                     className={`tab-btn ${activeTab === t.id ? 'active' : ''}`}

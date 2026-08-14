@@ -1,6 +1,6 @@
 // src/components/Footer/Footer.jsx
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaPhone } from 'react-icons/fa';
 import { useData } from '../../contexts/DataContext';
 import './Footer.css';
@@ -17,6 +17,11 @@ const isExternalLink = (url) => /^https?:\/\//i.test(url || '');
 
 const Footer = () => {
     const { settings } = useData();
+    const location = useLocation();
+    // Multi-tenant: Footer se renderiza fuera del árbol de rutas (como
+    // Navbar), así que el slug se toma del primer segmento de la URL actual.
+    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const withSlug = (path) => `/${businessSlug}${path}`;
     const year = new Date().getFullYear();
 
     const logoTPS = settings?.logoUrl || null;
@@ -58,10 +63,10 @@ const Footer = () => {
                 {/* ── Navegación ── */}
                 <div className="footer-nav">
                     <h4>Navegación</h4>
-                    <Link to="/">Inicio</Link>
-                    <Link to="/servicios">Servicios</Link>
-                    <Link to="/tienda">Tienda</Link>
-                    <Link to="/sobre-nosotros">Sobre nosotros</Link>
+                    <Link to={withSlug('')}>Inicio</Link>
+                    <Link to={withSlug('/servicios')}>Servicios</Link>
+                    <Link to={withSlug('/tienda')}>Tienda</Link>
+                    <Link to={withSlug('/sobre-nosotros')}>Sobre nosotros</Link>
                 </div>
 
                 {/* ── Servicios (editable desde Personalización → Pie de página) ── */}
@@ -70,7 +75,7 @@ const Footer = () => {
                     {footerLinks.map((l, i) => (
                         isExternalLink(l.url)
                             ? <a key={i} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>
-                            : <Link key={i} to={l.url || '#'}>{l.label}</Link>
+                            : <Link key={i} to={l.url ? withSlug(l.url) : '#'}>{l.label}</Link>
                     ))}
                 </div>
 

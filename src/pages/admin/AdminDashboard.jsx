@@ -816,7 +816,13 @@ const AdminDashboard = () => {
     const handleTogglePetStatus=async(pet,newStatus)=>{try{await updatePet(pet.id,{...pet,status:newStatus});addToast(newStatus==='activo'?'Paciente marcado como activo':'Paciente marcado como inactivo','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
     const handleSaveService=async(form)=>{try{form.id?await updateService(form.id,form):await addService(form);addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveProduct=async(form)=>{try{form.id?await updateProduct(form.id,form):await addProduct(form);addToast(form.id?'Producto actualizado':'Producto guardado','success');setProductModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
-    const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);}addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveUser=async(form)=>{try{const payload={...form};if(form.id&&!form.password)delete payload.password;if(form.id){const s=await usersApi.update(form.id,payload);setUsers(p=>p.map(u=>u.id===form.id?s:u));}else{const c=await usersApi.create(payload);setUsers(p=>[...p,c]);
+        // c.tempPassword solo viene si el negocio ya está en modo AEGIS — no se
+        // eligió contraseña, AEGIS generó una temporal que hay que entregar a
+        // mano; se muestra en un diálogo (no un toast) para que no desaparezca
+        // antes de poder copiarla.
+        if(c.tempPassword){await notify({type:'info',icon:'🔑',accent:'blue',title:'Contraseña temporal generada',message:`Entrega esta contraseña a ${c.name}, deberá cambiarla en su primer inicio de sesión:\n\n${c.tempPassword}`,confirmLabel:'Entendido'});}
+    }addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveSettings=async(form)=>{try{const {id,...data}=form;await updateSettings(data);addToast('Configuración guardada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
     const handleAddExpense=async(data)=>{try{await addExpense(data);addToast('Egreso agregado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
