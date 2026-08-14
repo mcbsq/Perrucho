@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { businessApi } from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { GIRO_OPTIONS } from '../../config/giroPresets';
+import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
 import './BusinessRegisterForm.css';
 
 const slugify = (text) =>
@@ -31,6 +32,8 @@ const BusinessRegisterForm = () => {
     const [giro, setGiro] = useState(GIRO_OPTIONS[0]?.value || 'mascotas');
     const [adminName, setAdminName] = useState('');
     const [adminEmail, setAdminEmail] = useState('');
+    const [logoUrl, setLogoUrl] = useState('');
+    const [logoError, setLogoError] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null); // { slug, tempPassword }
@@ -58,6 +61,19 @@ const BusinessRegisterForm = () => {
         return () => clearTimeout(checkTimer.current);
     }, [slug]);
 
+    const handleLogoFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setLogoError('');
+        try {
+            const dataUrl = await readImageAsResizedDataUrl(file, { maxDim: 480 });
+            setLogoUrl(dataUrl);
+        } catch (err) {
+            setLogoError(err.message);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -65,9 +81,13 @@ const BusinessRegisterForm = () => {
             setError('Ese identificador de URL ya está en uso — elige otro.');
             return;
         }
+        if (!logoUrl) {
+            setError('Sube el logo de tu negocio antes de continuar.');
+            return;
+        }
         setLoading(true);
         try {
-            const data = await businessApi.register({ businessName, slug, giro, adminName, adminEmail });
+            const data = await businessApi.register({ businessName, slug, giro, adminName, adminEmail, logoUrl });
             establishSession(data.token, data.user);
             setResult({ slug: data.slug, tempPassword: data.tempPassword });
         } catch (err) {
@@ -153,6 +173,26 @@ const BusinessRegisterForm = () => {
                             onChange={(e) => setAdminEmail(e.target.value)}
                             placeholder="tu@correo.com" required
                         />
+                    </div>
+
+                    <div className="brf-field">
+                        <label>Logo de tu negocio</label>
+                        {logoUrl ? (
+                            <div className="brf-logo-preview-row">
+                                <img src={logoUrl} alt="Logo" className="brf-logo-preview" />
+                                <label className="brf-logo-btn">
+                                    Cambiar
+                                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
+                                </label>
+                            </div>
+                        ) : (
+                            <label className="brf-logo-btn brf-logo-btn--empty">
+                                Subir logo
+                                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
+                            </label>
+                        )}
+                        {logoError && <small className="brf-hint brf-hint--error">{logoError}</small>}
+                        <small className="brf-hint">Aparece en tu página pública y en tu panel — obligatorio.</small>
                     </div>
 
                     <button type="submit" className="brf-submit" disabled={loading || slugStatus === 'taken'}>

@@ -19,9 +19,7 @@ import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
 import { appointmentsApi } from '../api/apiClient';
 import { getServiceIcon } from '../utils/serviceIcons';
 import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
-// Logo: pon tu archivo como src/assets/logo.png para activarlo
-// import logoTPS from '../assets/logo.png';
-const logoTPS = null;
+import perruchoMark from '../assets/perrucho-mark.svg';
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
 // Multi-tenant: `destination` llega como ruta relativa al negocio actual
@@ -469,11 +467,7 @@ const Home = () => {
                     </div>
                 )}
                 <div className="hero-copy">
-                    {/* Logo o nombre de marca */}
-                    {settings?.logoUrl || logoTPS
-                        ? <img src={settings?.logoUrl || logoTPS} alt={settings?.businessName || "Taylor's Pet Services"} className="hero-logo" />
-                        : <p className="hero-brand-name">{settings?.businessName || "Taylor's Pet Services"}</p>
-                    }
+                    <img src={settings?.logoUrl || perruchoMark} alt={settings?.businessName || 'Perrucho'} className="hero-logo" />
                     <p className="hero-tagline">{settings?.heroTagline || 'Grooming · Tienda · Guardería · Paseos'}</p>
                     <h1 className="hero-title">{settings?.slogan || 'El servicio que tú y tu mejor amigo merecen'}</h1>
                     <p className="hero-subtitle">
