@@ -438,9 +438,15 @@ app.get('/api/business/check-slug/:slug', async (req, res) => {
 // ahora — sin pago; cuando exista suscripción, aquí es donde se agregaría
 // la validación antes de crear el negocio, no hace falta tocar nada más.
 app.post('/api/business/register', publicWriteLimiter, async (req, res) => {
-  const { businessName, slug: rawSlug, giro, adminName, adminEmail } = req.body;
+  const { businessName, slug: rawSlug, giro, adminName, adminEmail, logoUrl } = req.body;
   if (!businessName || !rawSlug || !adminName || !adminEmail) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+  }
+  // Sin logo propio no hay forma de distinguir un negocio nuevo del resto —
+  // sin esto, la marca/ícono por defecto termina siendo el de Taylor's,
+  // que es exactamente el bug que ya se reportó una vez.
+  if (!logoUrl) {
+    return res.status(400).json({ error: 'El logo del negocio es obligatorio.' });
   }
 
   const slug = String(rawSlug).toLowerCase().trim();
@@ -465,6 +471,7 @@ app.post('/api/business/register', publicWriteLimiter, async (req, res) => {
       data: {
         businessId: business.id,
         businessName,
+        logoUrl,
         enablePets: preset.enablePets,
         heroTagline: preset.copy.heroTagline,
         heroSubtitle: preset.copy.heroSubtitle,

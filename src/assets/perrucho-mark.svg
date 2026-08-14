@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Perrucho">
+  <rect x="4" y="4" width="112" height="112" rx="28" fill="#74B9FF"/>
+  <g fill="#FFFFFF">
+    <ellipse cx="60" cy="70" rx="26" ry="22"/>
+    <ellipse cx="34" cy="42" rx="11" ry="14" transform="rotate(-18 34 42)"/>
+    <ellipse cx="86" cy="42" rx="11" ry="14" transform="rotate(18 86 42)"/>
+    <ellipse cx="18" cy="66" rx="9" ry="11.5" transform="rotate(-28 18 66)"/>
+    <ellipse cx="102" cy="66" rx="9" ry="11.5" transform="rotate(28 102 66)"/>
+  </g>
+</svg>

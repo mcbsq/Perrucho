@@ -3,6 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaPhone } from 'react-icons/fa';
 import { useData } from '../../contexts/DataContext';
+import perruchoMark from '../../assets/perrucho-mark.svg';
 import './Footer.css';
 
 const DEFAULT_FOOTER_LINKS = [
@@ -30,8 +31,8 @@ const Footer = () => {
     const withSlug = (path) => `/${businessSlug}${path}`;
     const year = new Date().getFullYear();
 
-    const logoTPS = settings?.logoUrl || null;
-    const businessName = settings?.businessName || "Taylor's Pet Services";
+    const logoTPS = settings?.logoUrl || perruchoMark;
+    const businessName = settings?.businessName || 'Perrucho';
     const slogan = settings?.slogan || 'El servicio que tú y tu mejor amigo merecen.';
     const waNumber = settings?.whatsappNumber ? `52${settings.whatsappNumber.replace(/\D/g, '')}` : '5215633252525';
     const waMsg = encodeURIComponent(`Hola, me interesa agendar una cita para mi mascota en ${businessName}.`);
@@ -43,10 +44,7 @@ const Footer = () => {
 
                 {/* ── Marca ── */}
                 <div className="footer-brand">
-                    {logoTPS
-                        ? <img src={logoTPS} alt={businessName} className="footer-logo" />
-                        : <span className="footer-brand-name">{businessName}</span>
-                    }
+                    <img src={logoTPS} alt={businessName} className="footer-logo" />
                     <p className="footer-tagline">
                         {slogan}
                     </p>

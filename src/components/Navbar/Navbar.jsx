@@ -9,7 +9,7 @@ import { useData } from '../../contexts/DataContext';
 // texto, y el archivo original traía tanto espacio en blanco alrededor que
 // al limitarlo a la altura del navbar prácticamente desaparecía — se recortó
 // el PNG a su contenido real).
-import logoTPS from '../../assets/logo2.png';
+import perruchoMark from '../../assets/perrucho-mark.svg';
 
 const MenuIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
@@ -93,10 +93,7 @@ const Navbar = () => {
         <header className={navbarClasses}>
             <div className="navbar-content">
                 <NavLink to={homePath} className="navbar-logo" onClick={handleHomeClick}>
-                    {settings?.logoUrl || logoTPS
-                        ? <img src={settings?.logoUrl || logoTPS} alt={settings?.businessName || 'Perrucho'} className="navbar-logo-img" />
-                        : <>{settings?.businessName || 'Perrucho'}<span>.</span></>
-                    }
+                    <img src={settings?.logoUrl || perruchoMark} alt={settings?.businessName || 'Perrucho'} className="navbar-logo-img" />
                 </NavLink>
 
                 <nav className="nav-links-desktop">
