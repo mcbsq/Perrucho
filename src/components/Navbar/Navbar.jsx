@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { useBusinessPath } from '../../utils/businessPath';
 
 // Logo completo de la marca (antes se mostraba solo el ícono de huella sin
 // texto, y el archivo original traía tanto espacio en blanco alrededor que
@@ -49,18 +50,8 @@ const Navbar = () => {
     const [scrolled, setScrolled]               = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Multi-tenant: el Navbar se renderiza en páginas públicas bajo
-    // /:businessSlug/..., donde el primer segmento de la URL ES el slug —
-    // pero también en /perfil (ruta protegida, sin prefijo), donde ese
-    // primer segmento sería "perfil" y no un slug real (bug real: los links
-    // del navbar apuntaban a /perfil/servicios, etc). Ahí se usa el slug
-    // real que ya trae /api/settings en vez de adivinarlo del path.
-    const RESERVED_SEGMENTS = ['perfil', 'admin-dashboard', 'employee-dashboard'];
-    const firstSegment = location.pathname.split('/').filter(Boolean)[0] || '';
-    const businessSlug = RESERVED_SEGMENTS.includes(firstSegment)
-        ? (settings?.slug || '')
-        : firstSegment;
-    const withSlug = (path) => `/${businessSlug}${path}`;
+    const { withBusinessPath } = useBusinessPath();
+    const withSlug = withBusinessPath;
     const homePath = withSlug('');
 
     // Páginas con hero oscuro — navbar con letras blancas

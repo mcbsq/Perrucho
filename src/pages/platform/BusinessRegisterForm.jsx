@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { businessApi } from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { GIRO_OPTIONS } from '../../config/giroPresets';
+import { GIRO_OPTIONS, getGiroUrlLabel } from '../../config/giroPresets';
 import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
 import './BusinessRegisterForm.css';
 
@@ -102,12 +102,12 @@ const BusinessRegisterForm = () => {
             <div className="brf-page">
                 <div className="brf-card">
                     <div className="brf-icon">🎉</div>
-                    <h2>¡Tu negocio ya existe en Perrucho!</h2>
+                    <h2>¡Tu negocio ya existe en Emporio!</h2>
                     <p>Tu cuenta de administrador se creó con una contraseña temporal:</p>
                     <p className="brf-temp-password">{result.tempPassword}</p>
                     <p className="brf-hint">
                         Guárdala — el sistema te va a pedir cambiarla por la tuya en cuanto entres.
-                        Tu página pública ya está lista en <strong>/{result.slug}</strong>.
+                        Tu página pública ya está lista en <strong>/{getGiroUrlLabel(giro)}/{result.slug}</strong>.
                     </p>
                     <button className="brf-submit" onClick={() => navigate('/admin-dashboard')}>
                         Ir a mi panel
@@ -120,7 +120,7 @@ const BusinessRegisterForm = () => {
     return (
         <div className="brf-page">
             <div className="brf-card">
-                <Link to="/" className="brf-back">← Perrucho</Link>
+                <Link to="/" className="brf-back">← Emporio</Link>
                 <h2>Registra tu negocio</h2>
                 <p className="brf-subtitle">Gratis mientras estamos en pruebas.</p>
                 <form onSubmit={handleSubmit}>
@@ -136,9 +136,9 @@ const BusinessRegisterForm = () => {
                     </div>
 
                     <div className="brf-field">
-                        <label>Tu URL en Perrucho</label>
+                        <label>Tu URL en Emporio</label>
                         <div className="brf-slug-row">
-                            <span>perrucho.com/</span>
+                            <span>/{getGiroUrlLabel(giro)}/</span>
                             <input
                                 type="text" value={slug}
                                 onChange={(e) => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}

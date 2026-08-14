@@ -29,10 +29,23 @@ import BusinessRegisterForm from './pages/platform/BusinessRegisterForm';
 import SuperAdminLogin      from './pages/superadmin/SuperAdminLogin';
 import SuperAdminPanel      from './pages/superadmin/SuperAdminPanel';
 
-// Slug del único negocio que existía antes de multi-tenant — las URLs viejas
-// sin prefijo (perrucho.com/servicios, etc.) redirigen aquí en vez de romper
-// enlaces/bookmarks/QR ya publicados.
+// Slug/giro del único negocio que existía antes de multi-tenant (y antes de
+// que la URL llevara el giro adelante) — las URLs viejas sin ese prefijo
+// (perrucho.com/servicios, perrucho.com/taylors/servicios, etc.) redirigen
+// aquí en vez de romper enlaces/bookmarks/QR ya publicados.
 const LEGACY_BUSINESS_SLUG = 'taylors';
+const LEGACY_GIRO = 'mascotas';
+const LEGACY_BASE = `/${LEGACY_GIRO}/${LEGACY_BUSINESS_SLUG}`;
+
+// Hasta este cambio, TODA la producción vivía en /taylors/... (sin giro
+// adelante) — no solo las URLs pre-multi-tenant. Sin este redirect, cada
+// link/QR/bookmark ya repartido (incluidos los que Rodrigo y su equipo usan
+// hoy) se rompería de un día para otro.
+const LegacyTaylorsSlugRedirect = () => {
+    const location = useLocation();
+    const rest = location.pathname.replace(/^\/taylors/, '');
+    return <Navigate to={`${LEGACY_BASE}${rest}${location.search}`} replace />;
+};
 
 // ── Puente AuthContext ↔ DataContext ─────────────────────────────────────────
 const DataReloaderBridge = () => {
@@ -68,7 +81,7 @@ const FloatingMenuBridge = () => {
     const waNumber = settings?.whatsappNumber
         ? `52${settings.whatsappNumber.replace(/\D/g, '')}`
         : '5215633252525';
-    const businessName = settings?.businessName || 'Perrucho';
+    const businessName = settings?.businessName || 'Emporio';
     return (
         <FloatingMenu
             whatsappNumber={waNumber}
@@ -113,7 +126,7 @@ const AppContent = () => {
             <main className={hideGlobalUI ? 'admin-main-content' : 'main-content'}>
                 <Routes>
                     {/* ── Rutas públicas, aisladas por negocio ── */}
-                    <Route path="/:businessSlug" element={<BusinessLayout />}>
+                    <Route path="/:giro/:businessSlug" element={<BusinessLayout />}>
                         <Route index                element={<Home />} />
                         <Route path="servicios"      element={<Services />} />
                         <Route path="tienda"         element={<Shop />} />
@@ -123,7 +136,7 @@ const AppContent = () => {
                         <Route path="registro"       element={<Register />} />
                     </Route>
 
-                    {/* ── Plataforma Perrucho (no es un negocio) ── */}
+                    {/* ── Plataforma EMPORIO (no es un negocio) ── */}
                     <Route path="/"               element={<PerruchoLanding />} />
                     <Route path="/crear-negocio"  element={<BusinessRegisterForm />} />
                     <Route path="/superadmin"        element={<SuperAdminLogin />} />
@@ -133,13 +146,17 @@ const AppContent = () => {
                         </ProtectedRoute>
                     } />
 
+                    {/* ── /taylors/... (toda la producción hasta ahora) → /mascotas/taylors/... ── */}
+                    <Route path="/taylors"    element={<LegacyTaylorsSlugRedirect />} />
+                    <Route path="/taylors/*"  element={<LegacyTaylorsSlugRedirect />} />
+
                     {/* ── URLs sin slug (antes de multi-tenant) → Taylor's ── */}
-                    <Route path="/servicios"       element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/servicios`} replace />} />
-                    <Route path="/tienda"          element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/tienda`} replace />} />
-                    <Route path="/sobre-nosotros"  element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/sobre-nosotros`} replace />} />
-                    <Route path="/acceso"          element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/acceso`} replace />} />
-                    <Route path="/olvide-contrasena" element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/olvide-contrasena`} replace />} />
-                    <Route path="/registro"        element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/registro`} replace />} />
+                    <Route path="/servicios"       element={<Navigate to={`${LEGACY_BASE}/servicios`} replace />} />
+                    <Route path="/tienda"          element={<Navigate to={`${LEGACY_BASE}/tienda`} replace />} />
+                    <Route path="/sobre-nosotros"  element={<Navigate to={`${LEGACY_BASE}/sobre-nosotros`} replace />} />
+                    <Route path="/acceso"          element={<Navigate to={`${LEGACY_BASE}/acceso`} replace />} />
+                    <Route path="/olvide-contrasena" element={<Navigate to={`${LEGACY_BASE}/olvide-contrasena`} replace />} />
+                    <Route path="/registro"        element={<Navigate to={`${LEGACY_BASE}/registro`} replace />} />
 
                     {/* ── Dashboards protegidos — sin prefijo: el JWT ya trae el businessId ── */}
                     <Route path="/admin-dashboard/*" element={

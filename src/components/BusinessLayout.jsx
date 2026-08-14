@@ -1,14 +1,21 @@
 // src/components/BusinessLayout.jsx
 //
-// Ruta layout /:businessSlug — envuelve las páginas públicas (Home,
+// Ruta layout /:giro/:businessSlug — envuelve las páginas públicas (Home,
 // Servicios, Tienda, Sobre nosotros, Acceso, Registro) en BusinessProvider,
-// que resuelve el slug contra el backend antes de renderizar nada más.
+// que resuelve el slug contra el backend antes de renderizar nada más. El
+// giro en la URL es solo informativo (la resolución real es por slug, que
+// ya es único globalmente) — si no coincide con el giro real del negocio
+// (ej. alguien entra por /gimnasio/emporio-unas), se corrige la URL en vez
+// de renderizar bajo una etiqueta equivocada.
 import React from 'react';
-import { useParams, Outlet } from 'react-router-dom';
+import { useParams, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { BusinessProvider, useBusiness } from '../contexts/BusinessContext';
+import { getGiroUrlLabel } from '../config/giroPresets';
 
 const BusinessGate = ({ children }) => {
-    const { loading, notFound } = useBusiness();
+    const { business, loading, notFound } = useBusiness();
+    const { giro: urlGiro, businessSlug } = useParams();
+    const location = useLocation();
 
     const centered = { minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24, fontFamily: 'system-ui, sans-serif' };
 
@@ -23,6 +30,13 @@ const BusinessGate = ({ children }) => {
             </div>
         );
     }
+
+    const canonicalGiro = getGiroUrlLabel(business?.giro);
+    if (canonicalGiro && urlGiro !== canonicalGiro) {
+        const rest = location.pathname.replace(`/${urlGiro}/${businessSlug}`, '');
+        return <Navigate to={`/${canonicalGiro}/${businessSlug}${rest}${location.search}`} replace />;
+    }
+
     return children;
 };
 

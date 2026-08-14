@@ -764,7 +764,7 @@ const EmployeeDashboard = () => {
 
             <header className="emp-topbar">
                 <div className="emp-topbar-left">
-                    <span className="emp-logo">{settings?.businessName || 'Perrucho'}<span>.</span></span>
+                    <span className="emp-logo">{settings?.businessName || 'Emporio'}<span>.</span></span>
                     <span className="emp-role-badge">Staff</span>
                     {tab!=='agenda'&&<div className="emp-search-bar">
                         <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>

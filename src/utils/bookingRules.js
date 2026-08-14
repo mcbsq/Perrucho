@@ -26,7 +26,7 @@ export const NON_CANCELLABLE_STATUSES = ['En proceso', 'Finalizada', 'Cancelada'
 
 // Teléfono de la estética (formato internacional sin '+') para wa.me/
 export const SHOP_WHATSAPP = '522283045591';
-export const SHOP_NAME     = 'Perrucho';
+export const SHOP_NAME     = 'Emporio';
 
 /**
  * Genera los slots de tiempo disponibles para agendar citas.

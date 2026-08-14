@@ -8,7 +8,7 @@
 // guestName, para que el empleado/admin pueda usarlo al confirmar.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
 import bannerImage from '../assets/1.jpg';
 import heroVideo   from '../assets/hero.mp4';
@@ -19,20 +19,20 @@ import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
 import { appointmentsApi } from '../api/apiClient';
 import { getServiceIcon } from '../utils/serviceIcons';
 import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
+import { useBusinessPath } from '../utils/businessPath';
 import perruchoMark from '../assets/perrucho-mark.svg';
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
 // Multi-tenant: `destination` llega como ruta relativa al negocio actual
-// (ej. '/servicios') — se antepone el slug tomado de la URL en curso.
+// (ej. '/servicios') — se antepone /:giro/:slug tomado de la URL en curso.
 const useAuthAction = () => {
     const { isLoggedIn } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const { withBusinessPath } = useBusinessPath();
     return (destination) => {
-        const target = `/${businessSlug}${destination}`;
+        const target = withBusinessPath(destination);
         if (isLoggedIn) navigate(target);
-        else navigate(`/${businessSlug}/acceso`, { state: { from: target } });
+        else navigate(withBusinessPath('/acceso'), { state: { from: target } });
     };
 };
 
@@ -403,8 +403,7 @@ const ProductCard = ({ item }) => {
 // ─── CTA final ────────────────────────────────────────────────────────────────
 const CTASection = ({ onBookingExpress, showGuestBooking }) => {
     const authAction = useAuthAction();
-    const location = useLocation();
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    const { withBusinessPath } = useBusinessPath();
     return (
         <section className="cta-section">
             <div className="cta-inner">
@@ -419,7 +418,7 @@ const CTASection = ({ onBookingExpress, showGuestBooking }) => {
                             Reserva rápida
                         </button>
                     )}
-                    <Link to={`/${businessSlug}/sobre-nosotros`} className="cta-btn cta-secondary">
+                    <Link to={withBusinessPath('/sobre-nosotros')} className="cta-btn cta-secondary">
                         Conócenos
                     </Link>
                 </div>

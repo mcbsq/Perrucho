@@ -241,8 +241,8 @@ const PerruchoLanding = () => {
     return (
         <div className="pl-page">
             <header className="pl-header">
-                <span className="pl-logo">Perrucho</span>
-                <Link to="/taylors" className="pl-header-link">Ver un negocio en vivo →</Link>
+                <span className="pl-logo">Emporio</span>
+                <Link to="/mascotas/taylors" className="pl-header-link">Ver un negocio en vivo →</Link>
             </header>
 
             <section className="pl-hero">
@@ -257,7 +257,7 @@ const PerruchoLanding = () => {
                         <Link to="/crear-negocio" className="pl-cta-primary">
                             Registra tu negocio <PiArrowRightBold />
                         </Link>
-                        <Link to="/taylors" className="pl-cta-secondary">Ver una demo</Link>
+                        <Link to="/mascotas/taylors" className="pl-cta-secondary">Ver una demo</Link>
                     </div>
                     <div className="pl-hero-dots">
                         {GIROS.map((g, i) => (
@@ -284,7 +284,7 @@ const PerruchoLanding = () => {
 
                 <section className="pl-giros pl-reveal">
                     <h2>Se adapta a tu giro</h2>
-                    <p className="pl-giros-sub">Perrucho ajusta las herramientas y el catálogo según a qué te dedicas.</p>
+                    <p className="pl-giros-sub">Emporio ajusta las herramientas y el catálogo según a qué te dedicas.</p>
                     <div className="pl-giros-grid">
                         {GIROS.map((g) => (
                             <div key={g.value} className="pl-giro-chip">
@@ -303,7 +303,7 @@ const PerruchoLanding = () => {
             </div>
 
             <footer className="pl-footer">
-                <span>Perrucho — hecho con 🐾 por CIBERCOM</span>
+                <span>Emporio — hecho con 🐾 por CIBERCOM</span>
             </footer>
         </div>
     );

@@ -1056,7 +1056,7 @@ const AdminDashboard = () => {
 
             <header className="admin-top-bar">
                 <div className="topbar-left">
-                    <span className="admin-logo">{settings?.businessName || 'Perrucho'}<span>.</span></span>
+                    <span className="admin-logo">{settings?.businessName || 'Emporio'}<span>.</span></span>
                     {tab!=='pos'&&<div className="search-bar-wrapper" ref={searchRef}>
                         <div className={`search-bar-global ${showSearchPanel?'focused':''}`}>
                             <FaSearch/><input type="text" placeholder="Buscar en todo el sistema..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} onFocus={()=>setSearchFocus(true)}/>

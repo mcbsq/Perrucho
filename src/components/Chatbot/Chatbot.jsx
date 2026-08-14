@@ -160,7 +160,7 @@ const buildEngine = (services, products, isLoggedIn) => {
         {
             keys: ['hola', 'buenos', 'buenas', 'hey', 'hi', 'hello', 'saludos'],
             reply: () => ({
-                text: '¡Hola! 👋 Soy el asistente de *Perrucho*. ¿En qué te puedo ayudar?',
+                text: '¡Hola! 👋 Soy el asistente de *Emporio*. ¿En qué te puedo ayudar?',
                 replies: INITIAL_REPLIES
             })
         },
@@ -253,7 +253,7 @@ const Chatbot = ({ isOpen: controlledOpen, onOpenChange, hideFab = false }) => {
             setMessages([{
                 id:      Date.now(),
                 from:    'bot',
-                text:    '¡Hola! 👋 Soy el asistente de *Perrucho*. ¿En qué puedo ayudarte?',
+                text:    '¡Hola! 👋 Soy el asistente de *Emporio*. ¿En qué puedo ayudarte?',
                 replies: INITIAL_REPLIES,
             }]);
         }
@@ -316,7 +316,7 @@ const Chatbot = ({ isOpen: controlledOpen, onOpenChange, hideFab = false }) => {
                     <div className="chatbot-header">
                         <div className="chatbot-header-avatar">🐾</div>
                         <div className="chatbot-header-info">
-                            <span className="chatbot-header-name">Perrucho Asistente</span>
+                            <span className="chatbot-header-name">Emporio Asistente</span>
                             <span className="chatbot-header-status">● En línea</span>
                         </div>
                         <button className="chatbot-close-btn" onClick={() => setIsOpen(false)}>
