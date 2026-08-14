@@ -146,25 +146,91 @@
 /* ==========================================================================
    RESTO DE LA PÁGINA
    ========================================================================== */
-.pl-features {
-    max-width: 1080px; margin: 20px auto 0; padding: 40px 6vw;
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
+.pl-features { max-width: 1180px; margin: 20px auto 0; padding: 40px 6vw 20px; }
+
+.pl-fc-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px; gap: 16px;
 }
+.pl-fc-head h2 { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; margin: 0; text-wrap: balance; }
+.pl-fc-arrows { display: flex; gap: 8px; flex-shrink: 0; }
+.pl-fc-arrows button {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    background: white; color: var(--color-text-main, #2d3446);
+    border: 1.5px solid var(--color-border-mid, #dfe4ea); cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+.pl-fc-arrows button:hover { background: var(--color-accent, #74b9ff); color: white; border-color: var(--color-accent, #74b9ff); transform: translateY(-2px); }
+
+/* Track con scroll-snap — cada tarjeta ocupa ~78% en móvil (deja ver un
+   asomo de la siguiente, invita a seguir deslizando) y un cuarto del ancho
+   en desktop. Scrollbar oculta a propósito: la navegación es con flechas,
+   puntos o arrastre, no con una barra fea debajo. */
+.pl-fc-track {
+    display: flex; gap: 20px; overflow-x: auto; padding: 6px 6px 18px;
+    scroll-snap-type: x mandatory; cursor: grab; user-select: none;
+    scrollbar-width: none; -ms-overflow-style: none;
+}
+.pl-fc-track:active { cursor: grabbing; }
+.pl-fc-track::-webkit-scrollbar { display: none; }
+
 .pl-feature-card {
-    background: white; border-radius: 18px; padding: 24px 20px;
-    border: 1px solid var(--color-border-light, #eef1f5);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.03);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    position: relative; overflow: hidden;
+    flex: 0 0 78%; scroll-snap-align: start;
+    border-radius: var(--radius-card-lg, 48px); padding: 30px 26px;
+    box-shadow: 0 16px 36px rgba(0,0,0,0.08);
+    transition: transform 0.3s var(--ease-smooth, ease);
+    min-height: 240px; display: flex; flex-direction: column;
 }
-.pl-feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.07); }
+.pl-feature-card:hover { transform: translateY(-6px); }
+/* Blob decorativo — cada tema lo tiñe distinto vía currentColor del ícono */
+.pl-feature-card::after {
+    content: ''; position: absolute; width: 180px; height: 180px; border-radius: 50%;
+    right: -60px; bottom: -70px; background: currentColor; opacity: 0.12;
+    pointer-events: none;
+}
+.pl-feature-card--blue     { background: linear-gradient(160deg, #eaf4ff 0%, #dcecff 100%); color: var(--color-accent, #74b9ff); }
+.pl-feature-card--mint     { background: linear-gradient(160deg, #eafcf5 0%, #dcf6ea 100%); color: var(--color-mint-dark, #1D9E75); }
+.pl-feature-card--lavender { background: linear-gradient(160deg, #f2f0ff 0%, #e7e3ff 100%); color: var(--color-lavender-dark, #6c5ce7); }
+.pl-feature-card--coral    { background: linear-gradient(160deg, #fff0ef 0%, #ffe3e1 100%); color: var(--color-red-soft, #ff7675); }
+
 .pl-feature-icon {
-    width: 46px; height: 46px; border-radius: 12px;
-    background: var(--color-surface-blue, #e6f1fb); color: var(--color-accent, #74b9ff);
-    display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
-    margin-bottom: 14px;
+    width: 50px; height: 50px; border-radius: 14px; position: relative; z-index: 1;
+    background: rgba(255,255,255,0.65); color: currentColor;
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    margin-bottom: 16px;
 }
-.pl-feature-card h3 { font-family: 'Montserrat', sans-serif; font-size: 1.02rem; margin: 0 0 6px; }
-.pl-feature-card p { font-size: 0.88rem; color: var(--color-text-muted, #636e72); line-height: 1.5; margin: 0; }
+.pl-feature-tag {
+    position: relative; z-index: 1; align-self: flex-start;
+    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+    color: currentColor; background: rgba(255,255,255,0.6);
+    padding: 4px 10px; border-radius: 999px; margin-bottom: auto;
+}
+.pl-feature-card h3 {
+    position: relative; z-index: 1;
+    font-family: 'Montserrat', sans-serif; font-size: 1.2rem; margin: 14px 0 6px;
+    color: var(--color-text-main, #2d3446);
+}
+.pl-feature-card p {
+    position: relative; z-index: 1;
+    font-size: 0.9rem; color: var(--color-text-muted, #636e72); line-height: 1.5; margin: 0;
+}
+
+.pl-fc-dots { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+.pl-fc-dot {
+    width: 8px; height: 8px; border-radius: 50%; padding: 0; border: none;
+    background: var(--color-border-mid, #dfe4ea); cursor: pointer;
+    transition: background 0.2s, width 0.25s;
+}
+.pl-fc-dot.is-active { background: var(--color-accent, #74b9ff); width: 22px; border-radius: 999px; }
+
+@media (min-width: 720px) {
+    .pl-feature-card { flex-basis: calc(50% - 10px); }
+}
+@media (min-width: 1040px) {
+    .pl-feature-card { flex-basis: calc(25% - 15px); }
+}
 
 .pl-giros {
     max-width: 780px; margin: 20px auto 0; padding: 40px 6vw; text-align: center;

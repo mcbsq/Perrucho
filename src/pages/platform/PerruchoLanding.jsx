@@ -10,15 +10,30 @@ import { Link } from 'react-router-dom';
 import {
     PiCalendarCheckBold, PiCashRegisterBold, PiPackageBold, PiUsersThreeBold,
     PiScissorsBold, PiPaintBrushBold, PiFlowerLotusBold, PiStethoscopeBold,
-    PiBarbellBold, PiPawPrintBold, PiArrowRightBold,
+    PiBarbellBold, PiPawPrintBold, PiArrowRightBold, PiArrowLeftBold,
 } from 'react-icons/pi';
 import './PerruchoLanding.css';
 
+// "theme" define el degradado propio de cada tarjeta del carrusel — así cada
+// una se distingue de un vistazo en vez de repetir la misma tarjeta blanca
+// cuatro veces (lo que se sentía más a lista que a producto).
 const FEATURES = [
-    { icon: PiCalendarCheckBold, title: 'Agenda de citas', desc: 'Tus clientes reservan solos, en línea, sin llamadas ni WhatsApp perdidos.' },
-    { icon: PiCashRegisterBold, title: 'Punto de venta', desc: 'Cobra servicios y productos, genera el recibo, todo desde el mismo panel.' },
-    { icon: PiPackageBold, title: 'Inventario', desc: 'Controla tu stock de productos sin hojas de cálculo aparte.' },
-    { icon: PiUsersThreeBold, title: 'Clientes y equipo', desc: 'Da de alta a tu personal y administra tu cartera de clientes en un solo lugar.' },
+    {
+        icon: PiCalendarCheckBold, title: 'Agenda de citas', tag: '0 llamadas perdidas', theme: 'blue',
+        desc: 'Tus clientes reservan solos, en línea, sin llamadas ni WhatsApp perdidos.',
+    },
+    {
+        icon: PiCashRegisterBold, title: 'Punto de venta', tag: 'Recibo al instante', theme: 'mint',
+        desc: 'Cobra servicios y productos, genera el recibo, todo desde el mismo panel.',
+    },
+    {
+        icon: PiPackageBold, title: 'Inventario', tag: 'Alertas de stock bajo', theme: 'lavender',
+        desc: 'Controla tu stock de productos sin hojas de cálculo aparte.',
+    },
+    {
+        icon: PiUsersThreeBold, title: 'Clientes y equipo', tag: 'Todo en un lugar', theme: 'coral',
+        desc: 'Da de alta a tu personal y administra tu cartera de clientes en un solo lugar.',
+    },
 ];
 
 // Un giro por imagen del hero — mismo set que ofrece el selector del alta de
@@ -74,6 +89,102 @@ const HeroCarousel = ({ activeIndex, scrollY }) => (
         <div className="pl-hero-overlay" />
     </div>
 );
+
+// Carrusel de funciones — scroll-snap horizontal con arrastre de mouse,
+// flechas y puntos de progreso. Reemplaza la grilla de tarjetas de texto
+// plana: cada tarjeta ahora es su propio panel a color, más cerca de cómo
+// se presentan las funciones en un producto que de una lista de viñetas.
+const FeatureCarousel = () => {
+    const trackRef = useRef(null);
+    const [active, setActive] = useState(0);
+    const drag = useRef(null);
+
+    const cardStep = () => {
+        const track = trackRef.current;
+        if (!track) return 0;
+        const card = track.querySelector('.pl-feature-card');
+        if (!card) return 0;
+        const style = getComputedStyle(track);
+        return card.getBoundingClientRect().width + parseFloat(style.columnGap || style.gap || 0);
+    };
+
+    const scrollToIndex = (i) => {
+        const track = trackRef.current;
+        if (!track) return;
+        const clamped = Math.max(0, Math.min(FEATURES.length - 1, i));
+        track.scrollTo({ left: clamped * cardStep(), behavior: 'smooth' });
+    };
+
+    const onScroll = () => {
+        const track = trackRef.current;
+        if (!track) return;
+        const step = cardStep();
+        if (!step) return;
+        setActive(Math.round(track.scrollLeft / step));
+    };
+
+    // Arrastrar con mouse en desktop — el scroll-snap táctil ya funciona
+    // solo en móvil, pero un trackpad/mouse normal no tiene forma nativa de
+    // desplazar horizontalmente sin esto.
+    const onPointerDown = (e) => {
+        const track = trackRef.current;
+        if (!track) return;
+        drag.current = { startX: e.clientX, startScroll: track.scrollLeft, moved: false };
+        track.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e) => {
+        const track = trackRef.current;
+        if (!track || !drag.current) return;
+        const dx = e.clientX - drag.current.startX;
+        if (Math.abs(dx) > 4) drag.current.moved = true;
+        track.scrollLeft = drag.current.startScroll - dx;
+    };
+    const onPointerUp = () => { drag.current = null; };
+    // Evita que un arrastre termine también disparando el :hover/click de la
+    // tarjeta (no hay link adentro hoy, pero deja la puerta lista si se
+    // agrega uno después).
+    const onClickCapture = (e) => { if (drag.current?.moved) e.preventDefault(); };
+
+    return (
+        <div className="pl-fc">
+            <div className="pl-fc-head">
+                <h2>Todo lo que tu negocio necesita</h2>
+                <div className="pl-fc-arrows">
+                    <button type="button" aria-label="Anterior" onClick={() => scrollToIndex(active - 1)}><PiArrowLeftBold /></button>
+                    <button type="button" aria-label="Siguiente" onClick={() => scrollToIndex(active + 1)}><PiArrowRightBold /></button>
+                </div>
+            </div>
+            <div
+                className="pl-fc-track"
+                ref={trackRef}
+                onScroll={onScroll}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                onClickCapture={onClickCapture}
+            >
+                {FEATURES.map((f) => (
+                    <div key={f.title} className={`pl-feature-card pl-feature-card--${f.theme}`}>
+                        <div className="pl-feature-icon"><f.icon /></div>
+                        <span className="pl-feature-tag">{f.tag}</span>
+                        <h3>{f.title}</h3>
+                        <p>{f.desc}</p>
+                    </div>
+                ))}
+            </div>
+            <div className="pl-fc-dots">
+                {FEATURES.map((f, i) => (
+                    <button
+                        key={f.title} type="button" aria-label={`Ir a ${f.title}`}
+                        className={`pl-fc-dot${i === active ? ' is-active' : ''}`}
+                        onClick={() => scrollToIndex(i)}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
 
 const PerruchoLanding = () => {
     const [activeIndex, setActiveIndex] = useState(0);
@@ -168,13 +279,7 @@ const PerruchoLanding = () => {
 
             <div ref={revealRef}>
                 <section className="pl-features pl-reveal">
-                    {FEATURES.map((f) => (
-                        <div key={f.title} className="pl-feature-card">
-                            <div className="pl-feature-icon"><f.icon /></div>
-                            <h3>{f.title}</h3>
-                            <p>{f.desc}</p>
-                        </div>
-                    ))}
+                    <FeatureCarousel />
                 </section>
 
                 <section className="pl-giros pl-reveal">
