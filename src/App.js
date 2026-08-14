@@ -2,12 +2,13 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import './App.css';
-import { AuthProvider, setDataReloader } from './contexts/AuthContext';
+import { AuthProvider, setDataReloader, useAuth } from './contexts/AuthContext';
 import { DataProvider, useData }         from './contexts/DataContext';
 import Navbar            from './components/Navbar/Navbar';
 import Footer            from './components/Footer/Footer';
 import FloatingMenu      from './components/FloatingMenu/FloatingMenu';
 import ProtectedRoute    from './components/ProtectedRoute';
+import ForceChangePasswordModal from './components/shared/ForceChangePasswordModal';
 import { applyBrandColor, applyBrandSecondaryColor, applyFontFamily } from './utils/theme';
 
 // ── Páginas ───────────────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ const BrandThemeBridge = () => {
 
 const AppContent = () => {
     const location = useLocation();
+    const { user } = useAuth();
 
     const isDashboard =
         location.pathname.startsWith('/admin-dashboard') ||
@@ -76,6 +78,9 @@ const AppContent = () => {
 
     return (
         <div className="app-container">
+            {/* Bloquea toda la app, sin importar la ruta, hasta que se
+                cambie la contraseña temporal — ver ForceChangePasswordModal. */}
+            {user?.mustChangePassword && <ForceChangePasswordModal />}
             {!hideGlobalUI && <Navbar />}
 
             <main className={hideGlobalUI ? 'admin-main-content' : 'main-content'}>

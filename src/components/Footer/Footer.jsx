@@ -19,8 +19,14 @@ const Footer = () => {
     const { settings } = useData();
     const location = useLocation();
     // Multi-tenant: Footer se renderiza fuera del árbol de rutas (como
-    // Navbar), así que el slug se toma del primer segmento de la URL actual.
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
+    // Navbar), así que el slug se toma del primer segmento de la URL actual
+    // — salvo en /perfil (ruta protegida sin prefijo), donde ese segmento
+    // sería "perfil" y no un slug real; ahí se usa el que trae /api/settings.
+    const RESERVED_SEGMENTS = ['perfil', 'admin-dashboard', 'employee-dashboard'];
+    const firstSegment = location.pathname.split('/').filter(Boolean)[0] || '';
+    const businessSlug = RESERVED_SEGMENTS.includes(firstSegment)
+        ? (settings?.slug || '')
+        : firstSegment;
     const withSlug = (path) => `/${businessSlug}${path}`;
     const year = new Date().getFullYear();
 

@@ -56,9 +56,14 @@ export const AuthProvider = ({ children }) => {
     // ── Login ─────────────────────────────────────────────────────────────────
     const login = async (email, password) => {
         try {
-            const { token, user: userData } = await authApi.login(email, password);
-            persistSession(token, userData);
-            setUser(userData);
+            const { token, user: userData, mustChangePassword } = await authApi.login(email, password);
+            // mustChangePassword solo viene en negocios AEGIS con una
+            // contraseña temporal sin cambiar todavía — se guarda en la
+            // sesión para que la app la bloquee con un formulario obligatorio
+            // hasta que la cambie (ver ForceChangePasswordModal).
+            const sessionUser = mustChangePassword ? { ...userData, mustChangePassword: true } : userData;
+            persistSession(token, sessionUser);
+            setUser(sessionUser);
 
             // Notificar al DataContext para que recargue clients/pets
             // (mismo puente que usa register(); sin esto, admin/empleado
@@ -67,12 +72,25 @@ export const AuthProvider = ({ children }) => {
                 _reloadClientsAndPets().catch(() => {});
             }
 
-            return userData;
+            return sessionUser;
         } catch (err) {
             console.error('Error en login:', err);
             if (err.status === 401) throw new Error('Correo o contraseña incorrectos.');
             throw new Error('No se pudo conectar con el servidor.');
         }
+    };
+
+    // ── Cambio de contraseña ─────────────────────────────────────────────────
+    // Usado tanto por el formulario obligatorio (tras login con contraseña
+    // temporal) como por un cambio voluntario desde el perfil.
+    const changePassword = async (currentPassword, newPassword) => {
+        await authApi.changePassword(currentPassword, newPassword);
+        setUser(prev => {
+            if (!prev) return prev;
+            const { mustChangePassword, ...rest } = prev;
+            persistSession(localStorage.getItem(TOKEN_KEY), rest);
+            return rest;
+        });
     };
 
     // ── Logout ────────────────────────────────────────────────────────────────
@@ -146,6 +164,7 @@ export const AuthProvider = ({ children }) => {
             logout,
             register,
             updateSessionUser,
+            changePassword,
         }}>
             {!loading && children}
         </AuthContext.Provider>

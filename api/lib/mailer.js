@@ -24,8 +24,16 @@ const sendMail = async ({ to, subject, html }) => {
     return { sent: false };
   }
   try {
-    await resend.emails.send({ from: FROM, to, subject, html });
-    return { sent: true };
+    // El SDK de Resend NO lanza excepción en errores de la API (dominio no
+    // verificado, rate limit, etc.) — regresa { data, error } y hay que
+    // revisar `error` a mano. No hacerlo fue el bug real: se reportaba
+    // "enviado" aunque Resend hubiera rechazado el correo.
+    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+    if (error) {
+      console.error('[mailer] Resend rechazó el correo a', to, '—', error.message || error);
+      return { sent: false, error };
+    }
+    return { sent: true, id: data?.id };
   } catch (err) {
     console.error('[mailer] Error enviando correo:', err);
     return { sent: false, error: err };

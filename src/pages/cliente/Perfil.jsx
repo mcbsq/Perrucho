@@ -196,7 +196,11 @@ const Perfil = () => {
         try {
             // securityAnswer solo se envía si el usuario escribió una nueva —
             // dejar el campo vacío conserva la respuesta actual sin cambios.
-            const payload = { ...myProfile, ...updated };
+            // OJO: nunca hacer spread de myProfile completo aquí — trae
+            // relaciones (pets) incluidas desde el GET, y Prisma rechaza la
+            // escritura completa si se le manda una relación cruda en el
+            // update (bug real: "Error al actualizar" al guardar el perfil).
+            const payload = { ...updated };
             if (securityAnswer) payload.securityAnswer = securityAnswer;
             await usersApi.update(user.id, payload);
             setMyProfile(prev => ({ ...prev, ...updated }));
