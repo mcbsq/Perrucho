@@ -150,4 +150,29 @@ const adminSetActive = async (aegisUserId, isActive) => {
   }
 };
 
-module.exports = { passwordLogin, getMe, adminCreateUser, adminResetPassword, adminSetActive };
+// POST /v1/auth/change-password — autoservicio: primero re-login con la
+// contraseña actual (para obtener un token fresco), luego cambia. Así el
+// caller nunca necesita guardar el access_token de una sesión de AEGIS por
+// su cuenta — solo current/new password, igual que un cambio de contraseña
+// normal.
+const changePassword = async (identifier, currentPassword, newPassword) => {
+  const { data: tokens, error: loginErr } = await passwordLogin(identifier, currentPassword);
+  if (loginErr) return { error: loginErr };
+
+  const s = getAegisSettings();
+  try {
+    const r = await doFetch(`${s.baseUrl}/v1/auth/change-password`, {
+      method: 'POST',
+      headers: authHeaders(tokens.access_token),
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }, s.timeout);
+    if (r.ok) return { error: null };
+    const body = await parseBody(r);
+    return { error: { body, status: r.status } };
+  } catch (e) {
+    console.error('AEGIS changePassword:', e.message);
+    return { error: { body: { error: 'Servicio de autenticación no disponible' }, status: 503 } };
+  }
+};
+
+module.exports = { passwordLogin, getMe, adminCreateUser, adminResetPassword, adminSetActive, changePassword };

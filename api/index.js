@@ -167,6 +167,50 @@ app.post('/api/login', authLimiter, async (req, res) => {
   }
 });
 
+// POST /api/auth/change-password — el propio usuario cambia su contraseña.
+// Obligatorio tras un primer login con contraseña temporal (mustChangePassword),
+// pero disponible en cualquier momento. Rama por negocio igual que login.
+app.post('/api/auth/change-password', authLimiter, verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+
+    if (business?.authProvider === 'aegis' && user.aegisUserId) {
+      if (newPassword.length < 12) {
+        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 12 caracteres.' });
+      }
+      const { error } = await aegisClient.changePassword(user.email, currentPassword, newPassword);
+      if (error) {
+        const { status } = error;
+        if (status === 401 || status === 403) return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+        console.warn('AEGIS changePassword falló:', error);
+        return res.status(502).json({ error: 'No se pudo cambiar la contraseña' });
+      }
+      return res.json({ ok: true });
+    }
+
+    // Modo local — comportamiento bcrypt directo.
+    if (!user.password) return res.status(400).json({ error: 'Esta cuenta no tiene contraseña local' });
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hash } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/auth/change-password', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // POST /api/signup  — registro de cliente con mascota (flujo booking express)
 app.post('/api/signup', publicWriteLimiter, async (req, res) => {
   try {
@@ -1196,6 +1240,11 @@ app.get('/api/settings', async (req, res) => {
       // El frontend lo usa para ocultar los campos de contraseña/pregunta de
       // seguridad en el registro cuando AEGIS es quien genera la contraseña.
       authProvider: business?.authProvider || 'local',
+      // Slug real del negocio — necesario en páginas sin slug en la URL
+      // (ej. /perfil, que es una ruta protegida sin prefijo) para que el
+      // Navbar arme los links públicos correctos en vez de adivinar el slug
+      // a partir del path (bug real: tomaba "perfil" como si fuera un slug).
+      slug: business?.slug || null,
     });
   } catch (err) {
     console.error(err);
