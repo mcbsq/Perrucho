@@ -10,6 +10,7 @@ import FloatingMenu      from './components/FloatingMenu/FloatingMenu';
 import ProtectedRoute    from './components/ProtectedRoute';
 import ForceChangePasswordModal from './components/shared/ForceChangePasswordModal';
 import { applyBrandColor, applyBrandSecondaryColor, applyFontFamily } from './utils/theme';
+import { getGiroFromUrlLabel } from './config/giroPresets';
 
 // ── Páginas ───────────────────────────────────────────────────────────────────
 import Home              from './pages/Home';
@@ -25,6 +26,7 @@ import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import Perfil            from './pages/cliente/Perfil';
 import BusinessLayout    from './components/BusinessLayout';
 import PerruchoLanding      from './pages/platform/PerruchoLanding';
+import GiroLanding          from './pages/platform/GiroLanding';
 import BusinessRegisterForm from './pages/platform/BusinessRegisterForm';
 import SuperAdminLogin      from './pages/superadmin/SuperAdminLogin';
 import SuperAdminPanel      from './pages/superadmin/SuperAdminPanel';
@@ -104,15 +106,21 @@ const AppContent = () => {
     // "¿es una página de auth?" se decide por el último segmento de la ruta
     // en vez de una comparación exacta de path — funciona igual con o sin
     // el slug delante (/acceso legado, /taylors/acceso, /empresa2/acceso).
-    const segments = location.pathname.split('/').filter(Boolean);
+    // decodeURIComponent: location.pathname llega codificado (ej. "uñas" es
+    // "u%C3%B1as") — sin esto, getGiroFromUrlLabel de abajo nunca hace match
+    // contra un urlLabel acentuado y el Navbar de negocio se cuela encima
+    // de la landing de giro (bug real, visto al probar /uñas).
+    const segments = decodeURIComponent(location.pathname).split('/').filter(Boolean);
     const lastSegment = segments[segments.length - 1] || '';
     const isAuthPage = !isDashboard && ['acceso', 'registro', 'olvide-contrasena'].includes(lastSegment);
 
-    // La landing de la plataforma y el alta de negocio no son páginas de un
-    // negocio (no tienen slug) — el Navbar de negocio no aplica ahí, cada
-    // una trae su propio header.
+    // La landing de la plataforma, el alta de negocio y las landings por
+    // giro (/:giro, un solo segmento — ej. /uñas, sin slug de negocio
+    // después) no son páginas de un negocio — el Navbar de negocio no
+    // aplica ahí, cada una trae su propio header.
+    const isGiroLanding = segments.length === 1 && Boolean(getGiroFromUrlLabel(segments[0]));
     const isPlatformPage = location.pathname === '/' || location.pathname === '/crear-negocio'
-        || location.pathname.startsWith('/superadmin');
+        || location.pathname.startsWith('/superadmin') || isGiroLanding;
 
     const hideGlobalUI = isDashboard || isAuthPage || isPlatformPage;
 
@@ -145,6 +153,14 @@ const AppContent = () => {
                             <SuperAdminPanel />
                         </ProtectedRoute>
                     } />
+
+                    {/* ── Landing por giro (ej. /uñas) — "Emporio especializado en X",
+                         antes de que exista un negocio en ese segmento. Va DESPUÉS de
+                         las rutas estáticas de arriba a propósito (aunque React Router
+                         ya las prioriza por especificidad): si algún día se agrega una
+                         ruta estática nueva de un solo segmento, quede junto a las
+                         demás en vez de perdida después de esta dinámica. ── */}
+                    <Route path="/:giro" element={<GiroLanding />} />
 
                     {/* ── /taylors/... (toda la producción hasta ahora) → /mascotas/taylors/... ── */}
                     <Route path="/taylors"    element={<LegacyTaylorsSlugRedirect />} />

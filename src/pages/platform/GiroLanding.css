@@ -1,0 +1,35 @@
+/* src/pages/platform/GiroLanding.css — se apoya en PerruchoLanding.css
+   (misma cápsula de hero, mismos tokens) y solo agrega lo específico de
+   esta página: el eyebrow con el nombre del giro, la grilla de 3
+   highlights y la fila de "también sirve para". */
+
+.gl-eyebrow {
+    display: inline-block; background: rgba(255,255,255,0.14); color: white;
+    border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    font-weight: 700; font-size: 0.78rem; letter-spacing: 0.4px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 999px; margin-bottom: 18px;
+}
+
+.gl-hero-slide { transform: scale(1); }
+
+.gl-highlights {
+    max-width: 1000px; margin: 20px auto 0; padding: 44px 6vw;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px;
+}
+.gl-highlight-card {
+    background: white; border-radius: 22px; padding: 28px 24px;
+    border: 1px solid var(--color-border-light, #eef1f5);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.gl-highlight-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.07); }
+.gl-highlight-icon { font-size: 1.6rem; color: var(--color-mint-dark, #1D9E75); margin-bottom: 12px; }
+.gl-highlight-card h3 { font-family: 'Montserrat', sans-serif; font-size: 1.05rem; margin: 0 0 6px; }
+.gl-highlight-card p { font-size: 0.9rem; color: var(--color-text-muted, #636e72); line-height: 1.5; margin: 0; }
+
+.gl-other-giros { max-width: 780px; margin: 0 auto; padding: 10px 6vw 50px; text-align: center; }
+.gl-other-giros-label {
+    display: block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--color-text-hint, #94a3b8); margin-bottom: 14px;
+}
+.gl-other-giros-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }

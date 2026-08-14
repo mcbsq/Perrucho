@@ -33,7 +33,11 @@ const BusinessGate = ({ children }) => {
 
     const canonicalGiro = getGiroUrlLabel(business?.giro);
     if (canonicalGiro && urlGiro !== canonicalGiro) {
-        const rest = location.pathname.replace(`/${urlGiro}/${businessSlug}`, '');
+        // decodeURIComponent: location.pathname llega codificado (ej. "uñas"
+        // es "u%C3%B1as") pero urlGiro/businessSlug (de useParams) ya vienen
+        // decodificados — comparar/reemplazar sin decodificar el pathname
+        // nunca hacía match y `rest` se quedaba con la ruta completa.
+        const rest = decodeURIComponent(location.pathname).replace(`/${urlGiro}/${businessSlug}`, '');
         return <Navigate to={`/${canonicalGiro}/${businessSlug}${rest}${location.search}`} replace />;
     }
 

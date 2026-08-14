@@ -10,8 +10,10 @@ import { Link } from 'react-router-dom';
 import {
     PiCalendarCheckBold, PiCashRegisterBold, PiPackageBold, PiUsersThreeBold,
     PiScissorsBold, PiPaintBrushBold, PiFlowerLotusBold, PiStethoscopeBold,
-    PiBarbellBold, PiPawPrintBold, PiArrowRightBold, PiArrowLeftBold,
+    PiBarbellBold, PiPawPrintBold, PiArrowRightBold, PiArrowLeftBold, PiMagicWandBold,
 } from 'react-icons/pi';
+import { GIRO_PRESETS, getGiroUrlLabel } from '../../config/giroPresets';
+import { GIRO_MARKETING } from '../../config/giroMarketing';
 import './PerruchoLanding.css';
 
 // "theme" define el degradado propio de cada tarjeta del carrusel — así cada
@@ -36,35 +38,24 @@ const FEATURES = [
     },
 ];
 
-// Un giro por imagen del hero — mismo set que ofrece el selector del alta de
-// negocio (src/config/giroPresets.js), así el fondo va mostrando justo lo
-// que alguien puede llegar a registrar.
-const GIROS = [
-    {
-        value: 'mascotas', icon: PiPawPrintBold, label: 'Veterinaria y grooming',
-        img: 'https://images.unsplash.com/photo-1625277743460-43716b93507a?auto=format&fit=crop&w=1600&q=70',
-    },
-    {
-        value: 'unas-pestanas', icon: PiPaintBrushBold, label: 'Uñas y pestañas',
-        img: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=1600&q=70',
-    },
-    {
-        value: 'spa', icon: PiFlowerLotusBold, label: 'Spa y bienestar',
-        img: 'https://images.unsplash.com/photo-1620733723572-11c53f73a416?auto=format&fit=crop&w=1600&q=70',
-    },
-    {
-        value: 'barberia', icon: PiScissorsBold, label: 'Barbería',
-        img: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1600&q=70',
-    },
-    {
-        value: 'clinica', icon: PiStethoscopeBold, label: 'Clínica',
-        img: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=1600&q=70',
-    },
-    {
-        value: 'gimnasio', icon: PiBarbellBold, label: 'Gimnasio',
-        img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1600&q=70',
-    },
-];
+// Ícono por giro — lo único que giroPresets.js/giroMarketing.js no traen
+// (es puramente decorativo, no hace falta que viva en la config compartida
+// con el backend). Un giro por imagen del hero, tomadas de
+// giroMarketing.js — mismo set que ofrece el selector del alta de negocio,
+// así el fondo va mostrando justo lo que alguien puede llegar a registrar.
+const GIRO_ICONS = {
+    mascotas: PiPawPrintBold,
+    unas: PiPaintBrushBold,
+    pestanas: PiMagicWandBold,
+    spa: PiFlowerLotusBold,
+    barberia: PiScissorsBold,
+    clinica: PiStethoscopeBold,
+    gimnasio: PiBarbellBold,
+};
+const GIROS = Object.entries(GIRO_PRESETS).map(([value, preset]) => ({
+    value, icon: GIRO_ICONS[value] || PiCalendarCheckBold, label: preset.label,
+    img: GIRO_MARKETING[value].img,
+}));
 
 const SLIDE_MS = 4800;
 
@@ -287,9 +278,9 @@ const PerruchoLanding = () => {
                     <p className="pl-giros-sub">Emporio ajusta las herramientas y el catálogo según a qué te dedicas.</p>
                     <div className="pl-giros-grid">
                         {GIROS.map((g) => (
-                            <div key={g.value} className="pl-giro-chip">
+                            <Link key={g.value} to={`/${getGiroUrlLabel(g.value)}`} className="pl-giro-chip">
                                 <g.icon /> <span>{g.label}</span>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </section>
