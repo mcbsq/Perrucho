@@ -24,7 +24,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     // 2. Si no está logueado, al login
     // Guardamos 'state' para que tras loguearse vuelva a donde intentaba entrar
     if (!isLoggedIn) {
-        return <Navigate to="/acceso" state={{ from: location }} replace />;
+        // El panel maestro no vive bajo ningún negocio — no tiene sentido
+        // mandarlo al login de Taylor's como al resto de rutas protegidas.
+        const loginPath = allowedRoles?.length === 1 && allowedRoles[0] === 'superadmin' ? '/superadmin' : '/acceso';
+        return <Navigate to={loginPath} state={{ from: location }} replace />;
     }
 
     // 3. Validación de Roles

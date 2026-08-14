@@ -18,6 +18,11 @@ enum Role {
   administrador
   empleado
   cliente
+  // Cuenta única, por encima de cualquier negocio (businessId null) — ve y
+  // puede entrar a cualquier empresa registrada en la plataforma. No es un
+  // rol que se asigne desde ninguna UI de negocio, solo existe la cuenta
+  // maestra creada aparte (ver scripts/createSuperAdmin.js).
+  superadmin
 }
 
 enum AppointmentStatus {

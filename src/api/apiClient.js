@@ -235,6 +235,15 @@ export const businessApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SUPER ADMIN
+// ─────────────────────────────────────────────────────────────────────────────
+export const superAdminApi = {
+  login:      (email, password) => api.post('/superadmin/login', { email, password }),
+  businesses: () => api.get('/superadmin/businesses'),
+  enter:      (slug) => api.post(`/superadmin/businesses/${encodeURIComponent(slug)}/enter`, {}),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HEALTH CHECK
 // ─────────────────────────────────────────────────────────────────────────────
 export const healthApi = {

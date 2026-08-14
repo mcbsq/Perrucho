@@ -26,6 +26,8 @@ import Perfil            from './pages/cliente/Perfil';
 import BusinessLayout    from './components/BusinessLayout';
 import PerruchoLanding      from './pages/platform/PerruchoLanding';
 import BusinessRegisterForm from './pages/platform/BusinessRegisterForm';
+import SuperAdminLogin      from './pages/superadmin/SuperAdminLogin';
+import SuperAdminPanel      from './pages/superadmin/SuperAdminPanel';
 
 // Slug del único negocio que existía antes de multi-tenant — las URLs viejas
 // sin prefijo (perrucho.com/servicios, etc.) redirigen aquí en vez de romper
@@ -96,7 +98,8 @@ const AppContent = () => {
     // La landing de la plataforma y el alta de negocio no son páginas de un
     // negocio (no tienen slug) — el Navbar de negocio no aplica ahí, cada
     // una trae su propio header.
-    const isPlatformPage = location.pathname === '/' || location.pathname === '/crear-negocio';
+    const isPlatformPage = location.pathname === '/' || location.pathname === '/crear-negocio'
+        || location.pathname.startsWith('/superadmin');
 
     const hideGlobalUI = isDashboard || isAuthPage || isPlatformPage;
 
@@ -123,6 +126,12 @@ const AppContent = () => {
                     {/* ── Plataforma Perrucho (no es un negocio) ── */}
                     <Route path="/"               element={<PerruchoLanding />} />
                     <Route path="/crear-negocio"  element={<BusinessRegisterForm />} />
+                    <Route path="/superadmin"        element={<SuperAdminLogin />} />
+                    <Route path="/superadmin/panel"  element={
+                        <ProtectedRoute allowedRoles={['superadmin']}>
+                            <SuperAdminPanel />
+                        </ProtectedRoute>
+                    } />
 
                     {/* ── URLs sin slug (antes de multi-tenant) → Taylor's ── */}
                     <Route path="/servicios"       element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/servicios`} replace />} />
