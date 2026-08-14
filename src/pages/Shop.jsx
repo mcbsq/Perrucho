@@ -1,10 +1,11 @@
 // src/pages/Shop.jsx
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useData }         from '../contexts/DataContext';
 import { useAuth }         from '../contexts/AuthContext';
 import ProductModal        from '../pages/ProductModal';
 import { getServiceIcon }  from '../utils/serviceIcons';
+import { useBusinessPath } from '../utils/businessPath';
 import './Shop.css';
 
 // ─── Card de producto ─────────────────────────────────────────────────────────
@@ -63,14 +64,13 @@ const Shop = () => {
     const { products, loading }   = useData();
     const { isLoggedIn }          = useAuth();
     const navigate                = useNavigate();
-    const location                = useLocation();
-    const businessSlug            = location.pathname.split('/').filter(Boolean)[0] || '';
+    const { withBusinessPath }    = useBusinessPath();
     const [selected, setSelected] = useState(null);
     const [category, setCategory] = useState('Todos');
 
     const handleBuy = (product) => {
         if (!isLoggedIn) {
-            navigate(`/${businessSlug}/acceso`, { state: { from: `/${businessSlug}/tienda` } });
+            navigate(withBusinessPath('/acceso'), { state: { from: withBusinessPath('/tienda') } });
             return;
         }
         setSelected(product);

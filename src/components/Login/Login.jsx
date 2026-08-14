@@ -6,6 +6,7 @@ import loginVideo from '../../assets/login.mp4'; // ← mismo video o uno distin
 import loginPoster from '../../assets/1.jpg';   // fallback mientras carga
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
+import { useBusinessPath } from '../../utils/businessPath';
 
 const Login = () => {
     const [email,    setEmail]    = useState('');
@@ -18,10 +19,8 @@ const Login = () => {
     const navigate   = useNavigate();
     const location   = useLocation();
 
-    // Multi-tenant: Login vive bajo /:businessSlug/acceso — el primer
-    // segmento de la URL es el slug del negocio actual.
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
-    const homePath = `/${businessSlug}`;
+    // Multi-tenant: Login vive bajo /:giro/:businessSlug/acceso.
+    const { base: homePath } = useBusinessPath();
 
     // Si el usuario venía de una página protegida, lo regresamos ahí tras login
     const from = location.state?.from || null;

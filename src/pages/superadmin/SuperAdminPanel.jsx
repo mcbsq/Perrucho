@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { PiSignOutBold, PiArrowSquareInBold } from 'react-icons/pi';
 import { superAdminApi } from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
+import { getGiroUrlLabel } from '../../config/giroPresets';
 import './SuperAdmin.css';
 
 const SuperAdminPanel = () => {
@@ -42,7 +43,7 @@ const SuperAdminPanel = () => {
         <div className="sa-page sa-page--panel">
             <header className="sa-header">
                 <div>
-                    <span className="sa-logo">Perrucho · Panel maestro</span>
+                    <span className="sa-logo">Emporio · Panel maestro</span>
                     <span className="sa-header-user">{user?.name}</span>
                 </div>
                 <button type="button" className="sa-logout" onClick={() => { logout(); navigate('/superadmin'); }}>
@@ -75,7 +76,7 @@ const SuperAdminPanel = () => {
                                     <tr key={b.id}>
                                         <td>
                                             <div className="sa-business-name">{b.name}</div>
-                                            <div className="sa-business-slug">/{b.slug}</div>
+                                            <div className="sa-business-slug">/{getGiroUrlLabel(b.giro)}/{b.slug}</div>
                                         </td>
                                         <td>{b.giro}</td>
                                         <td>{b.authProvider}</td>

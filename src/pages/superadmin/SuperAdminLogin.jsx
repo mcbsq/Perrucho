@@ -36,7 +36,7 @@ const SuperAdminLogin = () => {
     return (
         <div className="sa-page">
             <div className="sa-login-card">
-                <Link to="/" className="sa-back">← Perrucho</Link>
+                <Link to="/" className="sa-back">← Emporio</Link>
                 <h2>Panel maestro</h2>
                 <p className="sa-login-sub">Acceso restringido a la cuenta de plataforma.</p>
                 <form onSubmit={handleSubmit}>

@@ -1,8 +1,9 @@
 // src/pages/SobreNosotros.jsx
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaHeart } from 'react-icons/fa';
 import { PiHeartBold, PiStarBold, PiCertificateBold, PiTrophyBold, PiScissorsBold, PiBathtubBold, PiFootprintsBold, PiShoppingBagBold, PiHouseBold, PiCarBold } from 'react-icons/pi';
+import { useBusinessPath } from '../utils/businessPath';
 import './SobreNosotros.css';
 
 import logoTPS from '../assets/logo2.png';
@@ -27,10 +28,9 @@ const SERVICIOS = [
 ];
 
 const SobreNosotros = () => {
-    const location = useLocation();
-    // Multi-tenant: vive bajo /:businessSlug/sobre-nosotros.
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
-    const serviciosPath = `/${businessSlug}/servicios`;
+    // Multi-tenant: vive bajo /:giro/:businessSlug/sobre-nosotros.
+    const { withBusinessPath } = useBusinessPath();
+    const serviciosPath = withBusinessPath('/servicios');
     return (
     <div className="sobre-container">
 

@@ -7,7 +7,7 @@
 // 4. petData se pasa correctamente a register() como 2do argumento
 
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Register.css';
 import loginVideo  from '../../assets/hero.mp4';
 import loginPoster from '../../assets/1.jpg';
@@ -15,6 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { formatMexPhone, whatsAppValidationError } from '../../utils/formatPhone';
 import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
+import { useBusinessPath } from '../../utils/businessPath';
 
 const Register = () => {
     const [step, setStep] = useState(1);
@@ -35,10 +36,8 @@ const Register = () => {
     const { register } = useAuth();
     const { settings } = useData();
     const navigate = useNavigate();
-    const location = useLocation();
-    // Multi-tenant: Register vive bajo /:businessSlug/registro.
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
-    const homePath = `/${businessSlug}`;
+    // Multi-tenant: Register vive bajo /:giro/:businessSlug/registro.
+    const { base: homePath } = useBusinessPath();
     // Giro sin mascotas (uñas/pestañas, spa, barbería...) — se omite el paso
     // de "tu mascota" por completo en vez de mostrar un formulario que no
     // aplica (gap detectado: enablePets solo ocultaba el sidebar de staff).

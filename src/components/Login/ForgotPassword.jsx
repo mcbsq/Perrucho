@@ -5,17 +5,17 @@
 // y solo entonces permite fijar una nueva contraseña — en un único flujo de
 // 3 pasos, sin depender de un correo que nunca se envía.
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import './Login.css';
 import loginVideo from '../../assets/login.mp4';
 import loginPoster from '../../assets/1.jpg';
 import { authApi } from '../../api/apiClient';
+import { useBusinessPath } from '../../utils/businessPath';
 
 const ForgotPassword = () => {
-    const location = useLocation();
-    // Multi-tenant: vive bajo /:businessSlug/olvide-contrasena.
-    const businessSlug = location.pathname.split('/').filter(Boolean)[0] || '';
-    const accesoPath = `/${businessSlug}/acceso`;
+    // Multi-tenant: vive bajo /:giro/:businessSlug/olvide-contrasena.
+    const { withBusinessPath } = useBusinessPath();
+    const accesoPath = withBusinessPath('/acceso');
     const [step, setStep] = useState(1); // 1=email 2=pregunta 3=nueva contraseña 4=listo
     const [email, setEmail] = useState('');
     const [question, setQuestion] = useState('');

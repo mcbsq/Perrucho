@@ -15,11 +15,21 @@ const GIRO_PRESETS = {
     },
     clientExtraFieldsDefault: [],
   },
-  'unas-pestanas': {
+  unas: {
     enablePets: false,
     copy: {
-      heroTagline: 'Uñas · Pestañas · Cejas · Spa de manos',
-      heroSubtitle: 'Manicure, pedicure, extensión de pestañas y más. Agenda tu cita en minutos.',
+      heroTagline: 'Manicure · Pedicure · Uñas acrílicas',
+      heroSubtitle: 'Manicure, pedicure, uñas acrílicas y más. Agenda tu cita en minutos.',
+    },
+    clientExtraFieldsDefault: [
+      { key: 'alergias', label: '¿Alguna alergia a productos?', required: false },
+    ],
+  },
+  pestanas: {
+    enablePets: false,
+    copy: {
+      heroTagline: 'Pestañas · Cejas · Lifting',
+      heroSubtitle: 'Extensión de pestañas, lifting, diseño de cejas y más. Agenda tu cita en minutos.',
     },
     clientExtraFieldsDefault: [
       { key: 'alergias', label: '¿Alguna alergia a productos?', required: false },
