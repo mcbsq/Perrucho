@@ -24,6 +24,8 @@ import AdminDashboard    from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import Perfil            from './pages/cliente/Perfil';
 import BusinessLayout    from './components/BusinessLayout';
+import PerruchoLanding      from './pages/platform/PerruchoLanding';
+import BusinessRegisterForm from './pages/platform/BusinessRegisterForm';
 
 // Slug del único negocio que existía antes de multi-tenant — las URLs viejas
 // sin prefijo (perrucho.com/servicios, etc.) redirigen aquí en vez de romper
@@ -56,6 +58,23 @@ const BrandThemeBridge = () => {
     return null;
 };
 
+// El número/mensaje de WhatsApp del botón flotante deben ser del negocio
+// actual, no de Taylor's fijo — bug real: todos los negocios mandaban a la
+// gente al WhatsApp de Taylor's sin importar en qué sitio estuvieran.
+const FloatingMenuBridge = () => {
+    const { settings } = useData();
+    const waNumber = settings?.whatsappNumber
+        ? `52${settings.whatsappNumber.replace(/\D/g, '')}`
+        : '5215633252525';
+    const businessName = settings?.businessName || 'Perrucho';
+    return (
+        <FloatingMenu
+            whatsappNumber={waNumber}
+            whatsappMessage={`Hola, me interesa agendar una cita en ${businessName}.`}
+        />
+    );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AppContent = () => {
@@ -74,7 +93,12 @@ const AppContent = () => {
     const lastSegment = segments[segments.length - 1] || '';
     const isAuthPage = !isDashboard && ['acceso', 'registro', 'olvide-contrasena'].includes(lastSegment);
 
-    const hideGlobalUI = isDashboard || isAuthPage;
+    // La landing de la plataforma y el alta de negocio no son páginas de un
+    // negocio (no tienen slug) — el Navbar de negocio no aplica ahí, cada
+    // una trae su propio header.
+    const isPlatformPage = location.pathname === '/' || location.pathname === '/crear-negocio';
+
+    const hideGlobalUI = isDashboard || isAuthPage || isPlatformPage;
 
     return (
         <div className="app-container">
@@ -96,8 +120,11 @@ const AppContent = () => {
                         <Route path="registro"       element={<Register />} />
                     </Route>
 
+                    {/* ── Plataforma Perrucho (no es un negocio) ── */}
+                    <Route path="/"               element={<PerruchoLanding />} />
+                    <Route path="/crear-negocio"  element={<BusinessRegisterForm />} />
+
                     {/* ── URLs sin slug (antes de multi-tenant) → Taylor's ── */}
-                    <Route path="/"                element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}`} replace />} />
                     <Route path="/servicios"       element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/servicios`} replace />} />
                     <Route path="/tienda"          element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/tienda`} replace />} />
                     <Route path="/sobre-nosotros"  element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}/sobre-nosotros`} replace />} />
@@ -124,18 +151,15 @@ const AppContent = () => {
                         </ProtectedRoute>
                     } />
 
-                    {/* ── Fallback ── */}
-                    <Route path="*" element={<Navigate to={`/${LEGACY_BUSINESS_SLUG}`} replace />} />
+                    {/* ── Fallback — a la plataforma, no a un negocio en particular ── */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </main>
 
             {!hideGlobalUI && (
                 <>
                     <Footer />
-                    <FloatingMenu
-                        whatsappNumber="5215633252525"
-                        whatsappMessage="Hola, me interesa agendar una cita para mi mascota en Taylor's Pet Services."
-                    />
+                    <FloatingMenuBridge />
                 </>
             )}
         </div>

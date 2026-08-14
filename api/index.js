@@ -25,6 +25,7 @@ const prisma = require('./lib/tenantClient');
 // request (ver api/lib/prismaRaw.js).
 const prismaRaw = require('./lib/prismaRaw');
 const aegisClient = require('./lib/aegisClient');
+const { getGiroPreset } = require('./config/giroPresets');
 
 // Mismos horarios que ofrece el booking express en el frontend
 // (src/pages/Home.jsx `availableTimes`) — mantener sincronizados.
@@ -402,6 +403,107 @@ app.get('/api/business/:slug', async (req, res) => {
     });
   } catch (err) {
     console.error('GET /api/business/:slug', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Segmentos de URL que ya significan otra cosa (rutas top-level de App.js) —
+// un negocio no puede registrarse con estos como slug o quedaría inalcanzable.
+const RESERVED_SLUGS = [
+  'admin-dashboard', 'employee-dashboard', 'perfil', 'api',
+  'acceso', 'registro', 'olvide-contrasena', 'crear-negocio',
+  'servicios', 'tienda', 'sobre-nosotros', 'contacto',
+];
+const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+// GET /api/business/check-slug/:slug — disponibilidad en vivo mientras se
+// escribe el formulario de alta, antes de someter el registro completo.
+app.get('/api/business/check-slug/:slug', async (req, res) => {
+  try {
+    const slug = req.params.slug.toLowerCase();
+    if (!SLUG_PATTERN.test(slug) || RESERVED_SLUGS.includes(slug)) {
+      return res.json({ available: false });
+    }
+    const existing = await prismaRaw.business.findUnique({ where: { slug } });
+    res.json({ available: !existing });
+  } catch (err) {
+    console.error('GET /api/business/check-slug', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/business/register — alta de negocio 100% self-service: nace
+// directo en modo AEGIS (sin la migración manual que le hicimos a Taylor's),
+// con su primer administrador ya logueado al terminar. De uso libre por
+// ahora — sin pago; cuando exista suscripción, aquí es donde se agregaría
+// la validación antes de crear el negocio, no hace falta tocar nada más.
+app.post('/api/business/register', publicWriteLimiter, async (req, res) => {
+  const { businessName, slug: rawSlug, giro, adminName, adminEmail } = req.body;
+  if (!businessName || !rawSlug || !adminName || !adminEmail) {
+    return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+  }
+
+  const slug = String(rawSlug).toLowerCase().trim();
+  if (!SLUG_PATTERN.test(slug) || RESERVED_SLUGS.includes(slug)) {
+    return res.status(400).json({ error: 'Ese identificador de URL no es válido o ya está reservado.' });
+  }
+
+  let business, settings;
+  try {
+    const existing = await prismaRaw.business.findUnique({ where: { slug } });
+    if (existing) return res.status(409).json({ error: 'Ese identificador de URL ya está en uso.' });
+
+    const existingUser = await prismaRaw.user.findFirst({ where: { email: adminEmail.toLowerCase() } });
+    if (existingUser) return res.status(409).json({ error: 'Ese correo ya está registrado en Perrucho.' });
+
+    const preset = getGiroPreset(giro);
+
+    business = await prismaRaw.business.create({
+      data: { slug, name: businessName, giro: giro || 'mascotas', authProvider: 'aegis', isActive: true },
+    });
+    settings = await prismaRaw.settings.create({
+      data: {
+        businessId: business.id,
+        businessName,
+        enablePets: preset.enablePets,
+        heroTagline: preset.copy.heroTagline,
+        heroSubtitle: preset.copy.heroSubtitle,
+        clientExtraFields: preset.clientExtraFieldsDefault,
+      },
+    });
+
+    const { data: aegisUser, error: aegisErr } = await aegisClient.adminCreateUser(adminEmail, 'administrador');
+    if (aegisErr) {
+      // Compensación best-effort — AEGIS no participa de una transacción de
+      // Postgres, así que si falla aquí no dejamos el negocio a medias.
+      await prismaRaw.settings.delete({ where: { id: settings.id } }).catch(() => {});
+      await prismaRaw.business.delete({ where: { id: business.id } }).catch(() => {});
+      const { body, status } = aegisErr;
+      console.warn('AEGIS adminCreateUser (alta de negocio) falló:', status, body);
+      return res.status(502).json({ error: 'No se pudo crear tu cuenta de administrador. Intenta de nuevo.' });
+    }
+
+    const adminUser = await prismaRaw.user.create({
+      data: {
+        businessId: business.id,
+        name: adminName,
+        email: adminEmail.toLowerCase(),
+        aegisUserId: String(aegisUser.id),
+        role: 'administrador',
+      },
+    });
+
+    const token = signToken({ ...adminUser, businessId: business.id });
+    res.status(201).json({
+      token,
+      user: safeUser(adminUser),
+      tempPassword: aegisUser.tempPassword,
+      slug: business.slug,
+    });
+  } catch (err) {
+    console.error('POST /api/business/register', err);
+    if (business) await prismaRaw.settings.deleteMany({ where: { businessId: business.id } }).catch(() => {});
+    if (business) await prismaRaw.business.delete({ where: { id: business.id } }).catch(() => {});
     res.status(500).json({ error: 'Error del servidor' });
   }
 });

@@ -93,9 +93,9 @@ const Navbar = () => {
         <header className={navbarClasses}>
             <div className="navbar-content">
                 <NavLink to={homePath} className="navbar-logo" onClick={handleHomeClick}>
-                    {logoTPS
-                        ? <img src={logoTPS} alt="Taylor's Pet Services" className="navbar-logo-img" />
-                        : <>Taylor's<span>.</span></>
+                    {settings?.logoUrl || logoTPS
+                        ? <img src={settings?.logoUrl || logoTPS} alt={settings?.businessName || 'Perrucho'} className="navbar-logo-img" />
+                        : <>{settings?.businessName || 'Perrucho'}<span>.</span></>
                     }
                 </NavLink>
 

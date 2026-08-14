@@ -229,7 +229,9 @@ export const settingsApi = {
 // BUSINESS (multi-tenant — resolución de slug → negocio)
 // ─────────────────────────────────────────────────────────────────────────────
 export const businessApi = {
-  getBySlug: (slug) => api.get(`/business/${encodeURIComponent(slug)}`),
+  getBySlug:  (slug) => api.get(`/business/${encodeURIComponent(slug)}`),
+  checkSlug:  (slug) => api.get(`/business/check-slug/${encodeURIComponent(slug)}`),
+  register:   (data) => api.post('/business/register', data),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
