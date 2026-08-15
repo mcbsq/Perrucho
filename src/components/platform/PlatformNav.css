@@ -1,0 +1,66 @@
+/* src/components/platform/PlatformNav.css */
+.pnav-wrap {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; justify-content: center;
+    padding: 20px 6vw;
+    pointer-events: none;
+}
+
+.pnav {
+    pointer-events: auto;
+    width: 100%; max-width: 640px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 999px;
+    padding: 10px 10px 10px 20px;
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.10), 0 1px 2px rgba(15, 23, 42, 0.06);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    transform-origin: top center;
+    /* El "condensado" al hacer scroll es un transform, no un cambio de
+       padding — animar padding fuerza layout en cada frame de scroll. */
+    transition: box-shadow 0.35s var(--ease-smooth, ease), transform 0.35s var(--ease-smooth, ease), background 0.35s ease;
+}
+.pnav-wrap.is-condensed .pnav {
+    transform: scale(0.94) translateY(-4px);
+    box-shadow: 0 10px 34px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.88);
+}
+
+.pnav-brand {
+    display: inline-flex; align-items: center; gap: 9px;
+    text-decoration: none; color: var(--color-text-main, #2d3446);
+    font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.02rem; letter-spacing: -0.02em;
+}
+.pnav-mark { width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0; }
+
+.pnav-cta {
+    display: inline-flex; align-items: center; gap: 7px;
+    /* accent-dark, no el accent pastel — blanco sobre #74b9ff da 2.1:1 de
+       contraste, bajo el piso de 3:1 hasta para texto grande/negrita. */
+    background: var(--color-accent-dark, #185FA5); color: white; text-decoration: none;
+    font-weight: 700; font-size: 0.86rem;
+    padding: 11px 18px; border-radius: 999px;
+    box-shadow: 0 6px 16px rgba(24, 95, 165, 0.45), inset 0 1px 0 rgba(255,255,255,0.28);
+    transition: transform 0.2s var(--ease-bounce, ease), box-shadow 0.2s ease;
+}
+.pnav-cta:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 10px 22px rgba(24, 95, 165, 0.55), inset 0 1px 0 rgba(255,255,255,0.28); }
+.pnav-cta:active { transform: translateY(0) scale(0.98); }
+.pnav-cta svg { transition: transform 0.2s ease; }
+.pnav-cta:hover svg { transform: translateX(2px); }
+.pnav-cta-short { display: none; }
+
+@media (max-width: 560px) {
+    .pnav-wrap { padding: 14px 4vw; }
+    .pnav { padding: 8px 8px 8px 14px; }
+    .pnav-brand span { display: none; }
+    .pnav-cta-full { display: none; }
+    .pnav-cta-short { display: inline; }
+    .pnav-cta { padding: 11px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pnav-wrap, .pnav, .pnav-cta, .pnav-cta svg { transition: none; }
+}

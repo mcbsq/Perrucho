@@ -7,9 +7,11 @@
 // uñas" en vez de "Emporio sirve para cualquier negocio de servicios".
 import React, { useEffect, useRef } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
-import { PiArrowRightBold, PiCheckCircleBold } from 'react-icons/pi';
+import { PiArrowRightBold } from 'react-icons/pi';
 import { GIRO_PRESETS, getGiroFromUrlLabel, getGiroUrlLabel } from '../../config/giroPresets';
 import { getGiroMarketing } from '../../config/giroMarketing';
+import PlatformNav from '../../components/platform/PlatformNav';
+import PlatformBackground from '../../components/platform/PlatformBackground';
 import './PerruchoLanding.css';
 import './GiroLanding.css';
 
@@ -40,10 +42,8 @@ const GiroLanding = () => {
 
     return (
         <div className="pl-page">
-            <header className="pl-header">
-                <Link to="/" className="pl-logo">Emporio</Link>
-                <Link to="/crear-negocio" className="pl-header-link">Registrar mi negocio →</Link>
-            </header>
+            <PlatformBackground />
+            <PlatformNav giro={giroKey} />
 
             <section className="pl-hero gl-hero">
                 <div className="pl-hero-bg" aria-hidden="true">
@@ -51,7 +51,6 @@ const GiroLanding = () => {
                     <div className="pl-hero-overlay" />
                 </div>
                 <div className="pl-hero-content">
-                    <span className="gl-eyebrow">Emporio para {preset.label.toLowerCase()}</span>
                     <h1>{marketing.headline}</h1>
                     <p className="pl-hero-sub">{marketing.subtitle}</p>
                     <div className="pl-hero-actions">
@@ -65,13 +64,17 @@ const GiroLanding = () => {
 
             <div ref={revealRef}>
                 <section className="gl-highlights pl-reveal">
-                    {marketing.highlights.map((h) => (
-                        <div key={h.title} className="gl-highlight-card">
-                            <PiCheckCircleBold className="gl-highlight-icon" />
-                            <h3>{h.title}</h3>
-                            <p>{h.desc}</p>
-                        </div>
-                    ))}
+                    <h2 className="gl-highlights-title">Hecho para tu {preset.label.toLowerCase()}</h2>
+                    <div className="gl-highlights-list">
+                        {marketing.highlights.map((h) => (
+                            <div key={h.title} className="gl-highlight-row">
+                                <div className="gl-highlight-copy">
+                                    <h3>{h.title}</h3>
+                                    <p>{h.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </section>
 
                 <section className="pl-cta-final pl-reveal">

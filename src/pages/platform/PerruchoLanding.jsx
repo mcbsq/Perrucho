@@ -14,27 +14,32 @@ import {
 } from 'react-icons/pi';
 import { GIRO_PRESETS, getGiroUrlLabel } from '../../config/giroPresets';
 import { GIRO_MARKETING } from '../../config/giroMarketing';
+import PlatformNav from '../../components/platform/PlatformNav';
+import PlatformBackground from '../../components/platform/PlatformBackground';
 import './PerruchoLanding.css';
 
 // "theme" define el degradado propio de cada tarjeta del carrusel — así cada
 // una se distingue de un vistazo en vez de repetir la misma tarjeta blanca
-// cuatro veces (lo que se sentía más a lista que a producto).
+// cuatro veces (lo que se sentía más a lista que a producto). El dato
+// destacado (antes una etiqueta suelta encima del título) ahora abre la
+// descripción — un kicker separado sobre el título es justo el patrón
+// gastado que se pidió evitar.
 const FEATURES = [
     {
-        icon: PiCalendarCheckBold, title: 'Agenda de citas', tag: '0 llamadas perdidas', theme: 'blue',
-        desc: 'Tus clientes reservan solos, en línea, sin llamadas ni WhatsApp perdidos.',
+        icon: PiCalendarCheckBold, title: 'Agenda de citas', theme: 'blue',
+        desc: '0 llamadas perdidas: tus clientes reservan solos, en línea, sin WhatsApp perdidos.',
     },
     {
-        icon: PiCashRegisterBold, title: 'Punto de venta', tag: 'Recibo al instante', theme: 'mint',
-        desc: 'Cobra servicios y productos, genera el recibo, todo desde el mismo panel.',
+        icon: PiCashRegisterBold, title: 'Punto de venta', theme: 'mint',
+        desc: 'Recibo al instante: cobra servicios y productos, todo desde el mismo panel.',
     },
     {
-        icon: PiPackageBold, title: 'Inventario', tag: 'Alertas de stock bajo', theme: 'lavender',
-        desc: 'Controla tu stock de productos sin hojas de cálculo aparte.',
+        icon: PiPackageBold, title: 'Inventario', theme: 'lavender',
+        desc: 'Alertas de stock bajo: controla tu inventario sin hojas de cálculo aparte.',
     },
     {
-        icon: PiUsersThreeBold, title: 'Clientes y equipo', tag: 'Todo en un lugar', theme: 'coral',
-        desc: 'Da de alta a tu personal y administra tu cartera de clientes en un solo lugar.',
+        icon: PiUsersThreeBold, title: 'Clientes y equipo', theme: 'coral',
+        desc: 'Todo en un lugar: da de alta a tu personal y tu cartera de clientes junta.',
     },
 ];
 
@@ -158,7 +163,6 @@ const FeatureCarousel = () => {
                 {FEATURES.map((f) => (
                     <div key={f.title} className={`pl-feature-card pl-feature-card--${f.theme}`}>
                         <div className="pl-feature-icon"><f.icon /></div>
-                        <span className="pl-feature-tag">{f.tag}</span>
                         <h3>{f.title}</h3>
                         <p>{f.desc}</p>
                     </div>
@@ -231,10 +235,8 @@ const PerruchoLanding = () => {
 
     return (
         <div className="pl-page">
-            <header className="pl-header">
-                <span className="pl-logo">Emporio</span>
-                <Link to="/mascotas/taylors" className="pl-header-link">Ver un negocio en vivo →</Link>
-            </header>
+            <PlatformBackground />
+            <PlatformNav />
 
             <section className="pl-hero">
                 <HeroCarousel activeIndex={activeIndex} scrollY={scrollY} />

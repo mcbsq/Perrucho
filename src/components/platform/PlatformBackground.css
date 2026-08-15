@@ -1,0 +1,55 @@
+/* src/components/platform/PlatformBackground.css */
+.pbg {
+    position: fixed; inset: 0; z-index: 0;
+    overflow: hidden; pointer-events: none;
+    background: var(--color-bg-page, #f8fafc);
+}
+
+.pbg-blob {
+    position: absolute; border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.16;
+    will-change: transform;
+}
+.pbg-blob--a {
+    width: 52vmax; height: 52vmax; left: -18vmax; top: -22vmax;
+    background: radial-gradient(circle, var(--color-accent, #74b9ff), transparent 70%);
+    animation: pbgDriftA 46s ease-in-out infinite alternate;
+}
+.pbg-blob--b {
+    width: 44vmax; height: 44vmax; right: -16vmax; top: 8vmax;
+    background: radial-gradient(circle, var(--color-lavender, #a29bfe), transparent 70%);
+    animation: pbgDriftB 58s ease-in-out infinite alternate;
+}
+.pbg-blob--c {
+    width: 40vmax; height: 40vmax; left: 18vmax; bottom: -20vmax;
+    background: radial-gradient(circle, var(--color-mint, #55efc4), transparent 70%);
+    opacity: 0.12;
+    animation: pbgDriftC 64s ease-in-out infinite alternate;
+}
+
+@keyframes pbgDriftA {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(6vmax, 5vmax) scale(1.12); }
+}
+@keyframes pbgDriftB {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(-5vmax, 6vmax) scale(1.08); }
+}
+@keyframes pbgDriftC {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(4vmax, -6vmax) scale(1.1); }
+}
+
+/* Grano fino — sin esto el fondo con solo manchas de gradiente se siente
+   plástico/renderizado; el grano le da textura de superficie real. */
+.pbg-grain {
+    position: absolute; inset: -10%;
+    opacity: 0.05; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pbg-blob { animation: none; }
+}

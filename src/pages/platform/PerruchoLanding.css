@@ -1,22 +1,14 @@
 /* src/pages/platform/PerruchoLanding.css */
 .pl-page {
+    position: relative; z-index: 1;
     min-height: 100vh;
-    background: var(--color-bg-page, #f8fafc);
+    /* Transparente a propósito — el color de fondo vive en
+       PlatformBackground.css (position:fixed, detrás de todo) para que sus
+       manchas de gradiente/grano se vean; un fondo opaco acá las taparía. */
     color: var(--color-text-main, #2d3446);
     font-family: 'Quicksand', -apple-system, sans-serif;
     overflow-x: hidden;
 }
-
-.pl-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 24px 6vw;
-}
-.pl-logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px; color: inherit; text-decoration: none; }
-.pl-header-link {
-    color: var(--color-text-muted, #636e72); text-decoration: none;
-    font-size: 0.88rem; font-weight: 600; transition: color 0.2s;
-}
-.pl-header-link:hover { color: var(--color-accent, #74b9ff); }
 
 /* ==========================================================================
    HERO: cápsula con carrusel de fondo — mismo lenguaje visual que el hero
@@ -27,7 +19,8 @@
 .pl-hero {
     position: relative;
     height: 88vh; min-height: 560px; width: 95%;
-    margin: 10px auto 25px;
+    /* margin-top despeja la nav flotante fija (ver PlatformNav.css) */
+    margin: 108px auto 25px;
     border-radius: 64px;
     overflow: hidden;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -81,12 +74,19 @@
 
 .pl-cta-primary {
     display: inline-flex; align-items: center; gap: 8px;
-    background: var(--color-accent, #74b9ff); color: white;
+    /* accent-dark sólido, no el accent pastel — blanco sobre #74b9ff da
+       2.1:1 de contraste (falla el piso de 3:1 hasta para texto grande);
+       el tono oscuro del propio token de marca resuelve esto a 6.5:1. Un
+       gradiente diagonal habría dejado una franja de bajo contraste justo
+       detrás del texto, así que queda sólido con un highlight interior
+       para la sensación de profundidad en vez de eso. */
+    background: var(--color-accent-dark, #185FA5);
+    box-shadow: 0 10px 24px rgba(24, 95, 165, 0.4), inset 0 1px 0 rgba(255,255,255,0.22);
+    color: white;
     padding: 14px 26px; border-radius: 14px; font-weight: 700; font-size: 0.98rem;
     text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 10px 24px rgba(116, 185, 255, 0.4);
 }
-.pl-cta-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(116, 185, 255, 0.5); }
+.pl-cta-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(24, 95, 165, 0.5), inset 0 1px 0 rgba(255,255,255,0.22); }
 .pl-cta-secondary {
     display: inline-flex; align-items: center;
     padding: 14px 24px; border-radius: 14px; font-weight: 700; font-size: 0.98rem;
@@ -201,12 +201,6 @@
     display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
     margin-bottom: 16px;
 }
-.pl-feature-tag {
-    position: relative; z-index: 1; align-self: flex-start;
-    font-size: 0.72rem; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
-    color: currentColor; background: rgba(255,255,255,0.6);
-    padding: 4px 10px; border-radius: 999px; margin-bottom: auto;
-}
 .pl-feature-card h3 {
     position: relative; z-index: 1;
     font-family: 'Montserrat', sans-serif; font-size: 1.2rem; margin: 14px 0 6px;
@@ -219,11 +213,14 @@
 
 .pl-fc-dots { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
 .pl-fc-dot {
-    width: 8px; height: 8px; border-radius: 50%; padding: 0; border: none;
+    /* Ancho fijo en 22px siempre (el "crecimiento" es un scaleX, no un
+       cambio de width) — animar width fuerza layout en cada frame. */
+    width: 22px; height: 8px; border-radius: 999px; padding: 0; border: none;
     background: var(--color-border-mid, #dfe4ea); cursor: pointer;
-    transition: background 0.2s, width 0.25s;
+    transform: scaleX(0.36); transform-origin: center;
+    transition: background 0.2s, transform 0.25s var(--ease-smooth, ease);
 }
-.pl-fc-dot.is-active { background: var(--color-accent, #74b9ff); width: 22px; border-radius: 999px; }
+.pl-fc-dot.is-active { background: var(--color-accent, #74b9ff); transform: scaleX(1); }
 
 @media (min-width: 720px) {
     .pl-feature-card { flex-basis: calc(50% - 10px); }

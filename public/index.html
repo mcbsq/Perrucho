@@ -11,6 +11,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#185FA5" />
 
+    <!-- ── Tipografías de marca — referenciadas por nombre en decenas de
+         archivos CSS ('Montserrat', 'Quicksand') pero nunca cargadas en
+         ningún lado: bug real, caían en fallback silencioso al sans del
+         sistema en toda la app. ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Quicksand:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <!-- ── SEO básico ──
          Este shell es único para toda la SPA (no hay react-helmet ni nada
          que lo cambie por ruta), así que lleva la marca de PLATAFORMA
