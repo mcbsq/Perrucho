@@ -10,12 +10,17 @@ import { Link, useParams, Navigate } from 'react-router-dom';
 import { PiArrowRightBold } from 'react-icons/pi';
 import { GIRO_PRESETS, getGiroFromUrlLabel, getGiroUrlLabel } from '../../config/giroPresets';
 import { getGiroMarketing } from '../../config/giroMarketing';
+import { getGiroIcon } from '../../config/giroIcons';
 import PlatformNav from '../../components/platform/PlatformNav';
 import PlatformBackground from '../../components/platform/PlatformBackground';
 import './PerruchoLanding.css';
 import './GiroLanding.css';
 
 const OTHER_GIROS = Object.entries(GIRO_PRESETS);
+// Mismos 3 temas de color que ya usan las tarjetas de función de la landing
+// general (blue/mint/lavender) — así cada highlight se distingue de un
+// vistazo sin repetir la misma tarjeta tres veces.
+const HIGHLIGHT_THEMES = ['blue', 'mint', 'lavender'];
 
 const GiroLanding = () => {
     const { giro: urlGiro } = useParams();
@@ -39,6 +44,7 @@ const GiroLanding = () => {
 
     const preset = GIRO_PRESETS[giroKey];
     const marketing = getGiroMarketing(giroKey);
+    const GiroIcon = getGiroIcon(giroKey);
 
     return (
         <div className="pl-page">
@@ -66,8 +72,9 @@ const GiroLanding = () => {
                 <section className="gl-highlights pl-reveal">
                     <h2 className="gl-highlights-title">Hecho para tu {preset.label.toLowerCase()}</h2>
                     <div className="gl-highlights-list">
-                        {marketing.highlights.map((h) => (
-                            <div key={h.title} className="gl-highlight-row">
+                        {marketing.highlights.map((h, i) => (
+                            <div key={h.title} className={`gl-highlight-row gl-highlight-row--${HIGHLIGHT_THEMES[i % HIGHLIGHT_THEMES.length]}${i % 2 === 1 ? ' gl-highlight-row--reverse' : ''}`}>
+                                <div className="gl-highlight-badge"><GiroIcon /></div>
                                 <div className="gl-highlight-copy">
                                     <h3>{h.title}</h3>
                                     <p>{h.desc}</p>

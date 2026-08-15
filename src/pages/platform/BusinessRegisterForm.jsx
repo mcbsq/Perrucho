@@ -5,11 +5,16 @@
 // patrón que el registro de clientes en negocios AEGIS) y lo deja logueado
 // directo en su panel.
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PiArrowRightBold, PiCheckCircleBold, PiUploadSimpleBold, PiConfettiBold } from 'react-icons/pi';
 import { businessApi } from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { GIRO_PRESETS, GIRO_OPTIONS, getGiroUrlLabel } from '../../config/giroPresets';
+import { getGiroMarketing } from '../../config/giroMarketing';
+import { getGiroIcon } from '../../config/giroIcons';
 import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
+import PlatformNav from '../../components/platform/PlatformNav';
+import PlatformBackground from '../../components/platform/PlatformBackground';
 import './BusinessRegisterForm.css';
 
 const slugify = (text) =>
@@ -40,11 +45,15 @@ const BusinessRegisterForm = () => {
     const [adminEmail, setAdminEmail] = useState('');
     const [logoUrl, setLogoUrl] = useState('');
     const [logoError, setLogoError] = useState('');
+    const [dragOver, setDragOver] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null); // { slug, tempPassword }
 
     const checkTimer = useRef(null);
+    const preset = GIRO_PRESETS[giro];
+    const marketing = getGiroMarketing(giro);
+    const GiroIcon = getGiroIcon(giro);
 
     // El slug se auto-sugiere del nombre del negocio hasta que la persona lo
     // edite a mano — después de eso, ya no lo tocamos automáticamente.
@@ -67,9 +76,7 @@ const BusinessRegisterForm = () => {
         return () => clearTimeout(checkTimer.current);
     }, [slug]);
 
-    const handleLogoFile = async (e) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
+    const readLogo = async (file) => {
         if (!file) return;
         setLogoError('');
         try {
@@ -78,6 +85,11 @@ const BusinessRegisterForm = () => {
         } catch (err) {
             setLogoError(err.message);
         }
+    };
+    const handleLogoFile = (e) => { const file = e.target.files?.[0]; e.target.value = ''; readLogo(file); };
+    const handleDrop = (e) => {
+        e.preventDefault(); setDragOver(false);
+        readLogo(e.dataTransfer.files?.[0]);
     };
 
     const handleSubmit = async (e) => {
@@ -106,8 +118,9 @@ const BusinessRegisterForm = () => {
     if (result) {
         return (
             <div className="brf-page">
-                <div className="brf-card">
-                    <div className="brf-icon">🎉</div>
+                <PlatformBackground />
+                <div className="brf-success-card">
+                    <div className="brf-success-icon"><PiConfettiBold /></div>
                     <h2>¡Tu negocio ya existe en Emporio!</h2>
                     <p>Tu cuenta de administrador se creó con una contraseña temporal:</p>
                     <p className="brf-temp-password">{result.tempPassword}</p>
@@ -116,7 +129,7 @@ const BusinessRegisterForm = () => {
                         Tu página pública ya está lista en <strong>/{getGiroUrlLabel(giro)}/{result.slug}</strong>.
                     </p>
                     <button className="brf-submit" onClick={() => navigate('/admin-dashboard')}>
-                        Ir a mi panel
+                        Ir a mi panel <PiArrowRightBold />
                     </button>
                 </div>
             </div>
@@ -125,86 +138,110 @@ const BusinessRegisterForm = () => {
 
     return (
         <div className="brf-page">
-            <div className="brf-card">
-                <Link to="/" className="brf-back">← Emporio</Link>
-                <h2>Registra tu negocio</h2>
-                <p className="brf-subtitle">Gratis mientras estamos en pruebas.</p>
-                <form onSubmit={handleSubmit}>
-                    {error && <div className="brf-error">{error}</div>}
+            <PlatformBackground />
+            <PlatformNav />
 
-                    <div className="brf-field">
-                        <label>Nombre de tu negocio</label>
-                        <input
-                            type="text" value={businessName}
-                            onChange={(e) => setBusinessName(e.target.value)}
-                            placeholder="Ej: Taylor's Pet Services" required
-                        />
+            <div className="brf-shell">
+                {/* Panel de vista previa — cambia en vivo con el giro elegido,
+                    para reforzar "esto se especializa para tu negocio" justo
+                    en el momento de registrarse, no solo en la landing. */}
+                <div className="brf-preview" style={{ backgroundImage: `url(${marketing.img})` }}>
+                    <div className="brf-preview-overlay" />
+                    <div className="brf-preview-content" key={giro}>
+                        <div className="brf-preview-badge"><GiroIcon /></div>
+                        <span className="brf-preview-giro">{preset.label}</span>
+                        <h2>{marketing.headline}</h2>
+                        <p>{marketing.subtitle}</p>
                     </div>
+                </div>
 
-                    <div className="brf-field">
-                        <label>Tu URL en Emporio</label>
-                        <div className="brf-slug-row">
-                            <span>/{getGiroUrlLabel(giro)}/</span>
+                <div className="brf-card">
+                    <h1>Registra tu negocio</h1>
+                    <form onSubmit={handleSubmit}>
+                        {error && <div className="brf-error">{error}</div>}
+
+                        <div className="brf-field" style={{ '--d': 0 }}>
+                            <label>Nombre de tu negocio</label>
                             <input
-                                type="text" value={slug}
-                                onChange={(e) => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}
-                                placeholder="tu-negocio" required
+                                type="text" value={businessName}
+                                onChange={(e) => setBusinessName(e.target.value)}
+                                placeholder="Ej: Taylor's Pet Services" required
                             />
                         </div>
-                        {slugStatus === 'checking' && <small className="brf-hint">Comprobando disponibilidad...</small>}
-                        {slugStatus === 'available' && <small className="brf-hint brf-hint--ok">✓ Disponible</small>}
-                        {slugStatus === 'taken' && <small className="brf-hint brf-hint--error">Ya está en uso, prueba otro</small>}
-                    </div>
 
-                    <div className="brf-field">
-                        <label>Giro de tu negocio</label>
-                        <select value={giro} onChange={(e) => setGiro(e.target.value)}>
-                            {GIRO_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-                        </select>
-                    </div>
+                        <div className="brf-field" style={{ '--d': 1 }}>
+                            <label>Tu URL en Emporio</label>
+                            <div className="brf-slug-row">
+                                <span>/{getGiroUrlLabel(giro)}/</span>
+                                <input
+                                    type="text" value={slug}
+                                    onChange={(e) => { setSlug(slugify(e.target.value)); setSlugTouched(true); }}
+                                    placeholder="tu-negocio" required
+                                />
+                            </div>
+                            {slugStatus === 'checking' && <small className="brf-hint">Comprobando disponibilidad...</small>}
+                            {slugStatus === 'available' && <small className="brf-hint brf-hint--ok"><PiCheckCircleBold /> Disponible</small>}
+                            {slugStatus === 'taken' && <small className="brf-hint brf-hint--error">Ya está en uso, prueba otro</small>}
+                        </div>
 
-                    <div className="brf-field">
-                        <label>Tu nombre</label>
-                        <input
-                            type="text" value={adminName}
-                            onChange={(e) => setAdminName(e.target.value)}
-                            placeholder="Tu nombre completo" required
-                        />
-                    </div>
+                        <div className="brf-field" style={{ '--d': 2 }}>
+                            <label>Giro de tu negocio</label>
+                            <select value={giro} onChange={(e) => setGiro(e.target.value)}>
+                                {GIRO_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+                            </select>
+                        </div>
 
-                    <div className="brf-field">
-                        <label>Tu correo</label>
-                        <input
-                            type="email" value={adminEmail}
-                            onChange={(e) => setAdminEmail(e.target.value)}
-                            placeholder="tu@correo.com" required
-                        />
-                    </div>
+                        <div className="brf-field-row">
+                            <div className="brf-field" style={{ '--d': 3 }}>
+                                <label>Tu nombre</label>
+                                <input
+                                    type="text" value={adminName}
+                                    onChange={(e) => setAdminName(e.target.value)}
+                                    placeholder="Tu nombre completo" required
+                                />
+                            </div>
 
-                    <div className="brf-field">
-                        <label>Logo de tu negocio</label>
-                        {logoUrl ? (
-                            <div className="brf-logo-preview-row">
-                                <img src={logoUrl} alt="Logo" className="brf-logo-preview" />
-                                <label className="brf-logo-btn">
-                                    Cambiar
+                            <div className="brf-field" style={{ '--d': 4 }}>
+                                <label>Tu correo</label>
+                                <input
+                                    type="email" value={adminEmail}
+                                    onChange={(e) => setAdminEmail(e.target.value)}
+                                    placeholder="tu@correo.com" required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="brf-field" style={{ '--d': 5 }}>
+                            <label>Logo de tu negocio</label>
+                            {logoUrl ? (
+                                <div className="brf-logo-preview-row">
+                                    <img src={logoUrl} alt="Logo" className="brf-logo-preview" />
+                                    <label className="brf-logo-btn">
+                                        Cambiar
+                                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
+                                    </label>
+                                </div>
+                            ) : (
+                                <label
+                                    className={`brf-dropzone${dragOver ? ' is-dragover' : ''}`}
+                                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                                    onDragLeave={() => setDragOver(false)}
+                                    onDrop={handleDrop}
+                                >
+                                    <PiUploadSimpleBold />
+                                    <span>Arrastra tu logo aquí o haz clic para elegirlo</span>
                                     <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
                                 </label>
-                            </div>
-                        ) : (
-                            <label className="brf-logo-btn brf-logo-btn--empty">
-                                Subir logo
-                                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
-                            </label>
-                        )}
-                        {logoError && <small className="brf-hint brf-hint--error">{logoError}</small>}
-                        <small className="brf-hint">Aparece en tu página pública y en tu panel — obligatorio.</small>
-                    </div>
+                            )}
+                            {logoError && <small className="brf-hint brf-hint--error">{logoError}</small>}
+                            <small className="brf-hint">Aparece en tu página pública y en tu panel — obligatorio.</small>
+                        </div>
 
-                    <button type="submit" className="brf-submit" disabled={loading || slugStatus === 'taken'}>
-                        {loading ? 'Creando...' : 'Crear mi negocio'}
-                    </button>
-                </form>
+                        <button type="submit" className="brf-submit" disabled={loading || slugStatus === 'taken'}>
+                            {loading ? 'Creando...' : <>Crear mi negocio <PiArrowRightBold /></>}
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     );
