@@ -62,12 +62,18 @@ straight, no irony or smuggled quirk, per the standing-exit protocol.
   DE UÑAS") — deleted; the headline itself now carries that meaning.
 - Small uppercase "tag" kicker above each feature-card H3 — folded into
   the description's opening clause instead.
-- Uniform icon+heading+text card grid for the 3 giro highlights — replaced
-  with a plain bordered row list (no card chrome), avoiding the "same-size
-  cards as page structure" default.
+- Uniform icon+heading+text card grid for the 3 giro highlights — first
+  pass replaced it with a plain bordered row list; user feedback found
+  that too bare, so it evolved into alternating full-width color-tinted
+  bands (icon badge + copy, alternating sides, one of the 4 established
+  feature-card theme colors per row) — richer without reintroducing
+  identical card chrome.
 - Considered and rejected: numbered highlight rows (01/02/03) — the 3
   highlights per giro aren't a real sequence, so numbering them would have
   been the banned pattern for no reason.
+- Bounce/elastic easing (`--ease-bounce`, a `cubic-bezier` with overshoot)
+  — flagged by the detector on the nav CTA hover and the register-success
+  icon pop; both switched to `--ease-smooth` (no overshoot).
 
 ## Motion
 
@@ -78,7 +84,12 @@ straight, no irony or smuggled quirk, per the standing-exit protocol.
   layout-thrash risk of animating `padding`).
 - Feature carousel dot indicator: was animating `width` (also flagged) —
   now a fixed-width dot scaled via `transform: scaleX()`.
-- Giro highlight rows: staggered slide-in-from-left on scroll reveal.
+- Giro highlight bands: staggered fade-up on scroll reveal.
+- Register form: fields stagger in on mount (`animation-delay` driven by a
+  `--d` custom property per field); the giro preview panel's image/copy
+  crossfades on giro change (`key={giro}` remounts the content, replaying
+  the fade — avoids a jarring pop when the dropdown changes); dropzone has
+  a drag-over state (scale + tint), not just a static "choose file" button.
 - All motion respects `prefers-reduced-motion`.
 
 ## Known gaps / not done this pass

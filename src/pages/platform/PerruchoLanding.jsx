@@ -7,13 +7,10 @@
 // negocio individual sigue viviendo en su propio /:businessSlug.
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-    PiCalendarCheckBold, PiCashRegisterBold, PiPackageBold, PiUsersThreeBold,
-    PiScissorsBold, PiPaintBrushBold, PiFlowerLotusBold, PiStethoscopeBold,
-    PiBarbellBold, PiPawPrintBold, PiArrowRightBold, PiArrowLeftBold, PiMagicWandBold,
-} from 'react-icons/pi';
+import { PiCalendarCheckBold, PiCashRegisterBold, PiPackageBold, PiUsersThreeBold, PiArrowRightBold, PiArrowLeftBold } from 'react-icons/pi';
 import { GIRO_PRESETS, getGiroUrlLabel } from '../../config/giroPresets';
 import { GIRO_MARKETING } from '../../config/giroMarketing';
+import { GIRO_ICONS } from '../../config/giroIcons';
 import PlatformNav from '../../components/platform/PlatformNav';
 import PlatformBackground from '../../components/platform/PlatformBackground';
 import './PerruchoLanding.css';
@@ -43,20 +40,9 @@ const FEATURES = [
     },
 ];
 
-// Ícono por giro — lo único que giroPresets.js/giroMarketing.js no traen
-// (es puramente decorativo, no hace falta que viva en la config compartida
-// con el backend). Un giro por imagen del hero, tomadas de
-// giroMarketing.js — mismo set que ofrece el selector del alta de negocio,
-// así el fondo va mostrando justo lo que alguien puede llegar a registrar.
-const GIRO_ICONS = {
-    mascotas: PiPawPrintBold,
-    unas: PiPaintBrushBold,
-    pestanas: PiMagicWandBold,
-    spa: PiFlowerLotusBold,
-    barberia: PiScissorsBold,
-    clinica: PiStethoscopeBold,
-    gimnasio: PiBarbellBold,
-};
+// Un giro por imagen del hero, tomadas de giroMarketing.js — mismo set que
+// ofrece el selector del alta de negocio, así el fondo va mostrando justo
+// lo que alguien puede llegar a registrar.
 const GIROS = Object.entries(GIRO_PRESETS).map(([value, preset]) => ({
     value, icon: GIRO_ICONS[value] || PiCalendarCheckBold, label: preset.label,
     img: GIRO_MARKETING[value].img,

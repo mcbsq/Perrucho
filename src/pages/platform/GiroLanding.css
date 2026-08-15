@@ -1,32 +1,47 @@
 /* src/pages/platform/GiroLanding.css — se apoya en PerruchoLanding.css
    (misma cápsula de hero, misma nav/fondo compartidos) y solo agrega lo
-   específico de esta página: el zoom del hero de una sola imagen, la lista
-   de highlights (renglones, no tarjetas repetidas) y "también sirve para". */
+   específico de esta página: el zoom del hero de una sola imagen, la
+   franja alternada de highlights y "también sirve para". */
 
 .gl-hero-slide { transform: scale(1); }
 
-.gl-highlights { max-width: 760px; margin: 20px auto 0; padding: 56px 6vw 20px; }
+.gl-highlights { max-width: 920px; margin: 20px auto 0; padding: 56px 6vw 20px; }
 .gl-highlights-title {
-    font-family: 'Montserrat', sans-serif; font-size: 1.7rem; margin: 0 0 8px;
+    font-family: 'Montserrat', sans-serif; font-size: 1.9rem; margin: 0 0 8px;
     text-align: center; text-wrap: balance;
 }
 
-.gl-highlights-list { margin-top: 36px; }
+/* Franjas alternadas ícono/texto en vez de tarjetas repetidas — cada una
+   con su propio tinte de color (mismos temas que las tarjetas de función
+   de la landing general) y el ícono del giro dentro de una insignia
+   grande, alternando de lado en vez de apilar cajas idénticas. */
+.gl-highlights-list { margin-top: 40px; display: flex; flex-direction: column; gap: 20px; }
 .gl-highlight-row {
-    padding: 26px 0;
-    border-top: 1px solid var(--color-border-light, #eef1f5);
-    opacity: 0; transform: translateX(-14px);
+    display: flex; align-items: center; gap: 32px;
+    padding: 32px 40px; border-radius: 32px;
+    opacity: 0; transform: translateY(24px);
     transition: opacity 0.6s ease, transform 0.6s var(--ease-smooth, ease);
 }
-.gl-highlights.is-visible .gl-highlight-row { opacity: 1; transform: translateX(0); }
-.gl-highlight-row:nth-child(2) { transition-delay: 0.08s; }
-.gl-highlight-row:nth-child(3) { transition-delay: 0.16s; }
-.gl-highlight-row:last-child { border-bottom: 1px solid var(--color-border-light, #eef1f5); }
+.gl-highlights.is-visible .gl-highlight-row { opacity: 1; transform: translateY(0); }
+.gl-highlight-row:nth-child(2) { transition-delay: 0.1s; }
+.gl-highlight-row:nth-child(3) { transition-delay: 0.2s; }
+.gl-highlight-row--reverse { flex-direction: row-reverse; }
+
+.gl-highlight-row--blue     { background: linear-gradient(135deg, #eaf4ff 0%, #dcecff 100%); color: var(--color-accent-dark, #185FA5); }
+.gl-highlight-row--mint     { background: linear-gradient(135deg, #eafcf5 0%, #dcf6ea 100%); color: var(--color-mint-dark, #1D9E75); }
+.gl-highlight-row--lavender { background: linear-gradient(135deg, #f2f0ff 0%, #e7e3ff 100%); color: var(--color-lavender-dark, #6c5ce7); }
+
+.gl-highlight-badge {
+    flex-shrink: 0; width: 76px; height: 76px; border-radius: 22px;
+    background: rgba(255,255,255,0.7); color: currentColor;
+    display: flex; align-items: center; justify-content: center; font-size: 2.1rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
 .gl-highlight-copy h3 {
-    font-family: 'Montserrat', sans-serif; font-size: 1.15rem; margin: 0 0 8px;
+    font-family: 'Montserrat', sans-serif; font-size: 1.25rem; margin: 0 0 8px;
     color: var(--color-text-main, #2d3446);
 }
-.gl-highlight-copy p { font-size: 0.95rem; color: var(--color-text-muted, #636e72); line-height: 1.6; margin: 0; max-width: 60ch; }
+.gl-highlight-copy p { font-size: 0.98rem; color: var(--color-text-muted, #636e72); line-height: 1.6; margin: 0; max-width: 52ch; }
 
 .gl-other-giros { max-width: 780px; margin: 0 auto; padding: 20px 6vw 60px; text-align: center; }
 .gl-other-giros-label {
@@ -34,6 +49,14 @@
     text-transform: uppercase; color: var(--color-text-hint, #94a3b8); margin-bottom: 14px;
 }
 .gl-other-giros-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+@media (max-width: 640px) {
+    .gl-highlight-row, .gl-highlight-row--reverse {
+        flex-direction: column; align-items: flex-start; text-align: left;
+        padding: 28px 26px; gap: 18px;
+    }
+    .gl-highlight-badge { width: 60px; height: 60px; font-size: 1.7rem; border-radius: 18px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
     .gl-highlight-row { transition: none; opacity: 1; transform: none; }
