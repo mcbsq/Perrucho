@@ -337,16 +337,21 @@ model Settings {
   businessId          Int?
   business            Business? @relation(fields: [businessId], references: [id])
   allowGuestBooking   Boolean @default(true)  // toggle admin: booking express on/off
-  whatsappNumber      String  @default("5633252525")
-  businessAddress     String  @default("Montevideo No. 157, Col. Lindavista, GAM, CDMX")
-  businessMapsUrl     String  @default("https://maps.app.goo.gl/HNpfNETNeUqptAbK6")
-  instagramUrl        String  @default("https://www.instagram.com/taylors.petservices.mx")
-  facebookUrl         String  @default("https://www.facebook.com/share/1LixCZxfux/")
-  tiktokUrl           String  @default("https://www.tiktok.com/@taylors.pet.services")
+  // Bug real (Emporio Uñas/Pestañas, reportado por el cliente): estos
+  // defaults eran literalmente el WhatsApp/dirección/redes REALES de
+  // Taylor's — cualquier negocio nuevo que no los llenara heredaba los
+  // contactos de otro negocio. Vacíos por default; el registro y
+  // Personalización son quienes deben llenarlos con datos propios.
+  whatsappNumber      String  @default("")
+  businessAddress     String  @default("")
+  businessMapsUrl     String  @default("")
+  instagramUrl        String  @default("")
+  facebookUrl         String  @default("")
+  tiktokUrl           String  @default("")
 
   // ── Personalización (branding) ──────────────────────────────────────────
-  businessName String  @default("Taylor's Pet Services")
-  slogan       String  @default("El servicio que tú y tu mejor amigo merecen")
+  businessName String  @default("Mi negocio")
+  slogan       String  @default("Reserva tu cita en minutos")
   // Línea pequeña sobre el título del hero (ej. "Grooming · Tienda · Guardería · Paseos")
   // y el párrafo debajo del título — antes hardcodeados en Home.jsx.
   heroTagline  String  @default("Grooming · Tienda · Guardería · Paseos")
@@ -369,12 +374,15 @@ model Settings {
   // base64) — si hay imageUrl, se muestra en vez del emoji.
   howItWorksSteps Json @default("[]") // [{ icon, imageUrl, title, description }]
   // Logros/estadísticas — lista libre, el admin agrega/quita las que quiera.
-  stats Json @default("[{\"value\":\"4000+\",\"label\":\"CLIENTES FELICES\",\"icon\":\"😊\"},{\"value\":\"5★\",\"label\":\"CALIFICACIÓN\",\"icon\":\"⭐\"},{\"value\":\"3\",\"label\":\"ESPECIALISTAS\",\"icon\":\"👨‍⚕️\"},{\"value\":\"10+\",\"label\":\"AÑOS DE EXPERIENCIA\",\"icon\":\"🏆\"}]") // [{ value, label, icon }]
+  // Vacío por default: mostrar "4000+ clientes felices" (los de Taylor's)
+  // en un negocio que se acaba de registrar con cero clientes reales era
+  // directamente falso, no solo mal branding — mismo bug que los contactos.
+  stats Json @default("[]") // [{ value, label, icon }]
 
   // ── "¿Por qué elegirnos?" — antes hardcodeado en Home.jsx (WhyUsSection/FEATURES) ──
   whyUsTitle    String @default("¿Por qué elegirnos?")
-  whyUsSubtitle String @default("Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.")
-  whyUsFeatures Json   @default("[{\"icon\":\"✂️\",\"title\":\"Estética premium\",\"desc\":\"Cortes, baños y tratamientos con productos cosméticos de alta gama garantizando calidad y cuidado.\"},{\"icon\":\"🛍️\",\"title\":\"Venta de alimento\",\"desc\":\"Alimento de calidad a la puerta de tu casa. Pregunta por nuestro servicio a domicilio.\"},{\"icon\":\"🐕\",\"title\":\"Servicio de paseos\",\"desc\":\"Tu mejor amigo merece ejercicio y diversión. Contamos con paseadores certificados.\"},{\"icon\":\"📅\",\"title\":\"Agenda en línea\",\"desc\":\"Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.\"}]") // [{ icon, title, desc }]
+  whyUsSubtitle String @default("Comprometidos con darte un servicio profesional, puntual y de calidad.")
+  whyUsFeatures Json   @default("[{\"icon\":\"⭐\",\"title\":\"Calidad garantizada\",\"desc\":\"Servicio profesional con atención al detalle en cada cita.\"},{\"icon\":\"📅\",\"title\":\"Agenda en línea\",\"desc\":\"Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.\"},{\"icon\":\"👥\",\"title\":\"Equipo capacitado\",\"desc\":\"Personal en constante formación para brindarte el mejor servicio.\"},{\"icon\":\"💳\",\"title\":\"Pago sencillo\",\"desc\":\"Cobra y recibe tu recibo al instante, sin complicaciones.\"}]") // [{ icon, title, desc }]
 
   // ── Footer editable ──────────────────────────────────────────────────────
   footerLinks Json @default("[]") // [{ label, url }]

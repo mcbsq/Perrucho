@@ -10,8 +10,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
-import bannerImage from '../assets/1.jpg';
-import heroVideo   from '../assets/hero.mp4';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
@@ -20,6 +18,7 @@ import { appointmentsApi } from '../api/apiClient';
 import { getServiceIcon } from '../utils/serviceIcons';
 import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
 import { useBusinessPath } from '../utils/businessPath';
+import { getGiroMarketing } from '../config/giroMarketing';
 import perruchoMark from '../assets/perrucho-mark.svg';
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
@@ -248,10 +247,12 @@ const BookingExpressModal = ({ onClose, settings }) => {
 };
 
 // ─── Sección "Cómo funciona" ──────────────────────────────────────────────────
+// Genérico a propósito — antes decía "tu mascota" sin importar el giro del
+// negocio (bug real: un salón de uñas mostraba este mismo texto de Taylor's).
 const DEFAULT_HOW_IT_WORKS_STEPS = [
-    { icon: '🔍', title: 'Elige tu servicio',  description: 'Explora nuestro catálogo y selecciona el servicio que tu mascota necesita.' },
+    { icon: '🔍', title: 'Elige tu servicio',  description: 'Explora nuestro catálogo y selecciona lo que necesitas.' },
     { icon: '📅', title: 'Agenda tu cita',     description: 'Selecciona el día y hora que más te convenga. Confirmación inmediata.' },
-    { icon: '🐾', title: '¡Ven y disfruta!',   description: 'Llega con tu mascota y nosotros nos encargamos del resto con amor.' },
+    { icon: '✅', title: '¡Ven y disfruta!',   description: 'Llega a tu cita y nosotros nos encargamos del resto.' },
 ];
 const STEP_COLORS = ['blue', 'lavender', 'mint'];
 
@@ -271,7 +272,7 @@ const HowItWorksSection = ({ onBookingExpress, showGuestBooking, settings }) => 
             <div className="how-inner">
                 <p className="how-tagline">Así de sencillo</p>
                 <h2 className="how-title">¿Cómo funciona?</h2>
-                <p className="how-subtitle">Reservar una cita para tu mascota nunca fue tan fácil.</p>
+                <p className="how-subtitle">Reservar tu cita nunca fue tan fácil.</p>
                 <div className="how-steps">
                     {STEPS.map((step, i) => (
                         <React.Fragment key={step.num}>
@@ -332,15 +333,14 @@ const parseStatValue = (raw) => {
     return { target: Number(match[1]), suffix: match[2] || '' };
 };
 
-const DEFAULT_STATS = [
-    { value: '4000+', label: 'Clientes felices', icon: '😊' },
-    { value: '5★', label: 'Calificación', icon: '⭐' },
-    { value: '3', label: 'Especialistas', icon: '👨‍⚕️' },
-    { value: '10+', label: 'Años de experiencia', icon: '🏆' },
-];
-
+// Sin fallback fabricado a propósito — mostrar "4000+ clientes felices" en
+// un negocio recién registrado con cero clientes reales no era solo mal
+// branding (eran, literalmente, los números reales de Taylor's). Sin stats
+// configuradas en Personalización, la franja completa no se renderiza en
+// vez de inventar cifras.
 const TrustStrip = ({ settings }) => {
-    const rawStats = settings?.stats?.length ? settings.stats : DEFAULT_STATS;
+    const rawStats = settings?.stats?.length ? settings.stats : [];
+    if (!rawStats.length) return null;
     const STATS = rawStats.map(s => ({ ...parseStatValue(s.value), label: s.label, icon: s.icon }));
     return (
         <div className="trust-strip">
@@ -350,11 +350,13 @@ const TrustStrip = ({ settings }) => {
 };
 
 // ─── ¿Por qué nosotros? ───────────────────────────────────────────────────────
+// Genérico a propósito (antes era el "por qué elegirnos" real de Taylor's,
+// incluida "venta de alimento" y "paseos" — sin sentido para otro giro).
 const FEATURES = [
-    { icon: '✂️', title: 'Estética premium',         desc: 'Cortes, baños y tratamientos con productos cosméticos de alta gama garantizando calidad y cuidado.' },
-    { icon: '🛍️', title: 'Venta de alimento',         desc: 'Alimento de calidad a la puerta de tu casa. Pregunta por nuestro servicio a domicilio.' },
-    { icon: '🐕', title: 'Servicio de paseos',        desc: 'Tu mejor amigo merece ejercicio y diversión. Contamos con paseadores certificados.' },
-    { icon: '📅', title: 'Agenda en línea',           desc: 'Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.' },
+    { icon: '⭐', title: 'Calidad garantizada', desc: 'Servicio profesional con atención al detalle en cada cita.' },
+    { icon: '📅', title: 'Agenda en línea', desc: 'Reserva tu cita en segundos desde cualquier dispositivo. Fácil y sin complicaciones.' },
+    { icon: '👥', title: 'Equipo capacitado', desc: 'Personal en constante formación para brindarte el mejor servicio.' },
+    { icon: '💳', title: 'Pago sencillo', desc: 'Cobra y recibe tu recibo al instante, sin complicaciones.' },
 ];
 
 const WhyUsSection = ({ settings }) => {
@@ -363,7 +365,7 @@ const WhyUsSection = ({ settings }) => {
         <section className="content-section why-us-section">
             <h3>{settings?.whyUsTitle || '¿Por qué elegirnos?'}</h3>
             <p className="section-sub">
-                {settings?.whyUsSubtitle || 'Somos una empresa establecida con amplia experiencia. Personal capacitado y en constante formación para brindarte a ti y a tu mejor amigo el servicio que merecen.'}
+                {settings?.whyUsSubtitle || 'Comprometidos con darte un servicio profesional, puntual y de calidad.'}
             </p>
             <div className="features-grid">
                 {features.map((f, i) => {
@@ -401,14 +403,16 @@ const ProductCard = ({ item }) => {
 };
 
 // ─── CTA final ────────────────────────────────────────────────────────────────
-const CTASection = ({ onBookingExpress, showGuestBooking }) => {
+// h2 antes 100% hardcodeado (ni siquiera leía settings) — mismo bug que el
+// resto: el texto de Taylor's aparecía en cualquier negocio.
+const CTASection = ({ onBookingExpress, showGuestBooking, settings }) => {
     const authAction = useAuthAction();
     const { withBusinessPath } = useBusinessPath();
     return (
         <section className="cta-section">
             <div className="cta-inner">
-                <h2>El servicio que tú y tu mejor amigo merecen</h2>
-                <p>Agenda tu cita hoy y descubre la diferencia de un servicio profesional con amor.</p>
+                <h2>{settings?.slogan || '¡Agenda tu próxima cita!'}</h2>
+                <p>Agenda tu cita hoy y descubre la diferencia de un servicio profesional.</p>
                 <div className="cta-buttons">
                     <button className="cta-btn cta-primary" onClick={() => authAction('/servicios')}>
                         Reservar cita
@@ -427,12 +431,14 @@ const CTASection = ({ onBookingExpress, showGuestBooking }) => {
     );
 };
 
+// Genérico a propósito — antes decía "tu mascota" sin importar el giro
+// (bug real: un salón de uñas o barbería mostraba este mismo texto).
 const CLIENT_ONBOARDING_STEPS = [
     {icon:'👋',title:'¡Bienvenido!',description:'Creaste tu cuenta con éxito. Te mostramos rápido dónde está cada cosa.'},
-    {icon:'📅',title:'Reservar cita',description:'Desde aquí agendas una cita para tu mascota en minutos.',target:'[data-tour="home-reservar"]'},
-    {icon:'✂️',title:'Servicios',description:'Consulta todos nuestros servicios y sus precios por tamaño de mascota.',target:'[data-tour="nav-servicios"]'},
-    {icon:'🛍️',title:'Tienda',description:'Compra productos para tu mascota directamente desde aquí.',target:'[data-tour="nav-tienda"]'},
-    {icon:'👤',title:'Tu perfil',description:'Aquí ves tus citas, tus compras y los datos de tus mascotas.',target:'[data-tour="nav-perfil"]'},
+    {icon:'📅',title:'Reservar cita',description:'Desde aquí agendas tu cita en minutos.',target:'[data-tour="home-reservar"]'},
+    {icon:'✂️',title:'Servicios',description:'Consulta todos nuestros servicios y sus precios.',target:'[data-tour="nav-servicios"]'},
+    {icon:'🛍️',title:'Tienda',description:'Compra productos directamente desde aquí.',target:'[data-tour="nav-tienda"]'},
+    {icon:'👤',title:'Tu perfil',description:'Aquí ves tus citas y tus compras.',target:'[data-tour="nav-perfil"]'},
 ];
 
 // ─── Página principal ─────────────────────────────────────────────────────────
@@ -447,19 +453,23 @@ const Home = () => {
     // El toggle viene de settings (admin puede apagarlo)
     const guestBookingEnabled = settings?.allowGuestBooking !== false;
 
+    // Bug real (reportado en Emporio Uñas/Pestañas): sin heroImageUrl propio,
+    // el fallback era el video de Taylor's (bannerImage/heroVideo, sus
+    // propios assets) — cualquier negocio nuevo mostraba grooming de perros
+    // en su portada. El fallback ahora es la foto de stock de SU giro (la
+    // misma que ya usa su landing de giro), nunca la de Taylor's. Taylor's
+    // no pasa por este fallback — siempre tiene su propio heroImageUrl en
+    // Settings — así que esto no le cambia nada.
+    const heroFallbackImg = getGiroMarketing(settings?.giro).img;
+
     return (
         <div className="home-page-container">
 
             {showOnboarding && isNewClient && <OnboardingTour steps={CLIENT_ONBOARDING_STEPS} onClose={dismissOnboarding} />}
 
-            {/* ── HERO CON VIDEO (o imagen si el admin eligió una) ── */}
+            {/* ── HERO CON IMAGEN (la del admin, o si no la de su giro) ── */}
             <div className="capsule-banner">
-                {settings?.heroImageUrl
-                    ? <img src={settings.heroImageUrl} alt="" className="hero-video" />
-                    : <video className="hero-video" autoPlay muted loop playsInline poster={bannerImage}>
-                        <source src={heroVideo} type="video/mp4" />
-                    </video>
-                }
+                <img src={settings?.heroImageUrl || heroFallbackImg} alt="" className="hero-video" />
                 {isLoggedIn && user && (
                     <div className="hero-welcome-badge">
                         Bienvenido de nuevo, <span>{user.name.split(' ')[0]}</span> 👋
@@ -468,7 +478,7 @@ const Home = () => {
                 <div className="hero-copy">
                     <img src={settings?.logoUrl || perruchoMark} alt={settings?.businessName || 'Perrucho'} className="hero-logo" />
                     <p className="hero-tagline">{settings?.heroTagline || 'Grooming · Tienda · Guardería · Paseos'}</p>
-                    <h1 className="hero-title">{settings?.slogan || 'El servicio que tú y tu mejor amigo merecen'}</h1>
+                    <h1 className="hero-title">{settings?.slogan || 'Reserva tu cita en minutos'}</h1>
                     <p className="hero-subtitle">
                         {settings?.heroSubtitle || 'Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.'}
                     </p>
@@ -500,7 +510,7 @@ const Home = () => {
                 <p className="section-eyebrow">Lo que ofrecemos</p>
                 <h3>Nuestros Servicios</h3>
                 <p className="section-sub">
-                    Grooming · Tienda · Guardería · Paseos
+                    {settings?.heroTagline || 'Conoce lo que ofrecemos'}
                 </p>
                 <div className="svc-cards-grid">
                     {loading ? (
@@ -527,7 +537,7 @@ const Home = () => {
             <section className="content-section">
                 <h3>Productos Destacados</h3>
                 <p className="section-sub">
-                    Paseos · Venta de alimento a domicilio · Guardería (próximamente)
+                    Descubre nuestros productos
                 </p>
                 <div className="service-cards-grid">
                     {products.length > 0 ? (
@@ -544,6 +554,7 @@ const Home = () => {
             <CTASection
                 onBookingExpress={() => setShowBookingExpress(true)}
                 showGuestBooking={guestBookingEnabled}
+                settings={settings}
             />
 
             <div className="spacer-gradient" />

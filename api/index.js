@@ -476,6 +476,19 @@ app.post('/api/business/register', publicWriteLimiter, async (req, res) => {
         heroTagline: preset.copy.heroTagline,
         heroSubtitle: preset.copy.heroSubtitle,
         clientExtraFields: preset.clientExtraFieldsDefault,
+        // Explícito a propósito, aunque ya sea el default de la columna —
+        // un negocio nuevo nunca debe depender de un default implícito
+        // para datos propios del negocio (contacto, redes, slogan). Bug
+        // real que ya pasó una vez: esos defaults eran los datos REALES de
+        // Taylor's, así que cualquier negocio que no los llenara los
+        // heredaba (WhatsApp, dirección, Instagram/Facebook/TikTok).
+        slogan: `¡Bienvenido a ${businessName}!`,
+        whatsappNumber: '',
+        businessAddress: '',
+        businessMapsUrl: '',
+        instagramUrl: '',
+        facebookUrl: '',
+        tiktokUrl: '',
       },
     });
 
