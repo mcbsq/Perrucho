@@ -1,19 +1,11 @@
 // src/components/Footer/Footer.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt, FaPhone } from 'react-icons/fa';
+import { FaInstagram, FaFacebook, FaTiktok, FaWhatsapp, FaMapMarkerAlt } from 'react-icons/fa';
 import { useData } from '../../contexts/DataContext';
 import { useBusinessPath } from '../../utils/businessPath';
 import perruchoMark from '../../assets/perrucho-mark.svg';
 import './Footer.css';
-
-const DEFAULT_FOOTER_LINKS = [
-    { label: 'Grooming básico', url: '/servicios' },
-    { label: 'Baño y corte', url: '/servicios' },
-    { label: 'Servicio premium', url: '/servicios' },
-    { label: 'Paseos', url: '/servicios' },
-    { label: 'Guardería (próximamente)', url: '/servicios' },
-];
 
 const isExternalLink = (url) => /^https?:\/\//i.test(url || '');
 
@@ -24,10 +16,17 @@ const Footer = () => {
 
     const logoTPS = settings?.logoUrl || perruchoMark;
     const businessName = settings?.businessName || 'Emporio';
-    const slogan = settings?.slogan || 'El servicio que tú y tu mejor amigo merecen.';
-    const waNumber = settings?.whatsappNumber ? `52${settings.whatsappNumber.replace(/\D/g, '')}` : '5215633252525';
-    const waMsg = encodeURIComponent(`Hola, me interesa agendar una cita para mi mascota en ${businessName}.`);
-    const footerLinks = settings?.footerLinks?.length ? settings.footerLinks : DEFAULT_FOOTER_LINKS;
+    const slogan = settings?.slogan;
+    // Bug real (Emporio Uñas/Pestañas): estos "|| ..." fallback eran los
+    // datos REALES de Taylor's (WhatsApp, dirección, Instagram/Facebook/
+    // TikTok, categorías de servicio) — cualquier negocio sin esa info
+    // propia terminaba mostrando/enlazando a Taylor's. Ahora, sin dato
+    // propio, esa fila/ícono/columna simplemente no se muestra.
+    const hasWhatsapp = Boolean(settings?.whatsappNumber);
+    const waNumber = hasWhatsapp ? `52${settings.whatsappNumber.replace(/\D/g, '')}` : null;
+    const waMsg = encodeURIComponent(`Hola, me interesa agendar una cita en ${businessName}.`);
+    const footerLinks = settings?.footerLinks?.filter((l) => l?.label) || [];
+    const hasSocial = settings?.instagramUrl || settings?.facebookUrl || settings?.tiktokUrl;
 
     return (
         <footer className="footer-container">
@@ -36,23 +35,31 @@ const Footer = () => {
                 {/* ── Marca ── */}
                 <div className="footer-brand">
                     <img src={logoTPS} alt={businessName} className="footer-logo" />
-                    <p className="footer-tagline">
-                        {slogan}
-                    </p>
-                    <div className="footer-social">
-                        <a href={settings?.instagramUrl || 'https://www.instagram.com/taylors.petservices.mx'} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-                            <FaInstagram />
-                        </a>
-                        <a href={settings?.facebookUrl || 'https://www.facebook.com/share/1LixCZxfux/'} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-                            <FaFacebook />
-                        </a>
-                        <a href={settings?.tiktokUrl || 'https://www.tiktok.com/@taylors.pet.services'} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
-                            <FaTiktok />
-                        </a>
-                        <a href={`https://wa.me/${waNumber}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
-                            <FaWhatsapp />
-                        </a>
-                    </div>
+                    {slogan && <p className="footer-tagline">{slogan}</p>}
+                    {(hasSocial || hasWhatsapp) && (
+                        <div className="footer-social">
+                            {settings?.instagramUrl && (
+                                <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                                    <FaInstagram />
+                                </a>
+                            )}
+                            {settings?.facebookUrl && (
+                                <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                                    <FaFacebook />
+                                </a>
+                            )}
+                            {settings?.tiktokUrl && (
+                                <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                                    <FaTiktok />
+                                </a>
+                            )}
+                            {hasWhatsapp && (
+                                <a href={`https://wa.me/${waNumber}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                                    <FaWhatsapp />
+                                </a>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* ── Navegación ── */}
@@ -65,25 +72,33 @@ const Footer = () => {
                 </div>
 
                 {/* ── Servicios (editable desde Personalización → Pie de página) ── */}
-                <div className="footer-nav">
-                    <h4>Servicios</h4>
-                    {footerLinks.map((l, i) => (
-                        isExternalLink(l.url)
-                            ? <a key={i} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>
-                            : <Link key={i} to={l.url ? withSlug(l.url) : '#'}>{l.label}</Link>
-                    ))}
-                </div>
+                {footerLinks.length > 0 && (
+                    <div className="footer-nav">
+                        <h4>Servicios</h4>
+                        {footerLinks.map((l, i) => (
+                            isExternalLink(l.url)
+                                ? <a key={i} href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>
+                                : <Link key={i} to={l.url ? withSlug(l.url) : '#'}>{l.label}</Link>
+                        ))}
+                    </div>
+                )}
 
                 {/* ── Contacto ── */}
-                <div className="footer-contact">
-                    <h4>Contáctanos</h4>
-                    <a href={`https://wa.me/${waNumber}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
-                        <FaWhatsapp /> <span>{settings?.whatsappNumber || '56 33 25 25 25'}</span>
-                    </a>
-                    <a href={settings?.businessMapsUrl || 'https://maps.app.goo.gl/HNpfNETNeUqptAbK6'} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
-                        <FaMapMarkerAlt /> <span>{settings?.businessAddress || 'Montevideo No. 157, Col. Lindavista, GAM, CDMX'}</span>
-                    </a>
-                </div>
+                {(hasWhatsapp || settings?.businessAddress) && (
+                    <div className="footer-contact">
+                        <h4>Contáctanos</h4>
+                        {hasWhatsapp && (
+                            <a href={`https://wa.me/${waNumber}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
+                                <FaWhatsapp /> <span>{settings.whatsappNumber}</span>
+                            </a>
+                        )}
+                        {settings?.businessAddress && (
+                            <a href={settings?.businessMapsUrl || '#'} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
+                                <FaMapMarkerAlt /> <span>{settings.businessAddress}</span>
+                            </a>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* ── Bottom bar ── */}
