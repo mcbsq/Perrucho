@@ -469,6 +469,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .stock-badge { padding: 4px 12px; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight: 700; }
 .stock-badge.danger  { background: #FCEBEB; color: #791F1F; }
 .stock-badge.warning { background: #FAEEDA; color: #633806; }
+.stock-badge.ok      { background: #E6F9F0; color: #0B6E4F; }
 
 .checkout-modal-note { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px; }
 .checkout-client-select {

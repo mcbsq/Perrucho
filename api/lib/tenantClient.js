@@ -19,7 +19,7 @@ const { getBusinessId } = require('./requestContext');
 // Nombres de modelo tal como los expone Prisma en el callback de la
 // extensión (PascalCase, igual que en schema.prisma).
 const TENANT_MODELS = new Set([
-  'User', 'Pet', 'Service', 'Product', 'Appointment', 'Expense', 'Sale', 'Settings',
+  'User', 'Pet', 'Service', 'Product', 'Appointment', 'Expense', 'Sale', 'Settings', 'MembershipPlan',
 ]);
 
 const OPS_WITH_WHERE = new Set([

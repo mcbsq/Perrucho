@@ -684,7 +684,7 @@ app.get('/api/users/:id', verifyToken, requireOwnerOrRole('administrador', 'empl
   try {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(req.params.id) },
-      include: { pets: true },
+      include: { pets: true, membershipPlan: true },
     });
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(safeUser(user));
@@ -1017,6 +1017,96 @@ app.delete('/api/services/:id', verifyToken, requireRole('administrador'), async
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MEMBERSHIP PLANS (giro gimnasio) — catálogo, mismo patrón CRUD que Service.
+// La membresía ACTUAL de un cliente vive en User (ver más abajo, PATCH
+// /api/users/:id/membership) — sin tabla de historial de renovaciones.
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.get('/api/membership-plans', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const plans = await prisma.membershipPlan.findMany({ orderBy: { id: 'asc' } });
+    res.json(plans);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+const normalizeMembershipPlanBody = (body) => ({
+  ...body,
+  price: parseInt(body.price) || 0,
+  durationDays: parseInt(body.durationDays) || 30,
+  classesLimit: body.classesLimit === '' || body.classesLimit == null ? null : parseInt(body.classesLimit),
+});
+
+app.post('/api/membership-plans', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const plan = await prisma.membershipPlan.create({ data: normalizeMembershipPlanBody(req.body) });
+    res.status(201).json(plan);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.put('/api/membership-plans/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const plan = await prisma.membershipPlan.update({
+      where: { id: parseInt(req.params.id) },
+      data: normalizeMembershipPlanBody(req.body),
+    });
+    res.json(plan);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/membership-plans/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    // Un cliente con este plan asignado se queda sin plan (no se bloquea el
+    // borrado) — su membershipExpiresAt actual se conserva tal cual, así
+    // que sigue viéndose vigente/vencida hasta que el admin le asigne otra.
+    await prisma.user.updateMany({ where: { membershipPlanId: parseInt(req.params.id) }, data: { membershipPlanId: null } });
+    await prisma.membershipPlan.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// PATCH /api/users/:id/membership — asignar o renovar la membresía de un
+// cliente. membershipPlanId: null cancela (limpia todo). Con un plan válido,
+// mueve la vigencia planDurationDays hacia adelante DESDE HOY — es una
+// renovación completa, no una extensión de lo que quedaba (simple a
+// propósito: sin tabla de historial, ver spec).
+app.patch('/api/users/:id/membership', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const { membershipPlanId } = req.body;
+    if (!membershipPlanId) {
+      const user = await prisma.user.update({
+        where: { id: parseInt(req.params.id) },
+        data: { membershipPlanId: null, membershipExpiresAt: null, membershipClassesUsed: null },
+      });
+      return res.json(safeUser(user));
+    }
+    const plan = await prisma.membershipPlan.findUnique({ where: { id: parseInt(membershipPlanId) } });
+    if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
+    const expiresAt = new Date(Date.now() + plan.durationDays * 24 * 60 * 60 * 1000);
+    const user = await prisma.user.update({
+      where: { id: parseInt(req.params.id) },
+      data: { membershipPlanId: plan.id, membershipExpiresAt: expiresAt, membershipClassesUsed: 0 },
+      include: { membershipPlan: true },
+    });
+    res.json(safeUser(user));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PRODUCTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1108,7 +1198,10 @@ app.delete('/api/products/:id', verifyToken, requireRole('administrador'), async
 // ─────────────────────────────────────────────────────────────────────────────
 
 const appointmentInclude = {
-  client: { select: { id: true, name: true, email: true, phone: true } },
+  // membershipPlanId/membershipExpiresAt: para que el popup de detalle de
+  // una cita de clase (Service.isClass) pueda mostrar vigente/vencida sin
+  // una consulta aparte (giro gimnasio, ver Settings.enableMemberships).
+  client: { select: { id: true, name: true, email: true, phone: true, membershipPlanId: true, membershipExpiresAt: true } },
   pet: true,
   service: true,
   employee: { select: { id: true, name: true } },

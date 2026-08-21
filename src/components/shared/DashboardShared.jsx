@@ -445,7 +445,7 @@ const CategoryField = ({ value, knownOptions, onChange }) => {
 };
 
 // ─── SERVICE FORM MODAL ───────────────────────────────────────────────────────
-export const ServiceFormModal = ({ initial, onSave, onClose }) => {
+export const ServiceFormModal = ({ initial, onSave, onClose, settings }) => {
     const [form, setForm] = useState({
         title: '', category: 'Estética', description: '', icon: '', color: 'blue', popular: false,
         priceMini: '', priceChico: '', priceMediano: '', priceGrande: '', priceExtra: '', priceJumbo: '',
@@ -497,6 +497,16 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                             onChange={e => setForm({ ...form, showOnHome: e.target.checked })} />
                         <span>{form.showOnHome !== false ? 'Se muestra en la página principal' : 'Solo visible en Punto de Venta'}</span>
                     </label>
+                    {settings?.enableMemberships && (
+                        <>
+                            <label>Es una clase</label>
+                            <label className="ds-toggle-inline">
+                                <input type="checkbox" checked={!!form.isClass}
+                                    onChange={e => setForm({ ...form, isClass: e.target.checked })} />
+                                <span>Sujeta a membresía — se avisa si el cliente no tiene una vigente al reservar</span>
+                            </label>
+                        </>
+                    )}
                     <label>Criterio de cobro</label>
                     <select value={pricingMode}
                         onChange={e => setForm({ ...form, pricingMode: e.target.value })}>
@@ -573,6 +583,54 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
                     <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
                         {saving ? 'Guardando...' : (isEdit ? 'Actualizar' : 'Guardar servicio')}
+                    </button>
+                </div>
+            </form>
+        </DSModal>
+    );
+};
+
+// ─── MEMBERSHIP PLAN FORM (giro gimnasio) ──────────────────────────────────────
+export const MembershipPlanFormModal = ({ initial, onSave, onClose }) => {
+    const [form, setForm] = useState({
+        name: '', price: '', durationDays: 30, classesLimit: '',
+        ...initial,
+    });
+    const [saving, setSaving] = useState(false);
+    const isEdit = !!initial?.id;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try { await onSave(form); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <DSModal title={isEdit ? `✏️ Editar — ${initial.name}` : '🏋️ Nuevo plan de membresía'} onClose={onClose}>
+            <form onSubmit={handleSubmit} className="ds-form">
+                <div className="ds-form-grid">
+                    <label>Nombre</label>
+                    <input placeholder="Ej: Mensualidad Ilimitada" value={form.name}
+                        onChange={e => setForm({ ...form, name: e.target.value })} required />
+                    <label>Precio</label>
+                    <input type="number" min="0" placeholder="$" value={form.price}
+                        onChange={e => setForm({ ...form, price: e.target.value })} required />
+                    <label>Vigencia</label>
+                    <div className="ds-hours-range">
+                        <input type="number" min="1" value={form.durationDays}
+                            onChange={e => setForm({ ...form, durationDays: e.target.value })}
+                            style={{ width: 90 }} required />
+                        <span>días — cada renovación mueve la vigencia esta cantidad de días desde hoy</span>
+                    </div>
+                    <label>Clases incluidas</label>
+                    <input type="number" min="0" placeholder="Vacío = ilimitado" value={form.classesLimit ?? ''}
+                        onChange={e => setForm({ ...form, classesLimit: e.target.value })} />
+                </div>
+                <div className="ds-form-actions">
+                    <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
+                    <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
+                        {saving ? 'Guardando...' : (isEdit ? 'Actualizar' : 'Guardar plan')}
                     </button>
                 </div>
             </form>
