@@ -418,7 +418,7 @@ const EMPLOYEE_ONBOARDING_STEPS=[
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const EmployeeDashboard = () => {
-    const {products,pets,clients,services,settings,addClient,updateClient,addPet,updatePet,addSale,updateProduct,addAppointmentExtra,removeAppointmentExtra}=useData();
+    const {products,pets,clients,services,settings,addClient,updateClient,addPet,updatePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
     const {notify, NotifyNode} = useNotify();
@@ -482,18 +482,9 @@ const EmployeeDashboard = () => {
                 paymentMethod: posPaymentMethod,
                 status: posSaleStatus,
             });
-            for(const item of cart){
-                if(item.type==='product'){
-                    const o=products.find(p=>p.id===item.id);
-                    if(!o)continue;
-                    if(item.variantName){
-                        const nextVariants=(o.variants||[]).map(v=>v.name===item.variantName?{...v,stock:Math.max(0,v.stock-item.qty)}:v);
-                        await updateProduct(item.id,{...o,variants:nextVariants});
-                    }else{
-                        await updateProduct(item.id,{...o,stock:o.stock-item.qty});
-                    }
-                }
-            }
+            // El stock ya se descontó en el servidor, dentro de la misma
+            // transacción que creó la venta (ver POST /api/sales) — addSale
+            // refresca products, no hay que tocarlo aquí.
             setCart([]);setPosClientId('');setShowCheckout(false);
             addToast('¡Venta procesada!','success');
         }catch(err){addToast(`Error: ${err.message}`,'error');}

@@ -1336,18 +1336,63 @@ app.get('/api/sales/:id', verifyToken, requireRole('administrador'), async (req,
   }
 });
 
+// El descuento de stock vivía en el cliente (leer estado local, calcular,
+// PUT completo) — no atómico: dos ventas concurrentes del mismo producto
+// podían leer el mismo stock de partida y una pisar el descuento de la otra,
+// y si la venta se creaba pero el PUT de stock fallaba después, quedaba una
+// venta registrada sin que el inventario bajara. Ahora todo el descuento
+// vive en la misma transacción que crea la venta: si el stock no alcanza,
+// la venta completa se revierte (409) en vez de quedar a medias.
 app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
     const { items, ...data } = req.body;
-    const sale = await prisma.sale.create({
-      data: {
-        ...data,
-        items: items ? { create: items } : undefined,
-      },
-      include: saleInclude,
+    const sale = await prisma.$transaction(async (tx) => {
+      const createdSale = await tx.sale.create({
+        data: {
+          ...data,
+          items: items ? { create: items } : undefined,
+        },
+        include: saleInclude,
+      });
+
+      for (const item of items || []) {
+        if (!item.productId) continue;
+        const product = await tx.product.findUnique({ where: { id: item.productId } });
+        if (!product) continue;
+
+        if (item.variantName) {
+          const variants = product.variants || [];
+          const idx = variants.findIndex((v) => v.name === item.variantName);
+          if (idx === -1) continue;
+          if (variants[idx].stock < item.quantity) {
+            throw Object.assign(
+              new Error(`Stock insuficiente para "${product.name} — ${item.variantName}"`),
+              { status: 409 }
+            );
+          }
+          const nextVariants = variants.map((v, i) =>
+            i === idx ? { ...v, stock: v.stock - item.quantity } : v
+          );
+          await tx.product.update({ where: { id: item.productId }, data: { variants: nextVariants } });
+        } else {
+          const result = await tx.product.updateMany({
+            where: { id: item.productId, stock: { gte: item.quantity } },
+            data: { stock: { decrement: item.quantity } },
+          });
+          if (result.count === 0) {
+            throw Object.assign(
+              new Error(`Stock insuficiente para "${product.name}"`),
+              { status: 409 }
+            );
+          }
+        }
+      }
+
+      return createdSale;
     });
     res.status(201).json(sale);
   } catch (err) {
+    if (err.status === 409) return res.status(409).json({ error: err.message });
     console.error('POST /api/sales', err);
     res.status(500).json({ error: 'Error del servidor' });
   }

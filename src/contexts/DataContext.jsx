@@ -213,6 +213,13 @@ export const DataProvider = ({ children }) => {
         }
         const created = await salesApi.create(saleData);
         setSales(prev => [...prev, created]);
+        // El backend descuenta el stock vendido dentro de la misma transacción
+        // que crea la venta — refrescamos productos para reflejar ese stock
+        // real en vez de recalcularlo en el cliente (ver POST /api/sales).
+        if (saleData.items?.some(i => i.productId)) {
+            const freshProducts = await productsApi.getAll();
+            setProducts(freshProducts);
+        }
         return created;
     };
 

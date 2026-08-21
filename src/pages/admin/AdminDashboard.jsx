@@ -791,19 +791,9 @@ const AdminDashboard = () => {
                 paymentMethod: posPaymentMethod,
                 status:        posSaleStatus,
             });
-            // Descontar stock — de la variante elegida si aplica, si no del stock base.
-            for(const item of cart){
-                if(item.type==='product'){
-                    const o=products.find(p=>p.id===item.id);
-                    if(!o)continue;
-                    if(item.variantName){
-                        const nextVariants=(o.variants||[]).map(v=>v.name===item.variantName?{...v,stock:Math.max(0,v.stock-item.qty)}:v);
-                        await updateProduct(item.id,{...o,variants:nextVariants});
-                    }else{
-                        await updateProduct(item.id,{...o,stock:o.stock-item.qty});
-                    }
-                }
-            }
+            // El stock ya se descontó en el servidor, dentro de la misma
+            // transacción que creó la venta (ver POST /api/sales) — addSale
+            // refresca products, no hay que tocarlo aquí.
             setCart([]);setPosClientId('');setShowCheckout(false);
             addToast('¡Venta procesada!','success');
             setReceiptSale(savedSale);
