@@ -256,7 +256,10 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
         try{
             const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));
             const pet=pets.find(p=>String(p.id)===String(newAppt.petId));
-            await onAddAppt({...newAppt,serviceName:svc?.title,petName:pet?.petName,assignedTo:currentUser?.id||'',clientId:pet?.ownerId||null});
+            // Bug real pre-existente: `assignedTo` no es columna de
+            // Appointment (solo `employeeId`) — mandarlo tronaba
+            // prisma.appointment.create() con "Error del servidor".
+            await onAddAppt({...newAppt,serviceName:svc?.title,petName:pet?.petName,employeeId:currentUser?.id||null,clientId:pet?.ownerId||null});
             setShowForm(false);
             setNewAppt({petId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
             setSlotError('');

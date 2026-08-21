@@ -26,7 +26,7 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { appointmentsApi } from '../../api/apiClient';
+import { appointmentsApi, staffApi } from '../../api/apiClient';
 import { clientToShopOnBooking, openWhatsApp } from '../../utils/whatsappNotify';
 import { calcServicePrice, weightRangeLabel } from '../../utils/pricingRules';
 import '../../pages/Services.css';
@@ -112,8 +112,14 @@ const ServiceModal = ({ service, onClose }) => {
     const [error,       setError]       = useState('');
     const [myPets,      setMyPets]      = useState([]);
     const [petsLoading, setPetsLoading] = useState(true);
-    const [bookingData, setBookingData] = useState({ petId: '', date: '' });
+    const [bookingData, setBookingData] = useState({ petId: '', date: '', employeeId: '' });
     const [savedBooking, setSavedBooking] = useState(null);
+    const [staff, setStaff] = useState([]);
+
+    React.useEffect(() => {
+        if (!settings?.enableStaffSelection) return;
+        staffApi.getPublic().then(setStaff).catch(() => setStaff([]));
+    }, [settings?.enableStaffSelection]);
 
     // FIX: cargar mascotas directamente por user.id — sin depender de `clients`
     // del DataContext, que para rol 'cliente' siempre está vacío.
@@ -156,6 +162,7 @@ const ServiceModal = ({ service, onClose }) => {
                 petId:       bookingData.petId ? Number(bookingData.petId) : null,
                 serviceId:   service.id,
                 clientId:    user?.id || null,
+                employeeId:  bookingData.employeeId ? Number(bookingData.employeeId) : null,
                 date:        bookingData.date,
                 time:        '', // el groomer la asigna al confirmar
                 status:      'Pendiente',
@@ -278,6 +285,16 @@ const ServiceModal = ({ service, onClose }) => {
                         {bookingData.date && (
                             <div className="sm-selected-date-label">
                                 📅 {formatDateDisplay(bookingData.date)}
+                            </div>
+                        )}
+                        {staff.length > 0 && (
+                            <div className="sm-selected-date-label" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                                <label style={{ fontWeight: 700 }}>¿Quién te gustaría que te atienda?</label>
+                                <select value={bookingData.employeeId}
+                                    onChange={e => setBookingData({ ...bookingData, employeeId: e.target.value })}>
+                                    <option value="">Sin preferencia</option>
+                                    {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
                             </div>
                         )}
 

@@ -109,6 +109,13 @@ export const authApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STAFF (público — solo id+nombre, para elegir empleado al reservar)
+// ─────────────────────────────────────────────────────────────────────────────
+export const staffApi = {
+  getPublic: () => api.get('/staff'),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 export const usersApi = {
@@ -182,8 +189,10 @@ export const appointmentsApi = {
   getByDate:    (date)        => api.get(`/appointments?date=${encodeURIComponent(date)}`),
   // Pública — no requiere sesión (la usa el booking express para saber qué
   // horarios ya están llenos sin exponer datos de otras citas).
-  getAvailability: (date, serviceId) => api.get(
-    `/appointments/availability?date=${encodeURIComponent(date)}${serviceId ? `&serviceId=${encodeURIComponent(serviceId)}` : ''}`
+  getAvailability: (date, serviceId, employeeId) => api.get(
+    `/appointments/availability?date=${encodeURIComponent(date)}` +
+    (serviceId ? `&serviceId=${encodeURIComponent(serviceId)}` : '') +
+    (employeeId ? `&employeeId=${encodeURIComponent(employeeId)}` : '')
   ),
   create:       (data)        => api.post('/appointments', data),
   update:       (id, data)    => api.put(`/appointments/${encodeURIComponent(id)}`, data),
