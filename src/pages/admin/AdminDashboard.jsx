@@ -341,6 +341,11 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const [slotError,setSlotError]=useState('');
     const empleados=users.filter(u=>u.role==='empleado');
     const [newAppt,setNewAppt]=useState({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
+    // Horario del día para newAppt.date+serviceId — antes el campo de hora
+    // era un <input type="time"> libre, sin relación al horario real del
+    // negocio (el admin podía guardar una cita a las 3am). Ahora se calcula
+    // igual que en el resto de la app (ver GET /api/appointments/availability).
+    const [newApptSlots,setNewApptSlots]=useState([]);
 
     useEffect(()=>{
         if(newAppt.petId && newAppt.serviceId){
@@ -350,6 +355,13 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
         }
         setSlotError('');
     },[newAppt.petId, newAppt.serviceId, newAppt.date, newAppt.time]);
+
+    useEffect(()=>{
+        if(!showForm || !newAppt.date){ setNewApptSlots([]); return; }
+        appointmentsApi.getAvailability(newAppt.date, newAppt.serviceId)
+            .then(res=>setNewApptSlots(res.slots||[]))
+            .catch(()=>setNewApptSlots([]));
+    },[showForm, newAppt.date, newAppt.serviceId]);
 
     const apptsByDate=useMemo(()=>{const m={};appointments.forEach(a=>{if(!m[a.date])m[a.date]=[];m[a.date].push(a);});return m;},[appointments]);
 
@@ -490,32 +502,40 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
                     </span>
                 ))}
             </div>
-            {showForm&&<form className="admin-cal-appt-form" onSubmit={handleCreate}>
-                <div className="admin-cal-form-grid">
-                    <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
-                        <option value="">Paciente...</option>
-                        {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
-                    </select>
-                    <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value})} required>
-                        <option value="">Servicio...</option>
-                        {services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
-                    </select>
-                    <select value={newAppt.assignedTo} onChange={e=>setNewAppt({...newAppt,assignedTo:e.target.value})}>
-                        <option value="">¿Quién atiende?</option>
-                        {empleados.map(u=><option key={u.id} value={u.id}>{u.name} (cap.{u.capacity||1})</option>)}
-                    </select>
-                    <input type="date" value={newAppt.date} onChange={e=>setNewAppt({...newAppt,date:e.target.value})} required/>
-                    <input type="time" value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})} required/>
-                    {newAppt.finalPrice>0&&<div className="appo-price-preview" style={{gridColumn:'span 2'}}>
-                        Estimado según catálogo: <strong>~${newAppt.finalPrice}</strong>
-                    </div>}
-                </div>
-                {slotError&&<div className="cal-slot-error"><FaExclamationTriangle/> {slotError}</div>}
-                <div className="form-actions form-actions--end">
-                    <button type="button" className="btn-secondary" onClick={()=>{setShowForm(false);setSlotError('');}}>Cancelar</button>
-                    <button type="submit" className="btn-primary" disabled={saving}>{saving?'Guardando...':'Confirmar cita'}</button>
-                </div>
-            </form>}
+            {showForm&&<Modal title="📅 Nueva cita" onClose={()=>{setShowForm(false);setSlotError('');}}>
+                <form className="admin-cal-appt-form" onSubmit={handleCreate}>
+                    <div className="admin-cal-form-grid">
+                        <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
+                            <option value="">Paciente...</option>
+                            {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
+                        </select>
+                        <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value,time:''})} required>
+                            <option value="">Servicio...</option>
+                            {services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
+                        </select>
+                        <select value={newAppt.assignedTo} onChange={e=>setNewAppt({...newAppt,assignedTo:e.target.value})}>
+                            <option value="">¿Quién atiende?</option>
+                            {empleados.map(u=><option key={u.id} value={u.id}>{u.name} (cap.{u.capacity||1})</option>)}
+                        </select>
+                        <input type="date" value={newAppt.date} onChange={e=>setNewAppt({...newAppt,date:e.target.value,time:''})} required/>
+                        <select value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})} required disabled={!newApptSlots.length}>
+                            <option value="">{newApptSlots.length?'Horario...':'Sin horario disponible ese día'}</option>
+                            {newApptSlots.map(t=>{
+                                const check=validateSlot(appointments,newAppt.date,t,empleados);
+                                return <option key={t} value={t} disabled={!check.ok}>{t}{check.ok?'':' (lleno)'}</option>;
+                            })}
+                        </select>
+                        {newAppt.finalPrice>0&&<div className="appo-price-preview" style={{gridColumn:'span 2'}}>
+                            Estimado según catálogo: <strong>~${newAppt.finalPrice}</strong>
+                        </div>}
+                    </div>
+                    {slotError&&<div className="cal-slot-error"><FaExclamationTriangle/> {slotError}</div>}
+                    <div className="form-actions form-actions--end">
+                        <button type="button" className="btn-secondary" onClick={()=>{setShowForm(false);setSlotError('');}}>Cancelar</button>
+                        <button type="submit" className="btn-primary" disabled={saving}>{saving?'Guardando...':'Confirmar cita'}</button>
+                    </div>
+                </form>
+            </Modal>}
             <div className="admin-cal-view">
                 {calView==='month'&&<MonthView/>}
                 {calView==='week'&&<WeekView/>}
