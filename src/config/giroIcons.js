@@ -8,6 +8,7 @@
 import {
     PiPawPrintBold, PiPaintBrushBold, PiMagicWandBold, PiFlowerLotusBold,
     PiScissorsBold, PiStethoscopeBold, PiBarbellBold, PiCalendarCheckBold,
+    PiCoffeeBold,
 } from 'react-icons/pi';
 
 export const GIRO_ICONS = {
@@ -18,6 +19,7 @@ export const GIRO_ICONS = {
     barberia: PiScissorsBold,
     clinica: PiStethoscopeBold,
     gimnasio: PiBarbellBold,
+    alimentos: PiCoffeeBold,
 };
 
 export const getGiroIcon = (giro) => GIRO_ICONS[giro] || PiCalendarCheckBold;

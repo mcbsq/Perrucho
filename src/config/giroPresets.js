@@ -14,6 +14,14 @@
 // (ej. emporio.app/uñas/mi-salon) — separado de la clave interna (ascii,
 // la que se guarda en Business.giro) porque el negocio pidió que la URL
 // lleve el nombre del giro escrito normal, con acentos y todo.
+//
+// enableStaffSelectionDefault / enableMembershipsDefault /
+// enableClientNotesDefault / enableTableReservationsDefault: herramientas
+// específicas por giro (ver docs/superpowers/specs/2026-08-21-herramientas-
+// por-giro-design.md) — mismo patrón que enablePets, valores por defecto
+// que el admin puede cambiar después en Personalización → "Giro de negocio".
+// Reflejar cualquier cambio también en api/config/giroPresets.js (el
+// backend los usa al registrar un negocio nuevo).
 export const GIRO_PRESETS = {
     mascotas: {
         label: 'Veterinaria / Grooming',
@@ -21,6 +29,10 @@ export const GIRO_PRESETS = {
         enablePets: true,
         pricingModeDefault: 'weight',
         iconRuleset: 'pets',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Grooming · Tienda · Guardería · Paseos',
             heroSubtitle: 'Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.',
@@ -40,6 +52,10 @@ export const GIRO_PRESETS = {
         enablePets: false,
         pricingModeDefault: 'custom',
         iconRuleset: 'unas-pestanas',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Manicure · Pedicure · Uñas acrílicas',
             heroSubtitle: 'Manicure, pedicure, uñas acrílicas y más. Agenda tu cita en minutos.',
@@ -56,6 +72,10 @@ export const GIRO_PRESETS = {
         enablePets: false,
         pricingModeDefault: 'custom',
         iconRuleset: 'unas-pestanas',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Pestañas · Cejas · Lifting',
             heroSubtitle: 'Extensión de pestañas, lifting, diseño de cejas y más. Agenda tu cita en minutos.',
@@ -72,6 +92,10 @@ export const GIRO_PRESETS = {
         enablePets: false,
         pricingModeDefault: 'custom',
         iconRuleset: 'spa',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Masajes · Faciales · Bienestar',
             heroSubtitle: 'Tu momento de relajación. Agenda tu cita en minutos.',
@@ -86,6 +110,10 @@ export const GIRO_PRESETS = {
         enablePets: false,
         pricingModeDefault: 'custom',
         iconRuleset: 'barberia',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Cortes · Barba · Estilo',
             heroSubtitle: 'El corte que buscas, con la calidad que mereces. Agenda tu cita en minutos.',
@@ -100,6 +128,10 @@ export const GIRO_PRESETS = {
         enablePets: false,
         pricingModeDefault: 'custom',
         iconRuleset: 'clinica',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: true,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Consultas · Tratamientos · Seguimiento',
             heroSubtitle: 'Agenda tu consulta en minutos.',
@@ -116,6 +148,10 @@ export const GIRO_PRESETS = {
         enablePets: false,
         pricingModeDefault: 'custom',
         iconRuleset: 'gimnasio',
+        enableStaffSelectionDefault: true,
+        enableMembershipsDefault: true,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
         copy: {
             heroTagline: 'Clases · Entrenamiento · Nutrición',
             heroSubtitle: 'Reserva tu lugar en minutos.',
@@ -123,6 +159,30 @@ export const GIRO_PRESETS = {
             petSectionLabel: null,
         },
         clientExtraFieldsDefault: [],
+    },
+    // Un solo giro para cafetería/restaurante — enableTableReservationsDefault
+    // arranca apagado (modo mostrador: el catálogo de Servicios se usa como
+    // menú, cada servicio es un platillo/bebida) y el admin lo prende desde
+    // Personalización si su negocio sí reserva mesas.
+    alimentos: {
+        label: 'Cafetería / Restaurante',
+        urlLabel: 'comida',
+        enablePets: false,
+        pricingModeDefault: 'custom',
+        iconRuleset: 'alimentos',
+        enableStaffSelectionDefault: false,
+        enableMembershipsDefault: false,
+        enableClientNotesDefault: false,
+        enableTableReservationsDefault: false,
+        copy: {
+            heroTagline: 'Menú · Pedidos · Mesas',
+            heroSubtitle: 'De la barra a la mesa, todo en un panel.',
+            whyUsTitle: '¿Por qué elegirnos?',
+            petSectionLabel: null,
+        },
+        clientExtraFieldsDefault: [
+            { key: 'restricciones', label: 'Restricciones alimentarias', required: false },
+        ],
     },
 };
 

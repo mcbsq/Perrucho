@@ -449,12 +449,20 @@ const Home = () => {
     const { isLoggedIn, user } = useAuth();
     const { services, products, loading, settings } = useData();
     const authAction = useAuthAction();
+    const navigate = useNavigate();
+    const { withBusinessPath } = useBusinessPath();
     const [showBookingExpress, setShowBookingExpress] = useState(false);
     const isNewClient = isLoggedIn && user?.role === 'cliente';
     const { show: showOnboarding, dismiss: dismissOnboarding } = useOnboarding('client', isNewClient ? user?.id : null);
 
     // El toggle viene de settings (admin puede apagarlo)
     const guestBookingEnabled = settings?.allowGuestBooking !== false;
+
+    // Giro alimentos en modo mostrador (sin reservar mesa): no hay "cita"
+    // que agendar — el catálogo de Servicios se usa como menú, así que el
+    // CTA principal lleva directo ahí, sin el candado de login que sí tiene
+    // "Reservar cita" (ver el propio Home.jsx un poco más abajo).
+    const isCounterService = settings?.giro === 'alimentos' && !settings?.enableTableReservations;
 
     // Bug real (reportado en Emporio Uñas/Pestañas): sin heroImageUrl propio,
     // el fallback era el video de Taylor's (bannerImage/heroVideo, sus
@@ -486,13 +494,21 @@ const Home = () => {
                         {settings?.heroSubtitle || 'Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.'}
                     </p>
                     <div className="hero-actions">
-                        <button className="reserve-button hero-cta-main" data-tour="home-reservar" onClick={() => authAction('/servicios')}>
-                            Reservar cita
-                        </button>
-                        {guestBookingEnabled && (
-                            <button className="hero-cta-secondary" onClick={() => setShowBookingExpress(true)}>
-                                Reserva rápida →
+                        {isCounterService ? (
+                            <button className="reserve-button hero-cta-main" data-tour="home-reservar" onClick={() => navigate(withBusinessPath('/servicios'))}>
+                                Ver menú
                             </button>
+                        ) : (
+                            <>
+                                <button className="reserve-button hero-cta-main" data-tour="home-reservar" onClick={() => authAction('/servicios')}>
+                                    Reservar cita
+                                </button>
+                                {guestBookingEnabled && (
+                                    <button className="hero-cta-secondary" onClick={() => setShowBookingExpress(true)}>
+                                        Reserva rápida →
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

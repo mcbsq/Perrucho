@@ -19,6 +19,8 @@ import {
     PiFootprintsBold, PiSparkleBold, PiHeartBold, PiTagBold,
     PiPackageBold, PiTShirtBold, PiPillBold, PiSoccerBallBold,
     PiPaintBrushBold, PiMagicWandBold, PiFlowerLotusBold, PiSunBold,
+    PiCoffeeBold, PiHamburgerBold, PiPizzaBold, PiCakeBold, PiWineBold,
+    PiBowlFoodBold, PiTableBold,
 } from 'react-icons/pi';
 
 // Reglas compartidas por cualquier giro (agenda, servicio al cliente, marketing).
@@ -87,6 +89,18 @@ const RULESETS = {
         [/(clase|entrenamiento|rutina)/i,       PiTrophyBold],
         [/(yoga|pilates|estiramiento)/i,        PiFlowerLotusBold],
         [/(nutrici[oó]n|dieta)/i,               PiBoneBold],
+        ...SHARED_RULES,
+    ],
+    // Cafetería / restaurante — cada "servicio" aquí suele ser un platillo,
+    // bebida, o (si el negocio reserva mesa) el tipo de mesa.
+    alimentos: [
+        [/(mesa|reservaci[oó]n)/i,               PiTableBold],
+        [/(caf[eé]|espresso|latte|capuchino)/i, PiCoffeeBold],
+        [/(cerveza|vino|bebida alcoh[oó]lica)/i, PiWineBold],
+        [/(hamburgu|sandwich|sándwich|torta)/i, PiHamburgerBold],
+        [/(pizza)/i,                              PiPizzaBold],
+        [/(postre|pastel|dulce)/i,               PiCakeBold],
+        [/(plato|comida|men[uú]|almuerzo|desayuno|cena)/i, PiBowlFoodBold],
         ...SHARED_RULES,
     ],
 };
