@@ -19,6 +19,7 @@ import { getServiceIcon } from '../utils/serviceIcons';
 import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
 import { useBusinessPath } from '../utils/businessPath';
 import { getGiroMarketing } from '../config/giroMarketing';
+import { todayLocalDateStr } from '../utils/dateLocal';
 import perruchoMark from '../assets/perrucho-mark.svg';
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
@@ -135,7 +136,7 @@ const BookingExpressModal = ({ onClose, settings }) => {
         }
     };
 
-    const minDate = new Date().toISOString().split('T')[0];
+    const minDate = todayLocalDateStr();
 
     return (
         <div className="bx-overlay" onClick={onClose}>
