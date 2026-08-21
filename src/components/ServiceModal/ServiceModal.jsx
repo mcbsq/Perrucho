@@ -105,7 +105,7 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 const ServiceModal = ({ service, onClose }) => {
     const { user }      = useAuth();
-    const { addSale }   = useData();
+    const { addSale, settings } = useData();
 
     const [step,        setStep]        = useState(1);
     const [loading,     setLoading]     = useState(false);
@@ -166,6 +166,8 @@ const ServiceModal = ({ service, onClose }) => {
                 petName,
                 serviceName: service.title,
                 date:        bookingData.date,
+                shopName:    settings?.businessName,
+                shopWhatsApp: settings?.whatsappNumber,
             });
             next();
         } catch (e) {

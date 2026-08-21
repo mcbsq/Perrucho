@@ -10,6 +10,13 @@
 import { toWhatsAppLink } from './formatPhone';
 import { SHOP_NAME, SHOP_WHATSAPP } from './bookingRules';
 
+// Bug real (multi-tenant): estos mensajes usaban SHOP_NAME/SHOP_WHATSAPP —
+// el nombre y el WhatsApp REALES de Taylor's, hardcodeados — para CUALQUIER
+// negocio. Un cliente de otro negocio que cancelaba su cita le mandaba el
+// WhatsApp a Taylor's, no al suyo. Los llamadores ahora pasan shopName/
+// shopWhatsApp desde su propio Settings; estos defaults solo cubren algún
+// llamador que quedara sin actualizar.
+
 const fmtDateLong = (iso) => {
     if (!iso) return '';
     try {
@@ -50,9 +57,9 @@ function buildWaLink(phone, message) {
  * Mensaje del cliente AL NEGOCIO confirmando que acaba de reservar.
  * Útil para que el cliente avise por WhatsApp tras hacer la reserva online.
  */
-export function clientToShopOnBooking({ clientName, petName, serviceName, date, time }) {
+export function clientToShopOnBooking({ clientName, petName, serviceName, date, time, shopName = SHOP_NAME, shopWhatsApp = SHOP_WHATSAPP }) {
     const msg =
-`¡Hola ${SHOP_NAME}! 🐾
+`¡Hola ${shopName}! 🐾
 Acabo de reservar una cita por la página:
 
 👤 Cliente: ${clientName}
@@ -62,16 +69,16 @@ Acabo de reservar una cita por la página:
 🕐 Hora: ${fmt12(time)}
 
 Quedo atento(a) a la confirmación. ¡Gracias!`;
-    return buildWaLink(SHOP_WHATSAPP, msg);
+    return buildWaLink(shopWhatsApp, msg);
 }
 
 /**
  * Mensaje del cliente AL NEGOCIO solicitando cancelación.
  * Se usa cuando la cita está dentro de la ventana de horas mínimas.
  */
-export function clientToShopOnCancelRequest({ clientName, petName, serviceName, date, time, reason }) {
+export function clientToShopOnCancelRequest({ clientName, petName, serviceName, date, time, reason, shopName = SHOP_NAME, shopWhatsApp = SHOP_WHATSAPP }) {
     const msg =
-`Hola ${SHOP_NAME} 🐾
+`Hola ${shopName} 🐾
 Necesito cancelar/reagendar mi cita:
 
 👤 ${clientName}
@@ -81,15 +88,15 @@ Necesito cancelar/reagendar mi cita:
 ${reason ? `\n💬 Motivo: ${reason}` : ''}
 
 ¿Podemos coordinar otro horario? Gracias.`;
-    return buildWaLink(SHOP_WHATSAPP, msg);
+    return buildWaLink(shopWhatsApp, msg);
 }
 
 /**
  * Mensaje del cliente AL NEGOCIO notificando cancelación que sí procedió online.
  */
-export function clientToShopOnCancelDone({ clientName, petName, serviceName, date, time }) {
+export function clientToShopOnCancelDone({ clientName, petName, serviceName, date, time, shopName = SHOP_NAME, shopWhatsApp = SHOP_WHATSAPP }) {
     const msg =
-`Hola ${SHOP_NAME} 🐾
+`Hola ${shopName} 🐾
 Cancelé mi cita desde la página:
 
 👤 ${clientName}
@@ -98,17 +105,17 @@ Cancelé mi cita desde la página:
 📅 ${fmtDateLong(date)} · 🕐 ${fmt12(time)}
 
 Espero poder reagendar pronto. ¡Gracias!`;
-    return buildWaLink(SHOP_WHATSAPP, msg);
+    return buildWaLink(shopWhatsApp, msg);
 }
 
 /**
  * Mensaje del NEGOCIO AL CLIENTE confirmando su cita (cuando el empleado
  * cambia el estado a "Confirmada").
  */
-export function shopToClientOnConfirmation({ clientName, clientPhone, petName, serviceName, date, time }) {
+export function shopToClientOnConfirmation({ clientName, clientPhone, petName, serviceName, date, time, shopName = SHOP_NAME }) {
     const msg =
 `¡Hola ${clientName}! 🐾
-Tu cita en ${SHOP_NAME} ha sido *CONFIRMADA* ✅
+Tu cita en ${shopName} ha sido *CONFIRMADA* ✅
 
 🐶 ${petName}
 ✂️ ${serviceName}
@@ -122,12 +129,12 @@ Te esperamos. Si necesitas reagendar, avísanos con al menos 24h de anticipació
 /**
  * Mensaje del NEGOCIO AL CLIENTE cuando la cita está lista (Finalizada).
  */
-export function shopToClientOnFinished({ clientName, clientPhone, petName, serviceName }) {
+export function shopToClientOnFinished({ clientName, clientPhone, petName, serviceName, shopName = SHOP_NAME }) {
     const msg =
 `¡Hola ${clientName}! 🐾
 ${petName} ya está listo(a) tras su servicio de *${serviceName}*.
 
-¡Gracias por confiar en ${SHOP_NAME}! 💚`;
+¡Gracias por confiar en ${shopName}! 💚`;
     return buildWaLink(clientPhone, msg);
 }
 

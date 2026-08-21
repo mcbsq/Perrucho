@@ -12,6 +12,11 @@
 
 import { SHOP_NAME } from './bookingRules';
 
+// Mismo bug multi-tenant que whatsappNotify.js: SHOP_NAME es el nombre de
+// Taylor's, hardcodeado para cualquier negocio. Los llamadores pasan
+// shopName desde su propio Settings.businessName; el default solo cubre
+// algún llamador que quedara sin actualizar.
+
 const fmtDateLong = (iso) => {
     if (!iso) return '';
     try {
@@ -53,12 +58,12 @@ function buildMailto(email, subject, body) {
  * Email del NEGOCIO al CLIENTE confirmando su cita
  * (cuando el empleado cambia el estado a "Confirmada").
  */
-export function shopToClientOnConfirmation({ clientName, clientEmail, petName, serviceName, date, time }) {
-    const subject = `${SHOP_NAME} — Tu cita ha sido confirmada ✅`;
+export function shopToClientOnConfirmation({ clientName, clientEmail, petName, serviceName, date, time, shopName = SHOP_NAME }) {
+    const subject = `${shopName} — Tu cita ha sido confirmada ✅`;
     const body =
 `Hola ${clientName},
 
-¡Buenas noticias! Tu cita en ${SHOP_NAME} ha sido CONFIRMADA.
+¡Buenas noticias! Tu cita en ${shopName} ha sido CONFIRMADA.
 
 Detalles:
 • Mascota: ${petName}
@@ -70,7 +75,7 @@ Te esperamos puntual. Si necesitas reagendar, avísanos con al menos 24 horas de
 
 ¡Gracias por confiar en nosotros!
 
-— El equipo de ${SHOP_NAME} 🐾`;
+— El equipo de ${shopName} 🐾`;
     return buildMailto(clientEmail, subject, body);
 }
 
@@ -78,8 +83,8 @@ Te esperamos puntual. Si necesitas reagendar, avísanos con al menos 24 horas de
  * Email del NEGOCIO al CLIENTE cuando la cita está finalizada
  * (la mascota está lista para recoger).
  */
-export function shopToClientOnFinished({ clientName, clientEmail, petName, serviceName }) {
-    const subject = `${SHOP_NAME} — ${petName} ya está listo(a) 🐾`;
+export function shopToClientOnFinished({ clientName, clientEmail, petName, serviceName, shopName = SHOP_NAME }) {
+    const subject = `${shopName} — ${petName} ya está listo(a) 🐾`;
     const body =
 `Hola ${clientName},
 
@@ -87,17 +92,17 @@ export function shopToClientOnFinished({ clientName, clientEmail, petName, servi
 
 Puedes pasar a recogerlo(a) cuando gustes.
 
-¡Gracias por confiar en ${SHOP_NAME}! Esperamos verte pronto de nuevo.
+¡Gracias por confiar en ${shopName}! Esperamos verte pronto de nuevo.
 
-— El equipo de ${SHOP_NAME} 🐾`;
+— El equipo de ${shopName} 🐾`;
     return buildMailto(clientEmail, subject, body);
 }
 
 /**
  * Email del NEGOCIO al CLIENTE cuando se cancela una cita.
  */
-export function shopToClientOnCanceled({ clientName, clientEmail, petName, serviceName, date, time }) {
-    const subject = `${SHOP_NAME} — Tu cita ha sido cancelada`;
+export function shopToClientOnCanceled({ clientName, clientEmail, petName, serviceName, date, time, shopName = SHOP_NAME }) {
+    const subject = `${shopName} — Tu cita ha sido cancelada`;
     const body =
 `Hola ${clientName},
 
@@ -110,7 +115,7 @@ Te informamos que tu cita ha sido cancelada:
 
 Si quieres reagendar, puedes hacerlo desde tu perfil en la página o contactándonos directamente.
 
-— El equipo de ${SHOP_NAME} 🐾`;
+— El equipo de ${shopName} 🐾`;
     return buildMailto(clientEmail, subject, body);
 }
 

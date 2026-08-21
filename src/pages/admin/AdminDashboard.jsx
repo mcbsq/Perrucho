@@ -888,6 +888,7 @@ const AdminDashboard = () => {
             serviceName: getApptServiceName(appt),
             date:        appt.date,
             time:        getApptTime(appt),
+            shopName:    settings?.businessName,
         };
         let opened=false;
         if(clientPhone){
