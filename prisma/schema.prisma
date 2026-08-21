@@ -77,17 +77,18 @@ model Business {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  users        User[]
-  pets         Pet[]
-  services     Service[]
-  products     Product[]
-  appointments Appointment[]
-  expenses     Expense[]
-  sales        Sale[]
+  users           User[]
+  pets            Pet[]
+  services        Service[]
+  products        Product[]
+  appointments    Appointment[]
+  expenses        Expense[]
+  sales           Sale[]
   // Settings.businessId todavía no es @unique (se aprieta en la migración de
   // "tightening" de Fase 1) — hasta entonces la relación inversa es a lista,
   // no 1:1, para que Prisma no exija unicidad prematura.
-  settings     Settings[]
+  settings        Settings[]
+  membershipPlans MembershipPlan[]
 }
 
 // ─────────────────────────────────────────────
@@ -95,43 +96,57 @@ model Business {
 // ─────────────────────────────────────────────
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
+  id                 Int       @id @default(autoincrement())
+  name               String
+  email              String    @unique
   // AEGIS es dueño de las credenciales para negocios con authProvider
   // "aegis" (ver Business.authProvider) — esas filas no llevan password,
   // solo aegisUserId. Los negocios que sigan en "local" (ej. Taylor's,
   // hasta su propio cutover) siguen usando password con bcrypt como hoy.
-  password    String?
-  aegisUserId String? @unique
-  role      Role     @default(cliente)
+  password           String?
+  aegisUserId        String?   @unique
+  role               Role      @default(cliente)
   // Multi-tenant: nullable por ahora — Fase 1 solo agrega y respalda la
   // columna (backfill a Taylor's), sin tocar código de aplicación todavía.
   // Se aprieta a NOT NULL + uniqueness compuesta con email en una migración
   // posterior, una vez que el código de Fase 2 ya la escriba en cada insert.
-  businessId Int?
-  phone     String?
-  address   String?
-  capacity  Int?     // solo empleados: cuántas citas simultáneas puede atender
-  createdAt DateTime @default(now())
+  businessId         Int?
+  phone              String?
+  address            String?
+  capacity           Int? // solo empleados: cuántas citas simultáneas puede atender
+  createdAt          DateTime  @default(now())
   // Valores de los campos extra configurados en Settings.clientExtraFields
   // (varían según el giro del negocio, ej. podología vs. estética canina)
-  extraData Json     @default("{}")
+  extraData          Json      @default("{}")
   // "Olvidé mi contraseña" — token de un solo uso con expiración (1h)
-  resetToken       String?   @unique
-  resetTokenExpiry DateTime?
+  resetToken         String?   @unique
+  resetTokenExpiry   DateTime?
   // Recuperación 100% interna (sin SMTP): pregunta de seguridad elegida al
   // registrarse. La respuesta se guarda hasheada, nunca en texto plano.
   securityQuestion   String?
   securityAnswerHash String?
 
+  // Expediente clínico (giro clínica) — mismo patrón que Pet.history:
+  // un JSON de notas en la propia fila, no una tabla aparte. Cada entrada:
+  // { date, appointmentId, authorName, note }. Solo se usa si el negocio
+  // tiene Settings.enableClientNotes.
+  clinicalHistory Json @default("[]")
+
+  // Membresía (giro gimnasio) — solo la vigencia ACTUAL, sin historial de
+  // renovaciones pasadas (YAGNI). Renovar = mover membershipExpiresAt hacia
+  // adelante. Solo se usa si el negocio tiene Settings.enableMemberships.
+  membershipPlanId      Int?
+  membershipExpiresAt   DateTime?
+  membershipClassesUsed Int?
+  membershipPlan        MembershipPlan? @relation(fields: [membershipPlanId], references: [id])
+
   // Relaciones
-  business          Business?     @relation(fields: [businessId], references: [id])
-  pets              Pet[]
-  appointments      Appointment[]        // citas donde este user es el cliente
-  assignedAppointments Appointment[]     @relation("AssignedEmployee")
-  sales             Sale[]
-  expenses          Expense[]
+  business             Business?     @relation(fields: [businessId], references: [id])
+  pets                 Pet[]
+  appointments         Appointment[] // citas donde este user es el cliente
+  assignedAppointments Appointment[] @relation("AssignedEmployee")
+  sales                Sale[]
+  expenses             Expense[]
 }
 
 // ─────────────────────────────────────────────
@@ -197,11 +212,34 @@ model Service {
   // cambia el comportamiento de ningún servicio existente.
   durationMinutes Int @default(45)
 
+  // Giro gimnasio: marca qué servicios son "clases" sujetas a membresía
+  // (vs. un servicio suelto de pago único, ej. una valoración inicial).
+  isClass Boolean @default(false)
+
   businessId Int? // multi-tenant — ver nota en User.businessId
   business   Business? @relation(fields: [businessId], references: [id])
 
-  appointments        Appointment[]
-  appointmentExtras   AppointmentExtra[]
+  appointments      Appointment[]
+  appointmentExtras AppointmentExtra[]
+}
+
+// ─────────────────────────────────────────────
+// MEMBERSHIP PLAN (giro gimnasio) — catálogo de planes, mismo patrón que
+// Service. La membresía ACTUAL de un cliente vive en User (ver
+// membershipPlanId/membershipExpiresAt) — sin tabla de historial aparte.
+// ─────────────────────────────────────────────
+
+model MembershipPlan {
+  id           Int    @id @default(autoincrement())
+  name         String
+  price        Int
+  durationDays Int    @default(30)
+  classesLimit Int? // null = ilimitado
+
+  businessId Int?
+  business   Business? @relation(fields: [businessId], references: [id])
+
+  members User[]
 }
 
 // ─────────────────────────────────────────────
@@ -237,14 +275,14 @@ model Appointment {
   petId      Int?
   serviceId  Int?
   employeeId Int?
-  date       String            // "YYYY-MM-DD" — string para evitar timezone drift
-  time       String            // "HH:mm"
+  date       String // "YYYY-MM-DD" — string para evitar timezone drift
+  time       String // "HH:mm"
   status     AppointmentStatus @default(Pendiente)
   finalPrice Int               @default(0)
   notes      String?
-  guestName  String?           // booking express sin cuenta — nombre del dueño
-  guestPhone String?           // booking express sin cuenta — WhatsApp para confirmar
-  businessId Int?              // multi-tenant — ver nota en User.businessId
+  guestName  String? // booking express sin cuenta — nombre del dueño
+  guestPhone String? // booking express sin cuenta — WhatsApp para confirmar
+  businessId Int? // multi-tenant — ver nota en User.businessId
   createdAt  DateTime          @default(now())
 
   client   User?     @relation(fields: [clientId], references: [id])
@@ -276,13 +314,13 @@ model AppointmentExtra {
 // ─────────────────────────────────────────────
 
 model Expense {
-  id        Int      @id @default(autoincrement())
-  concept   String
-  amount    Int
-  category  String   @default("Otro")
-  notes     String?
-  date      DateTime @default(now())
-  createdBy Int?
+  id         Int      @id @default(autoincrement())
+  concept    String
+  amount     Int
+  category   String   @default("Otro")
+  notes      String?
+  date       DateTime @default(now())
+  createdBy  Int?
   businessId Int? // multi-tenant — ver nota en User.businessId
 
   creator  User?     @relation(fields: [createdBy], references: [id])
@@ -336,41 +374,41 @@ model Settings {
   // Multi-tenant: ya no es un singleton (@default(1) chocaba con cualquier
   // negocio nuevo — bug real encontrado al probar la Fase 4). Un registro
   // por negocio, identificado por businessId (ver nota abajo).
-  id                  Int     @id @default(autoincrement())
+  id                Int       @id @default(autoincrement())
   // Multi-tenant: nullable por ahora (Fase 1 solo agrega+respalda). Pasará a
   // @unique NOT NULL en la migración de "tightening" de Fase 1, momento en
   // el que Settings deja de ser un singleton y pasa a 1 fila por negocio —
   // el @default(1) de arriba se elimina en ese mismo paso.
-  businessId          Int?
-  business            Business? @relation(fields: [businessId], references: [id])
-  allowGuestBooking   Boolean @default(true)  // toggle admin: booking express on/off
+  businessId        Int?
+  business          Business? @relation(fields: [businessId], references: [id])
+  allowGuestBooking Boolean   @default(true) // toggle admin: booking express on/off
   // Bug real (Emporio Uñas/Pestañas, reportado por el cliente): estos
   // defaults eran literalmente el WhatsApp/dirección/redes REALES de
   // Taylor's — cualquier negocio nuevo que no los llenara heredaba los
   // contactos de otro negocio. Vacíos por default; el registro y
   // Personalización son quienes deben llenarlos con datos propios.
-  whatsappNumber      String  @default("")
-  businessAddress     String  @default("")
-  businessMapsUrl     String  @default("")
-  instagramUrl        String  @default("")
-  facebookUrl         String  @default("")
-  tiktokUrl           String  @default("")
+  whatsappNumber    String    @default("")
+  businessAddress   String    @default("")
+  businessMapsUrl   String    @default("")
+  instagramUrl      String    @default("")
+  facebookUrl       String    @default("")
+  tiktokUrl         String    @default("")
 
   // ── Personalización (branding) ──────────────────────────────────────────
-  businessName String  @default("Mi negocio")
-  slogan       String  @default("Reserva tu cita en minutos")
+  businessName       String  @default("Mi negocio")
+  slogan             String  @default("Reserva tu cita en minutos")
   // Línea pequeña sobre el título del hero (ej. "Grooming · Tienda · Guardería · Paseos")
   // y el párrafo debajo del título — antes hardcodeados en Home.jsx.
-  heroTagline  String  @default("Grooming · Tienda · Guardería · Paseos")
-  heroSubtitle String  @default("Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.")
-  logoUrl      String?
-  primaryColor String  @default("#4f46e5")
+  heroTagline        String  @default("Grooming · Tienda · Guardería · Paseos")
+  heroSubtitle       String  @default("Baño, corte, arreglo de uñas y más. Agenda tu cita en minutos.")
+  logoUrl            String?
+  primaryColor       String  @default("#4f46e5")
   // Personalización extendida: color secundario (acentos/gradientes), tipografía
   // y el modo de tema (claro/oscuro/automático) que ve un visitante nuevo por
   // defecto — el toggle del usuario en su propio navegador siempre tiene prioridad.
-  secondaryColor String  @default("#a29bfe")
-  fontFamily     String  @default("system")
-  defaultTheme   String  @default("auto") // 'light' | 'dark' | 'auto'
+  secondaryColor     String  @default("#a29bfe")
+  fontFamily         String  @default("system")
+  defaultTheme       String  @default("auto") // 'light' | 'dark' | 'auto'
   // Imagen del hero (portada de inicio) — si está vacía se sigue mostrando
   // el video por defecto. Fondo de la pantalla de inicio de sesión/registro.
   heroImageUrl       String?
@@ -384,7 +422,7 @@ model Settings {
   // Vacío por default: mostrar "4000+ clientes felices" (los de Taylor's)
   // en un negocio que se acaba de registrar con cero clientes reales era
   // directamente falso, no solo mal branding — mismo bug que los contactos.
-  stats Json @default("[]") // [{ value, label, icon }]
+  stats           Json @default("[]") // [{ value, label, icon }]
 
   // ── "¿Por qué elegirnos?" — antes hardcodeado en Home.jsx (WhyUsSection/FEATURES) ──
   whyUsTitle    String @default("¿Por qué elegirnos?")
@@ -410,4 +448,16 @@ model Settings {
   // de mascotas, sin perder la funcionalidad para quien sí la usa (Taylor's).
   enablePets        Boolean @default(true)
   clientExtraFields Json    @default("[]") // [{ key, label, required }] — campos extra de registro de cliente
+
+  // ── Herramientas específicas por giro (todas apagadas por default) ──────
+  // Igual que enablePets: el default de abajo es el valor SEGURO que no
+  // cambia el comportamiento de ningún negocio ya existente (incluido
+  // Taylor's) — el valor real por giro se escribe explícito al registrar un
+  // negocio nuevo (ver api/index.js POST /api/business/register), leyendo
+  // giroPresets.js. Un admin puede prenderlas/apagarlas después en
+  // Personalización → "Giro de negocio".
+  enableStaffSelection    Boolean @default(false) // elegir quién te atiende al reservar
+  enableMemberships       Boolean @default(false) // giro gimnasio
+  enableClientNotes       Boolean @default(false) // giro clínica — expediente
+  enableTableReservations Boolean @default(false) // giro alimentos — reservar mesa vs. solo mostrador
 }
