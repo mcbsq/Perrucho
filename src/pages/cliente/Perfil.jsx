@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     FaPaw, FaCalendarCheck, FaShoppingBag, FaSignOutAlt,
-    FaTimes, FaEdit, FaPlus, FaSave,
+    FaTimes, FaEdit, FaPlus, FaSave, FaKey,
     FaBell, FaHistory, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt,
     FaWhatsapp, FaInfoCircle, FaBan, FaShieldAlt
 } from 'react-icons/fa';
@@ -27,6 +27,7 @@ import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 import { canClientCancel, MIN_CANCEL_HOURS } from '../../utils/bookingRules';
 import { clientToShopOnCancelRequest, clientToShopOnCancelDone, openWhatsApp } from '../../utils/whatsappNotify';
 import { todayLocalDateStr } from '../../utils/dateLocal';
+import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import './Perfil.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ const Perfil = () => {
     // completa deja de tener sentido, no solo el tab de admin/empleado.
     const petsEnabled = settings?.enablePets !== false;
     const { notify, NotifyNode } = useNotify();
+    const [showChangePassword, setShowChangePassword] = useState(false);
 
     const [myPets,    setMyPets]    = useState([]);
     const [myAppts,   setMyAppts]   = useState([]);
@@ -328,6 +330,7 @@ const Perfil = () => {
         <div className="perfil-container fade-in">
             {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             {NotifyNode}
+            {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
 
             <div className="perfil-grid">
 
@@ -347,6 +350,9 @@ const Perfil = () => {
                         <hr />
                         <button className="btn-edit-profile" onClick={() => setProfileModal(true)}>
                             <FaEdit /> Editar datos
+                        </button>
+                        <button className="btn-edit-profile" onClick={() => setShowChangePassword(true)}>
+                            <FaKey /> Cambiar contraseña
                         </button>
                         <button className="btn-logout-alt" onClick={logout}>
                             <FaSignOutAlt /> Cerrar sesión
