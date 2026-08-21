@@ -14,7 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
 import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
-import { appointmentsApi } from '../api/apiClient';
+import { appointmentsApi, staffApi } from '../api/apiClient';
 import { getServiceIcon } from '../utils/serviceIcons';
 import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
 import { useBusinessPath } from '../utils/businessPath';
@@ -73,11 +73,21 @@ const BookingExpressModal = ({ onClose, settings }) => {
     const [phoneError, setPhoneError] = useState('');
     const [form, setForm]     = useState({
         ownerName: '', ownerPhone: '', petName: '', breed: '', age: '', weight: '',
-        date: '', time: '',
+        date: '', time: '', employeeId: '',
     });
     const [availableTimes, setAvailableTimes] = useState([]);
     const [fullSlots, setFullSlots] = useState([]);
     const [slotsLoading, setSlotsLoading] = useState(false);
+    // "¿Quién te atiende?" — solo aplica si el negocio lo tiene prendido
+    // (Settings.enableStaffSelection). Antes el admin asignaba empleado
+    // después; ahora el cliente puede elegir desde la reserva, como en
+    // Booksy/Fresha.
+    const [staff, setStaff] = useState([]);
+
+    useEffect(() => {
+        if (!settings?.enableStaffSelection) return;
+        staffApi.getPublic().then(setStaff).catch(() => setStaff([]));
+    }, [settings?.enableStaffSelection]);
 
     // El horario del día (y cuáles ya están llenos) ahora lo calcula el
     // servidor a partir de Settings.businessHours del negocio — antes era
@@ -87,11 +97,11 @@ const BookingExpressModal = ({ onClose, settings }) => {
     useEffect(() => {
         if (!form.date) { setAvailableTimes([]); setFullSlots([]); return; }
         setSlotsLoading(true);
-        appointmentsApi.getAvailability(form.date)
+        appointmentsApi.getAvailability(form.date, null, form.employeeId || null)
             .then(res => { setAvailableTimes(res.slots || []); setFullSlots(res.fullSlots || []); })
             .catch(() => { setAvailableTimes([]); setFullSlots([]); })
             .finally(() => setSlotsLoading(false));
-    }, [form.date]);
+    }, [form.date, form.employeeId]);
 
     const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -119,6 +129,7 @@ const BookingExpressModal = ({ onClose, settings }) => {
                 clientId:    null,
                 petId:       null,
                 serviceId:   null,
+                employeeId:  form.employeeId ? Number(form.employeeId) : null,
                 date:        form.date,
                 time:        form.time,
                 status:      'Pendiente',
@@ -193,6 +204,16 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         <div className="bx-icon">📅</div>
                         <h2 className="bx-title">¿Cuándo los vemos?</h2>
                         <p className="bx-subtitle">Elige el día y horario que más te convenga.</p>
+                        {staff.length > 0 && (
+                            <div className="bx-field">
+                                <label>¿Quién te gustaría que te atienda?</label>
+                                <select name="employeeId" value={form.employeeId}
+                                    onChange={e => setForm(prev => ({ ...prev, employeeId: e.target.value, time: '' }))}>
+                                    <option value="">Sin preferencia</option>
+                                    {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div className="bx-field">
                             <label>Fecha *</label>
                             <input name="date" type="date" value={form.date} min={minDate}

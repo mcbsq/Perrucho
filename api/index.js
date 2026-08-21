@@ -642,6 +642,28 @@ app.post('/api/superadmin/businesses/:slug/enter', verifyToken, requireRole('sup
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// GET /api/staff — pública, solo id+nombre. La necesita el booking (con o
+// sin sesión) para dejar elegir empleado si Settings.enableStaffSelection
+// está prendido — sin esto habría que exponer todo /api/users (que trae
+// email/phone/capacity) o negarle a un cliente sin cuenta la posibilidad de
+// elegir. Si el flag está apagado, regresa vacío — no expone empleados por
+// gusto en negocios que no usan esta función.
+app.get('/api/staff', async (req, res) => {
+  try {
+    const settings = await prisma.settings.findFirst();
+    if (!settings?.enableStaffSelection) return res.json([]);
+    const staff = await prisma.user.findMany({
+      where: { role: 'empleado' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(staff);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // GET /api/users — solo admin/empleado
 app.get('/api/users', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
@@ -1144,14 +1166,29 @@ function computeSlotsForDate(date, businessHours, durationMinutes) {
   return slots;
 }
 
-async function getFullSlotsForDate(date, allSlots, excludeApptId = null) {
+// employeeId opcional: si el cliente eligió a alguien al reservar (giro con
+// Settings.enableStaffSelection), la disponibilidad ya no es "capacidad
+// agregada de todos los empleados" — es "¿ESTE empleado tiene algo a esa
+// hora?" (capacidad 1, una persona a la vez), aunque otro empleado esté libre.
+async function getFullSlotsForDate(date, allSlots, excludeApptId = null, employeeId = null) {
   const [appointments, employees] = await Promise.all([
     prisma.appointment.findMany({
       where: { date, status: { notIn: ['Cancelada', 'Completada'] } },
-      select: { id: true, time: true },
+      select: { id: true, time: true, employeeId: true },
     }),
     prisma.user.findMany({ where: { role: 'empleado' }, select: { capacity: true } }),
   ]);
+
+  if (employeeId) {
+    const bookedMinutes = appointments
+      .filter(a => a.time && a.id !== excludeApptId && a.employeeId === employeeId)
+      .map(a => toMinutes(a.time));
+    return allSlots.filter(slot => {
+      const slotMin = toMinutes(slot);
+      return bookedMinutes.some(m => Math.abs(m - slotMin) < 60);
+    });
+  }
+
   const totalCapacity = employees.reduce((sum, e) => sum + (Number(e.capacity) || 1), 0) || 1;
   const bookedMinutes = appointments
     .filter(a => a.time && a.id !== excludeApptId)
@@ -1172,7 +1209,7 @@ async function getFullSlotsForDate(date, allSlots, excludeApptId = null) {
 // propia copia hardcodeada del horario.
 app.get('/api/appointments/availability', async (req, res) => {
   try {
-    const { date, serviceId } = req.query;
+    const { date, serviceId, employeeId } = req.query;
     if (!date) return res.status(400).json({ error: 'Fecha requerida' });
     const settings = await prisma.settings.findFirst();
     const businessHours = settings?.businessHours || DEFAULT_BUSINESS_HOURS;
@@ -1182,7 +1219,7 @@ app.get('/api/appointments/availability', async (req, res) => {
       if (svc) durationMinutes = svc.durationMinutes;
     }
     const slots = computeSlotsForDate(date, businessHours, durationMinutes);
-    const fullSlots = await getFullSlotsForDate(date, slots);
+    const fullSlots = await getFullSlotsForDate(date, slots, null, employeeId ? parseInt(employeeId) : null);
     res.json({ slots, fullSlots });
   } catch (err) {
     console.error(err);
@@ -1211,7 +1248,7 @@ app.get('/api/appointments/:id', verifyToken, async (req, res) => {
 // negocio, o en un día marcado como cerrado (ni desde el booking público ni
 // desde el formulario manual del admin). Se usa tanto en creación como al
 // asignar/editar la hora de una cita existente.
-async function validateAppointmentTime(date, time, serviceId, excludeApptId = null) {
+async function validateAppointmentTime(date, time, serviceId, excludeApptId = null, employeeId = null) {
   const settings = await prisma.settings.findFirst();
   const businessHours = settings?.businessHours || DEFAULT_BUSINESS_HOURS;
   let durationMinutes = 45;
@@ -1223,9 +1260,9 @@ async function validateAppointmentTime(date, time, serviceId, excludeApptId = nu
   if (!slots.includes(time)) {
     return { ok: false, error: slots.length === 0 ? 'El negocio no atiende ese día.' : 'Ese horario está fuera del horario de atención.' };
   }
-  const fullSlots = await getFullSlotsForDate(date, slots, excludeApptId);
+  const fullSlots = await getFullSlotsForDate(date, slots, excludeApptId, employeeId);
   if (fullSlots.includes(time)) {
-    return { ok: false, error: 'Ese horario ya no está disponible. Elige otro.' };
+    return { ok: false, error: employeeId ? 'Ese empleado ya no está disponible a esa hora. Elige otro horario o empleado.' : 'Ese horario ya no está disponible. Elige otro.' };
   }
   return { ok: true };
 }
@@ -1244,7 +1281,7 @@ app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
     // horario del negocio — el frontend ya filtra esto, pero esto cierra
     // la condición de carrera y cualquier intento de saltarse el frontend).
     if (data.time) {
-      const check = await validateAppointmentTime(data.date, data.time, data.serviceId);
+      const check = await validateAppointmentTime(data.date, data.time, data.serviceId, null, data.employeeId || null);
       if (!check.ok) return res.status(409).json({ error: check.error });
     }
     const appt = await prisma.appointment.create({
@@ -1287,11 +1324,12 @@ const assertAppointmentOwnership = async (req, res) => {
 // de la cita existente.
 const validateTimeOnUpdate = async (id, data) => {
   if (!data.time) return null;
-  const existing = await prisma.appointment.findUnique({ where: { id }, select: { date: true, serviceId: true } });
+  const existing = await prisma.appointment.findUnique({ where: { id }, select: { date: true, serviceId: true, employeeId: true } });
   if (!existing) return null;
   const date = data.date || existing.date;
   const serviceId = data.serviceId || existing.serviceId;
-  const check = await validateAppointmentTime(date, data.time, serviceId, id);
+  const employeeId = data.employeeId !== undefined ? data.employeeId : existing.employeeId;
+  const check = await validateAppointmentTime(date, data.time, serviceId, id, employeeId);
   return check.ok ? null : check.error;
 };
 

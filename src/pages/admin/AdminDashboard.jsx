@@ -359,10 +359,10 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
 
     useEffect(()=>{
         if(!showForm || !newAppt.date){ setNewApptSlots([]); return; }
-        appointmentsApi.getAvailability(newAppt.date, newAppt.serviceId)
+        appointmentsApi.getAvailability(newAppt.date, newAppt.serviceId, newAppt.assignedTo)
             .then(res=>setNewApptSlots(res.slots||[]))
             .catch(()=>setNewApptSlots([]));
-    },[showForm, newAppt.date, newAppt.serviceId]);
+    },[showForm, newAppt.date, newAppt.serviceId, newAppt.assignedTo]);
 
     const apptsByDate=useMemo(()=>{const m={};appointments.forEach(a=>{if(!m[a.date])m[a.date]=[];m[a.date].push(a);});return m;},[appointments]);
 
@@ -383,7 +383,14 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
         try{
             const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));
             const pet=pets.find(p=>String(p.id)===String(newAppt.petId));
-            await onAddAppointment({...newAppt,serviceName:svc?.title,petName:pet?.petName,clientId:pet?.ownerId||null});
+            // Bug real pre-existente: `assignedTo` no es una columna de
+            // Appointment (solo `employeeId` lo es, ver prisma/schema.prisma)
+            // — mandarlo tal cual hacía que prisma.appointment.create()
+            // tronara con "Error del servidor" cada vez que se creaba una
+            // cita desde este formulario. Mismo bug que ya se había
+            // encontrado y arreglado en ServiceModal.jsx, sin arreglar aquí.
+            const {assignedTo,...newApptRest}=newAppt;
+            await onAddAppointment({...newApptRest,employeeId:assignedTo?Number(assignedTo):null,serviceName:svc?.title,petName:pet?.petName,clientId:pet?.ownerId||null});
             setShowForm(false);
             setNewAppt({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
             setSlotError('');

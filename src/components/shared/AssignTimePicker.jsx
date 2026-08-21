@@ -38,10 +38,13 @@ const AssignTimePicker = ({ appt, allAppointments = [], employees = [], onAssign
 
     useEffect(() => {
         if (!appt.date) { setAllSlots([]); return; }
-        appointmentsApi.getAvailability(appt.date, appt.serviceId)
+        // Si el cliente ya eligió empleado al reservar (appt.employeeId), la
+        // disponibilidad se filtra a ESE empleado específico, no a la
+        // capacidad agregada — mismo criterio que el resto del sistema.
+        appointmentsApi.getAvailability(appt.date, appt.serviceId, appt.employeeId)
             .then(res => setAllSlots(res.slots || []))
             .catch(() => setAllSlots([]));
-    }, [appt.date, appt.serviceId]);
+    }, [appt.date, appt.serviceId, appt.employeeId]);
 
     const slotsWithAvailability = useMemo(() => {
         return allSlots.map(slot => {
@@ -68,6 +71,11 @@ const AssignTimePicker = ({ appt, allAppointments = [], employees = [], onAssign
             <div className="atp-header">
                 <FaClock /> <span>Esta cita llegó sin hora — el cliente solo sugirió el día. Asigna un horario para confirmarla.</span>
             </div>
+            {appt.employeeId && (
+                <div className="atp-header">
+                    <FaClock /> <span>El cliente pidió que lo atienda <strong>{employees.find(e => String(e.id) === String(appt.employeeId))?.name || 'este empleado'}</strong> — los horarios de abajo son la disponibilidad de esa persona.</span>
+                </div>
+            )}
             {allSlots.length === 0 && <p className="atp-warning">El negocio no atiende ese día — cambia la fecha de la cita.</p>}
             <div className="atp-slots-grid">
                 {slotsWithAvailability.map(({ slot, available }) => (
