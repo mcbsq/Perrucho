@@ -1391,13 +1391,44 @@ async function validateAppointmentTime(date, time, serviceId, excludeApptId = nu
   return { ok: true };
 }
 
+// Los selects de <form> siempre entregan string — sin esto, Prisma rechaza
+// la escritura con "Invalid value provided. Expected Int or Null, provided
+// String." Bug real, pre-existente: el formulario "Nueva cita" del admin
+// mandaba petId/serviceId/clientId/employeeId tal cual del <select> y nunca
+// funcionó con un servicio elegido (mismo problema que ya se había
+// resuelto para otros formularios — ownerId en pets, price/stock en
+// products — sin arreglar aquí).
+const ID_FIELDS = ['petId', 'serviceId', 'clientId', 'employeeId'];
+// Whitelist explícito de columnas reales de Appointment (ver
+// prisma/schema.prisma) — varios formularios del frontend arman su payload
+// agregando campos "de más" (serviceName/petName para preview, assignedTo
+// en vez de employeeId) que Prisma rechaza con PrismaClientValidationError.
+// Ya se había resuelto este bug puntualmente 2 veces sin arreglar la causa
+// raíz; filtrar aquí lo cierra para cualquier llamador, presente o futuro.
+const APPOINTMENT_FIELDS = new Set([
+  'clientId', 'petId', 'serviceId', 'employeeId', 'date', 'time',
+  'status', 'finalPrice', 'notes', 'guestName', 'guestPhone',
+]);
+const normalizeAppointmentIds = (data) => {
+  const out = {};
+  for (const key of Object.keys(data)) {
+    if (APPOINTMENT_FIELDS.has(key)) out[key] = data[key];
+  }
+  for (const f of ID_FIELDS) {
+    if (out[f] === '' || out[f] === undefined) delete out[f];
+    else if (out[f] !== null) out[f] = parseInt(out[f]);
+  }
+  return out;
+};
+
 app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
   // Pública para booking express (clientes sin sesión) Y para el flujo de
   // reserva con cuenta (ServiceModal): ese flujo solo pide el DÍA a propósito
   // — el groomer asigna la hora después desde su calendario — así que time
   // llega como '' intencionalmente y NO debe exigirse aquí.
   try {
-    const { extras, ...data } = req.body;
+    const { extras, ...rawData } = req.body;
+    const data = normalizeAppointmentIds(rawData);
     if (!data.date)
       return res.status(400).json({ error: 'Fecha requerida' });
     // Revalidar disponibilidad en el servidor (evita que dos personas
@@ -1423,7 +1454,8 @@ app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
 });
 
 const normalizeAppointmentBody = (body) => {
-  const { extras, ...data } = body;
+  const { extras, ...rawData } = body;
+  const data = normalizeAppointmentIds(rawData);
   if (data.status && STATUS_LABEL_TO_ENUM[data.status]) {
     data.status = STATUS_LABEL_TO_ENUM[data.status];
   }

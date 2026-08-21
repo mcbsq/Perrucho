@@ -339,7 +339,13 @@ const AnalyticsSection = ({ sales, expenses, appointments, clients, services }) 
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
+const CalendarModal = ({appointments,pets,clients,services,users,role,settings,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
+    // Giros sin mascotas (uñas, spa, clínica, gimnasio...) no tienen nada
+    // que elegir en "pets" — el formulario de abajo debe elegir un CLIENTE
+    // directo en vez de una mascota. Bug real: antes el selector "Paciente"
+    // siempre usaba `pets`, así que crear una cita quedaba imposible en
+    // cualquier negocio sin mascotas (el select quedaba vacío y era required).
+    const petsEnabled=settings?.enablePets!==false;
     const now=new Date();
     const [viewDate,setViewDate]=useState(new Date(now.getFullYear(),now.getMonth(),1));
     const [calView,setCalView]=useState('week');
@@ -350,7 +356,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
     const [saving,setSaving]=useState(false);
     const [slotError,setSlotError]=useState('');
     const empleados=users.filter(u=>u.role==='empleado');
-    const [newAppt,setNewAppt]=useState({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
+    const [newAppt,setNewAppt]=useState({petId:'',clientId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
     // Horario del día para newAppt.date+serviceId — antes el campo de hora
     // era un <input type="time"> libre, sin relación al horario real del
     // negocio (el admin podía guardar una cita a las 3am). Ahora se calcula
@@ -398,10 +404,17 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
             // tronara con "Error del servidor" cada vez que se creaba una
             // cita desde este formulario. Mismo bug que ya se había
             // encontrado y arreglado en ServiceModal.jsx, sin arreglar aquí.
-            const {assignedTo,...newApptRest}=newAppt;
-            await onAddAppointment({...newApptRest,employeeId:assignedTo?Number(assignedTo):null,serviceName:svc?.title,petName:pet?.petName,clientId:pet?.ownerId||null});
+            const {assignedTo,petId,clientId,...newApptRest}=newAppt;
+            const client=clients.find(c=>String(c.id)===String(clientId));
+            await onAddAppointment({...newApptRest,
+                petId:petsEnabled?(petId?Number(petId):null):null,
+                employeeId:assignedTo?Number(assignedTo):null,
+                serviceName:svc?.title,
+                petName:pet?.petName,
+                clientId:petsEnabled?(pet?.ownerId||null):(client?.id||null),
+            });
             setShowForm(false);
-            setNewAppt({petId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
+            setNewAppt({petId:'',clientId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
             setSlotError('');
         }finally{setSaving(false);}
     };
@@ -522,10 +535,17 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,onClose,on
             {showForm&&<Modal title="📅 Nueva cita" onClose={()=>{setShowForm(false);setSlotError('');}}>
                 <form className="admin-cal-appt-form" onSubmit={handleCreate}>
                     <div className="admin-cal-form-grid">
-                        <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
-                            <option value="">Paciente...</option>
-                            {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
-                        </select>
+                        {petsEnabled ? (
+                            <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
+                                <option value="">Paciente...</option>
+                                {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
+                            </select>
+                        ) : (
+                            <select value={newAppt.clientId} onChange={e=>setNewAppt({...newAppt,clientId:e.target.value})} required>
+                                <option value="">Cliente...</option>
+                                {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        )}
                         <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value,time:''})} required>
                             <option value="">Servicio...</option>
                             {services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
@@ -1080,7 +1100,7 @@ const AdminDashboard = () => {
             {activeModal==='clientes' &&<ClientsReportModal sales={sales} clients={clients} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='stock'    &&<StockModal products={products} onClose={()=>setActiveModal(null)}/>}
 
-            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} role="admin"
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} role="admin" settings={settings}
                 onClose={()=>setShowCalendar(false)} onRefresh={loadAppointments}
                 onAddAppointment={handleAddAppointment} onStatusChange={handleStatusChange}
                 onAssignTime={handleAssignTime}
