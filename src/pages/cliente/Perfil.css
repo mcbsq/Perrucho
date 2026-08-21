@@ -412,6 +412,14 @@ hr { border: none; border-top: 1px solid var(--perfil-border, #f1f2f6); margin: 
 .perfil-form select:focus { outline: none; border-color: var(--perfil-blue); background: var(--perfil-card-bg, white); box-shadow: 0 0 0 3px rgba(116,185,255,0.12); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--perfil-border, #f1f2f6); }
+
+/* ── Ajustes agrupados por tópico ─────────────────────────────────────────── */
+.form-section { display: flex; flex-direction: column; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid var(--perfil-border, #f1f2f6); }
+.form-section:last-of-type { border-bottom: none; padding-bottom: 0; }
+.form-section-title {
+    margin: 0; font-size: 0.95rem; font-weight: 800;
+    color: var(--perfil-dark); display: flex; align-items: center; gap: 8px;
+}
 .btn-cancel { padding: 10px 18px; background: var(--perfil-border, #f1f2f6); color: var(--perfil-muted); border: none; border-radius: 10px; font-weight: 700; font-family: 'Quicksand', sans-serif; cursor: pointer; transition: all 0.2s; }
 .btn-cancel:hover { background: var(--perfil-border, #e0e4ea); }
 .btn-save { padding: 10px 20px; background: var(--perfil-mint); color: #04342C; border: none; border-radius: 10px; font-weight: 800; font-family: 'Montserrat', sans-serif; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.25s var(--ease); }
