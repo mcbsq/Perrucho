@@ -638,6 +638,41 @@ export const MembershipPlanFormModal = ({ initial, onSave, onClose }) => {
     );
 };
 
+// ─── NOTA CLÍNICA (giro clínica) ────────────────────────────────────────────
+// Se abre justo después de finalizar una cita, si el negocio lleva
+// expediente (Settings.enableClientNotes) — opcional, "Omitir" no bloquea
+// nada, la cita ya se finalizó y cobró antes de que este modal aparezca.
+export const ClinicalNoteModal = ({ clientName, onSave, onClose }) => {
+    const [note, setNote] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    const handleSave = async () => {
+        if (!note.trim()) return;
+        setSaving(true);
+        try { await onSave(note.trim()); onClose(); }
+        finally { setSaving(false); }
+    };
+
+    return (
+        <DSModal title={`📋 Nota clínica — ${clientName}`} onClose={onClose}>
+            <div className="ds-form">
+                <div className="ds-form-grid">
+                    <label>Nota de esta consulta</label>
+                    <textarea rows={5} placeholder="Diagnóstico, indicaciones, seguimiento..."
+                        value={note} onChange={e => setNote(e.target.value)}
+                        style={{ padding: 11, borderRadius: 10, border: '1.5px solid var(--ds-border, #e0e4ea)', fontFamily: 'inherit', fontSize: '0.9rem' }} />
+                </div>
+                <div className="ds-form-actions">
+                    <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Omitir</button>
+                    <button type="button" className="ds-btn ds-btn--primary" disabled={saving || !note.trim()} onClick={handleSave}>
+                        {saving ? 'Guardando...' : 'Guardar nota'}
+                    </button>
+                </div>
+            </div>
+        </DSModal>
+    );
+};
+
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
 export const ProductCard = ({ product, onEdit, onDelete }) => {
     const isLow  = Number(product.stock) < 5 && Number(product.stock) > 0;

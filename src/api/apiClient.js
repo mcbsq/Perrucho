@@ -129,6 +129,14 @@ export const membershipPlansApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CLINICAL NOTES (giro clínica — expediente por cliente)
+// ─────────────────────────────────────────────────────────────────────────────
+export const clinicalNotesApi = {
+  add: (userId, note, appointmentId) =>
+    api.post(`/users/${encodeURIComponent(userId)}/clinical-notes`, { note, appointmentId }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 export const usersApi = {

@@ -1106,6 +1106,37 @@ app.patch('/api/users/:id/membership', verifyToken, requireRole('administrador',
   }
 });
 
+// POST /api/users/:id/clinical-notes — agrega una nota al expediente del
+// cliente (giro clínica, Settings.enableClientNotes). Mismo patrón que
+// Pet.history: se hace push a un JSON array en la propia fila, sin tabla de
+// notas aparte — cada entrada queda con quién la escribió y cuándo.
+app.post('/api/users/:id/clinical-notes', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const { note, appointmentId } = req.body;
+    if (!note) return res.status(400).json({ error: 'La nota no puede estar vacía' });
+    const [client, author] = await Promise.all([
+      prisma.user.findUnique({ where: { id: parseInt(req.params.id) } }),
+      prisma.user.findUnique({ where: { id: req.user.id }, select: { name: true } }),
+    ]);
+    if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
+    const entry = {
+      date: new Date().toISOString(),
+      appointmentId: appointmentId ? parseInt(appointmentId) : null,
+      authorName: author?.name || req.user.email,
+      note,
+    };
+    const history = Array.isArray(client.clinicalHistory) ? client.clinicalHistory : [];
+    const user = await prisma.user.update({
+      where: { id: client.id },
+      data: { clinicalHistory: [...history, entry] },
+    });
+    res.status(201).json(safeUser(user));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PRODUCTS
 // ─────────────────────────────────────────────────────────────────────────────
