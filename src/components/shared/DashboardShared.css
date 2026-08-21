@@ -516,6 +516,23 @@
 .ds-file-btn--sm { padding: 6px 12px; font-size: 0.78rem; white-space: nowrap; }
 .ds-logo-error { color: #ff7675; font-size: 0.8rem; font-weight: 600; margin: 0; }
 
+/* ── Horarios de atención ─────────────────────────────────────────────── */
+.ds-hours-table { display: flex; flex-direction: column; gap: 4px; }
+.ds-hours-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 4px; border-bottom: 1px solid var(--ds-border, #f1f2f6);
+    flex-wrap: wrap; gap: 10px;
+}
+.ds-hours-row:last-child { border-bottom: none; }
+.ds-hours-day { min-width: 140px; font-weight: 600; }
+.ds-hours-range { display: flex; align-items: center; gap: 8px; }
+.ds-hours-range input[type="time"] {
+    border: 1.5px solid var(--ds-border, #e0e4ea); border-radius: 10px;
+    padding: 6px 10px; font-size: 0.88rem; font-family: inherit;
+}
+.ds-hours-range span { color: var(--ds-muted, #636e72); font-size: 0.85rem; }
+.ds-hours-closed { color: var(--ds-muted, #636e72); font-size: 0.85rem; font-style: italic; }
+
 /* ── Image Picker (subir / galería de stock) ─────────────────────────── */
 .ds-image-picker { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .ds-image-picker-preview {
