@@ -26,6 +26,7 @@ import { formatMexPhone, whatsAppValidationError, isValidWhatsApp } from '../../
 import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 import { canClientCancel, MIN_CANCEL_HOURS } from '../../utils/bookingRules';
 import { clientToShopOnCancelRequest, clientToShopOnCancelDone, openWhatsApp } from '../../utils/whatsappNotify';
+import { todayLocalDateStr } from '../../utils/dateLocal';
 import './Perfil.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -290,7 +291,7 @@ const Perfil = () => {
     };
 
     // ── Helpers de display ────────────────────────────────────────────────────
-    const today        = new Date().toISOString().split('T')[0];
+    const today        = todayLocalDateStr();
     const displayName  = myProfile?.name  || user?.name  || 'Usuario';
     const displayEmail = myProfile?.email || user?.email || '';
 
