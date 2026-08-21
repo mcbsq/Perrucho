@@ -5,12 +5,15 @@
 // reservar — ver ServiceModal.jsx). El groomer/admin elige un horario libre
 // y al confirmar, la cita pasa a 'Confirmada' con esa hora ya fija.
 //
-// Usa validateSlot() de apptStatus.js para evitar choques de horario, y los
-// mismos slots base (10:15–17:00) que ya existían en bookingRules.js.
+// Usa validateSlot() de apptStatus.js para evitar choques de horario. El
+// horario base del día (antes una lista fija 10:15–17:00 en bookingRules.js,
+// igual para cualquier negocio y cualquier servicio) ahora lo calcula el
+// servidor según Settings.businessHours del negocio y la duración real del
+// servicio de esta cita — un día cerrado no ofrece ningún slot.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FaClock, FaCheckCircle } from 'react-icons/fa';
-import { getBookingSlots } from '../../utils/bookingRules';
+import { appointmentsApi } from '../../api/apiClient';
 import { validateSlot } from '../../utils/apptStatus';
 
 const fmt12 = (t) => {
@@ -20,8 +23,6 @@ const fmt12 = (t) => {
     const h12  = h % 12 || 12;
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 };
-
-const ALL_SLOTS = getBookingSlots();
 
 /**
  * @param {Object} appt - la cita pendiente sin hora
@@ -33,13 +34,21 @@ const ALL_SLOTS = getBookingSlots();
 const AssignTimePicker = ({ appt, allAppointments = [], employees = [], onAssign, isUpdating }) => {
     const [selected, setSelected] = useState('');
     const [warning,  setWarning]  = useState('');
+    const [allSlots, setAllSlots] = useState([]);
+
+    useEffect(() => {
+        if (!appt.date) { setAllSlots([]); return; }
+        appointmentsApi.getAvailability(appt.date, appt.serviceId)
+            .then(res => setAllSlots(res.slots || []))
+            .catch(() => setAllSlots([]));
+    }, [appt.date, appt.serviceId]);
 
     const slotsWithAvailability = useMemo(() => {
-        return ALL_SLOTS.map(slot => {
+        return allSlots.map(slot => {
             const check = validateSlot(allAppointments, appt.date, slot, employees, appt.id);
             return { slot, available: check.ok };
         });
-    }, [allAppointments, appt.date, appt.id, employees]);
+    }, [allSlots, allAppointments, appt.date, appt.id, employees]);
 
     const handlePick = (slot, available) => {
         if (!available) return;
@@ -59,6 +68,7 @@ const AssignTimePicker = ({ appt, allAppointments = [], employees = [], onAssign
             <div className="atp-header">
                 <FaClock /> <span>Esta cita llegó sin hora — el cliente solo sugirió el día. Asigna un horario para confirmarla.</span>
             </div>
+            {allSlots.length === 0 && <p className="atp-warning">El negocio no atiende ese día — cambia la fecha de la cita.</p>}
             <div className="atp-slots-grid">
                 {slotsWithAvailability.map(({ slot, available }) => (
                     <button

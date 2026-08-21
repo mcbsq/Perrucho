@@ -1,18 +1,9 @@
 // src/utils/bookingRules.test.js
 import {
-    getBookingSlots,
     canClientCancel,
     MIN_CANCEL_HOURS,
     NON_CANCELLABLE_STATUSES,
 } from './bookingRules';
-
-describe('getBookingSlots', () => {
-    test('devuelve los horarios fijos de 10:15 a 17:00', () => {
-        expect(getBookingSlots()).toEqual([
-            '10:15', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-        ]);
-    });
-});
 
 describe('canClientCancel', () => {
     test('no encontrada si no hay cita', () => {

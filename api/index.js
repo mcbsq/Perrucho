@@ -27,9 +27,10 @@ const prismaRaw = require('./lib/prismaRaw');
 const aegisClient = require('./lib/aegisClient');
 const { getGiroPreset } = require('./config/giroPresets');
 
-// Mismos horarios que ofrece el booking express en el frontend
-// (src/pages/Home.jsx `availableTimes`) — mantener sincronizados.
-const SHOP_TIME_SLOTS = ['10:15', '11:00', '11:45', '12:30', '13:15', '14:00', '14:45', '15:30', '16:15', '17:00'];
+// Horario por defecto si un negocio todavía no tiene Settings creado (no
+// debería pasar en producción, pero evita que availability truene antes de
+// que exista la fila) — mismos valores que el default de Settings.businessHours.
+const DEFAULT_BUSINESS_HOURS = [0, 1, 2, 3, 4, 5, 6].map(day => ({ day, open: true, start: '10:15', end: '17:00' }));
 
 // El frontend (STATUS_TRANSITIONS en src/utils/apptStatus.js) usa las
 // etiquetas 'En proceso' y 'Finalizada' en toda la UI, pero el enum
@@ -1110,7 +1111,29 @@ app.get('/api/appointments', verifyToken, async (req, res) => {
 // capacity de los empleados (default 1 c/u si no hay ninguno configurado).
 const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0); };
 
-async function getFullSlotsForDate(date, excludeApptId = null) {
+// Antes esto era una lista de horarios fija (SHOP_TIME_SLOTS) compartida por
+// TODOS los negocios, con un paso de 45 min sin importar el servicio. Ahora
+// se genera por negocio (Settings.businessHours) y por día de la semana —
+// un día marcado como cerrado no ofrece ningún slot — y el paso entre slots
+// es la duración real del servicio (Service.durationMinutes), no un valor fijo.
+function computeSlotsForDate(date, businessHours, durationMinutes) {
+  const dow = new Date(`${date}T12:00:00`).getDay(); // mediodía evita corrimiento de día por TZ
+  const dayCfg = (businessHours || []).find(d => d.day === dow);
+  if (!dayCfg || !dayCfg.open) return [];
+
+  const startMin = toMinutes(dayCfg.start);
+  const endMin = toMinutes(dayCfg.end);
+  const step = Math.max(5, Number(durationMinutes) || 45);
+  const slots = [];
+  for (let m = startMin; m + step <= endMin; m += step) {
+    const h = String(Math.floor(m / 60)).padStart(2, '0');
+    const mm = String(m % 60).padStart(2, '0');
+    slots.push(`${h}:${mm}`);
+  }
+  return slots;
+}
+
+async function getFullSlotsForDate(date, allSlots, excludeApptId = null) {
   const [appointments, employees] = await Promise.all([
     prisma.appointment.findMany({
       where: { date, status: { notIn: ['Cancelada', 'Completada'] } },
@@ -1123,24 +1146,33 @@ async function getFullSlotsForDate(date, excludeApptId = null) {
     .filter(a => a.time && a.id !== excludeApptId)
     .map(a => toMinutes(a.time));
 
-  return SHOP_TIME_SLOTS.filter(slot => {
+  return allSlots.filter(slot => {
     const slotMin = toMinutes(slot);
     const conflicts = bookedMinutes.filter(m => Math.abs(m - slotMin) < 60).length;
     return conflicts >= totalCapacity;
   });
 }
 
-// GET /api/appointments/availability?date=YYYY-MM-DD — pública (la necesita
-// el booking express, que corre sin sesión). Devuelve solo qué horarios ya
-// están llenos ese día, sin exponer datos de otras citas/clientes.
-// IMPORTANTE: debe ir antes de '/api/appointments/:id' — si no, Express
-// interpretaría "availability" como un :id.
+// GET /api/appointments/availability?date=YYYY-MM-DD&serviceId=123 — pública
+// (la necesita el booking express, que corre sin sesión). serviceId es
+// opcional: si no llega (booking express no elige servicio), se usa la
+// duración por defecto de 45 min. Devuelve el horario completo del día
+// (slots) y cuáles ya están llenos (fullSlots) — el frontend ya no trae su
+// propia copia hardcodeada del horario.
 app.get('/api/appointments/availability', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, serviceId } = req.query;
     if (!date) return res.status(400).json({ error: 'Fecha requerida' });
-    const fullSlots = await getFullSlotsForDate(date);
-    res.json({ fullSlots });
+    const settings = await prisma.settings.findFirst();
+    const businessHours = settings?.businessHours || DEFAULT_BUSINESS_HOURS;
+    let durationMinutes = 45;
+    if (serviceId) {
+      const svc = await prisma.service.findUnique({ where: { id: parseInt(serviceId) }, select: { durationMinutes: true } });
+      if (svc) durationMinutes = svc.durationMinutes;
+    }
+    const slots = computeSlotsForDate(date, businessHours, durationMinutes);
+    const fullSlots = await getFullSlotsForDate(date, slots);
+    res.json({ slots, fullSlots });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -1163,6 +1195,30 @@ app.get('/api/appointments/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Antes solo se validaba choque de capacidad (getFullSlotsForDate) — nada
+// impedía que una cita se guardara con una hora fuera del horario del
+// negocio, o en un día marcado como cerrado (ni desde el booking público ni
+// desde el formulario manual del admin). Se usa tanto en creación como al
+// asignar/editar la hora de una cita existente.
+async function validateAppointmentTime(date, time, serviceId, excludeApptId = null) {
+  const settings = await prisma.settings.findFirst();
+  const businessHours = settings?.businessHours || DEFAULT_BUSINESS_HOURS;
+  let durationMinutes = 45;
+  if (serviceId) {
+    const svc = await prisma.service.findUnique({ where: { id: parseInt(serviceId) }, select: { durationMinutes: true } });
+    if (svc) durationMinutes = svc.durationMinutes;
+  }
+  const slots = computeSlotsForDate(date, businessHours, durationMinutes);
+  if (!slots.includes(time)) {
+    return { ok: false, error: slots.length === 0 ? 'El negocio no atiende ese día.' : 'Ese horario está fuera del horario de atención.' };
+  }
+  const fullSlots = await getFullSlotsForDate(date, slots, excludeApptId);
+  if (fullSlots.includes(time)) {
+    return { ok: false, error: 'Ese horario ya no está disponible. Elige otro.' };
+  }
+  return { ok: true };
+}
+
 app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
   // Pública para booking express (clientes sin sesión) Y para el flujo de
   // reserva con cuenta (ServiceModal): ese flujo solo pide el DÍA a propósito
@@ -1173,13 +1229,12 @@ app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
     if (!data.date)
       return res.status(400).json({ error: 'Fecha requerida' });
     // Revalidar disponibilidad en el servidor (evita que dos personas
-    // reserven el mismo horario a la vez — el frontend ya filtra los
-    // horarios llenos, pero esto cierra la condición de carrera).
+    // reserven el mismo horario a la vez, o que llegue una hora fuera del
+    // horario del negocio — el frontend ya filtra esto, pero esto cierra
+    // la condición de carrera y cualquier intento de saltarse el frontend).
     if (data.time) {
-      const fullSlots = await getFullSlotsForDate(data.date);
-      if (fullSlots.includes(data.time)) {
-        return res.status(409).json({ error: 'Ese horario ya no está disponible. Elige otro.' });
-      }
+      const check = await validateAppointmentTime(data.date, data.time, data.serviceId);
+      if (!check.ok) return res.status(409).json({ error: check.error });
     }
     const appt = await prisma.appointment.create({
       data: {
@@ -1214,10 +1269,27 @@ const assertAppointmentOwnership = async (req, res) => {
   return true;
 };
 
+// Se usa desde PUT y PATCH: si la actualización trae `time` (ej. el admin
+// asigna hora a una cita "Pendiente" sin hora — AssignTimePicker), valida
+// horario de negocio + capacidad igual que en la creación. `serviceId`
+// puede no venir en el body de esta actualización puntual, así que cae al
+// de la cita existente.
+const validateTimeOnUpdate = async (id, data) => {
+  if (!data.time) return null;
+  const existing = await prisma.appointment.findUnique({ where: { id }, select: { date: true, serviceId: true } });
+  if (!existing) return null;
+  const date = data.date || existing.date;
+  const serviceId = data.serviceId || existing.serviceId;
+  const check = await validateAppointmentTime(date, data.time, serviceId, id);
+  return check.ok ? null : check.error;
+};
+
 app.put('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
     if (!(await assertAppointmentOwnership(req, res))) return;
     const { data } = normalizeAppointmentBody(req.body);
+    const timeError = await validateTimeOnUpdate(parseInt(req.params.id), data);
+    if (timeError) return res.status(409).json({ error: timeError });
     const appt = await prisma.appointment.update({
       where: { id: parseInt(req.params.id) },
       data,
@@ -1234,6 +1306,8 @@ app.patch('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
     if (!(await assertAppointmentOwnership(req, res))) return;
     const { data } = normalizeAppointmentBody(req.body);
+    const timeError = await validateTimeOnUpdate(parseInt(req.params.id), data);
+    if (timeError) return res.status(409).json({ error: timeError });
     const appt = await prisma.appointment.update({
       where: { id: parseInt(req.params.id) },
       data,
