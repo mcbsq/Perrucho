@@ -227,7 +227,7 @@ const PerruchoLanding = () => {
             <section className="pl-hero">
                 <HeroCarousel activeIndex={activeIndex} scrollY={scrollY} />
                 <div className="pl-hero-content">
-                    <h1>El sistema para gestionar tu negocio de servicios</h1>
+                    <h1>El sistema para gestionar tu negocio</h1>
                     <p className="pl-hero-sub">
                         Agenda, punto de venta, inventario y clientes — todo en un solo panel,
                         con tu propia página para que tus clientes reserven solos.
