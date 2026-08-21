@@ -260,7 +260,10 @@ const Perfil = () => {
         const petName     = appt.pet?.petName     || appt.petName     || 'Mascota';
         const serviceName = appt.service?.title   || appt.serviceName || 'Servicio';
 
-        const baseInfo = { clientName: displayName, petName, serviceName, date: appt.date, time: appt.time };
+        const baseInfo = {
+            clientName: displayName, petName, serviceName, date: appt.date, time: appt.time,
+            shopName: settings?.businessName, shopWhatsApp: settings?.whatsappNumber,
+        };
 
         if (!check.ok) {
             const url = clientToShopOnCancelRequest(baseInfo);
