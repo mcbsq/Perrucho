@@ -1596,7 +1596,13 @@ app.get('/api/settings', async (req, res) => {
 // PUT /api/settings — solo admin
 app.put('/api/settings', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
-    const { giro, ...settingsBody } = req.body; // giro se guarda en Business, no en Settings
+    // GET /api/settings devuelve el registro de Settings mezclado con campos
+    // que en realidad viven en Business (giro, authProvider, slug) — el
+    // frontend guarda esa respuesta completa en su estado y la reenvía tal
+    // cual al guardar. Sin filtrarlos aquí, Prisma tronaba con "Unknown
+    // argument businessId" (authProvider/slug/id/businessId no son columnas
+    // editables de Settings) y Personalización no podía guardar NADA.
+    const { giro, authProvider, slug, id, businessId, ...settingsBody } = req.body;
     const existing = await prisma.settings.findFirst();
     const settings = existing
       ? await prisma.settings.update({ where: { id: existing.id }, data: settingsBody })
