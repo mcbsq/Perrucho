@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     FaPaw, FaCalendarCheck, FaShoppingBag, FaSignOutAlt,
-    FaTimes, FaEdit, FaPlus, FaSave, FaKey,
+    FaTimes, FaEdit, FaPlus, FaSave, FaKey, FaCog,
     FaBell, FaHistory, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt,
     FaWhatsapp, FaInfoCircle, FaBan, FaShieldAlt
 } from 'react-icons/fa';
@@ -155,7 +155,15 @@ const Perfil = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, addToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Bug real: dependía de `user` completo, no de `user?.id`. AuthContext
+    // reemplaza el objeto `user` por una copia nueva en cada changePassword()
+    // (misma persona, misma id, nueva referencia) — eso disparaba este
+    // efecto de nuevo, que vuelve a poner loading=true y reemplaza TODO el
+    // árbol de la página por la pantalla de carga, destruyendo cualquier
+    // modal abierto (ej. "Cambiar contraseña" perdía su mensaje de éxito
+    // justo después de cambiarla). user?.id es estable entre esas copias.
+    }, [user?.id, addToast]);
 
     useEffect(() => { loadData(); }, [loadData]);
 
@@ -170,7 +178,8 @@ const Perfil = () => {
                 return (a.time || '').localeCompare(b.time || '');
             }));
         } catch { /* silencioso */ }
-    }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
 
     useEffect(() => {
         const interval = setInterval(refreshAppts, 30000);
@@ -349,10 +358,7 @@ const Perfil = () => {
                         </div>
                         <hr />
                         <button className="btn-edit-profile" onClick={() => setProfileModal(true)}>
-                            <FaEdit /> Editar datos
-                        </button>
-                        <button className="btn-edit-profile" onClick={() => setShowChangePassword(true)}>
-                            <FaKey /> Cambiar contraseña
+                            <FaCog /> Ajustes
                         </button>
                         <button className="btn-logout-alt" onClick={logout}>
                             <FaSignOutAlt /> Cerrar sesión
@@ -578,41 +584,58 @@ const Perfil = () => {
                 </main>
             </div>
 
-            {/* Modal editar perfil */}
+            {/* Modal de ajustes — antes "Editar mis datos" en un solo bloque
+                plano; ahora catalogado por tópico, y la contraseña (antes un
+                botón suelto en la barra lateral) vive aquí bajo Seguridad. */}
             {profileModal && (
-                <Modal title="✏️ Editar mis datos" onClose={() => { setProfileModal(false); setProfilePhoneError(''); }}>
+                <Modal title="⚙️ Ajustes" onClose={() => { setProfileModal(false); setProfilePhoneError(''); }}>
                     <form onSubmit={handleSaveProfile} className="perfil-form">
-                        <div className="form-field">
-                            <label><FaUser /> Nombre completo</label>
-                            <input name="name" defaultValue={myProfile?.name || user?.name} placeholder="Tu nombre" required />
+                        <div className="form-section">
+                            <h4 className="form-section-title"><FaUser /> Datos personales</h4>
+                            <div className="form-field">
+                                <label><FaUser /> Nombre completo</label>
+                                <input name="name" defaultValue={myProfile?.name || user?.name} placeholder="Tu nombre" required />
+                            </div>
+                            <div className="form-field">
+                                <label><FaEnvelope /> Correo electrónico</label>
+                                <input name="email" type="email" defaultValue={myProfile?.email || user?.email} placeholder="correo@ejemplo.com" required />
+                            </div>
+                            <div className="form-field">
+                                <label><FaWhatsapp /> WhatsApp (10 dígitos)</label>
+                                <input name="phone" defaultValue={myProfile?.phone} placeholder="228 304 5591"
+                                    onChange={handleProfilePhoneInput} inputMode="numeric" />
+                                {profilePhoneError && <small className="form-hint form-hint--error">{profilePhoneError}</small>}
+                            </div>
+                            <div className="form-field">
+                                <label><FaMapMarkerAlt /> Dirección</label>
+                                <input name="address" defaultValue={myProfile?.address} placeholder="Calle y número" />
+                            </div>
                         </div>
-                        <div className="form-field">
-                            <label><FaEnvelope /> Correo electrónico</label>
-                            <input name="email" type="email" defaultValue={myProfile?.email || user?.email} placeholder="correo@ejemplo.com" required />
+
+                        <div className="form-section">
+                            <h4 className="form-section-title"><FaShieldAlt /> Seguridad</h4>
+                            <div className="form-field">
+                                <label><FaShieldAlt /> Pregunta de seguridad</label>
+                                <select name="securityQuestion" defaultValue={myProfile?.securityQuestion || SECURITY_QUESTIONS[0]}>
+                                    {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
+                                </select>
+                                <small className="form-hint">
+                                    {myProfile?.securityQuestion
+                                        ? 'La usamos para verificar tu identidad en "Olvidé mi contraseña". Deja la respuesta vacía para conservar la actual.'
+                                        : 'No tienes una pregunta de seguridad configurada — sin ella no podrás recuperar tu contraseña si la olvidas.'}
+                                </small>
+                                <input name="securityAnswer" placeholder={myProfile?.securityQuestion ? 'Nueva respuesta (opcional)' : 'Tu respuesta'}
+                                    required={!myProfile?.securityQuestion} />
+                            </div>
+                            <div className="form-field">
+                                <label><FaKey /> Contraseña</label>
+                                <button type="button" className="btn-cancel" style={{ alignSelf: 'flex-start' }}
+                                    onClick={() => setShowChangePassword(true)}>
+                                    <FaKey /> Cambiar mi contraseña
+                                </button>
+                            </div>
                         </div>
-                        <div className="form-field">
-                            <label><FaWhatsapp /> WhatsApp (10 dígitos)</label>
-                            <input name="phone" defaultValue={myProfile?.phone} placeholder="228 304 5591"
-                                onChange={handleProfilePhoneInput} inputMode="numeric" />
-                            {profilePhoneError && <small className="form-hint form-hint--error">{profilePhoneError}</small>}
-                        </div>
-                        <div className="form-field">
-                            <label><FaMapMarkerAlt /> Dirección</label>
-                            <input name="address" defaultValue={myProfile?.address} placeholder="Calle y número" />
-                        </div>
-                        <div className="form-field">
-                            <label><FaShieldAlt /> Pregunta de seguridad</label>
-                            <select name="securityQuestion" defaultValue={myProfile?.securityQuestion || SECURITY_QUESTIONS[0]}>
-                                {SECURITY_QUESTIONS.map(q => <option key={q} value={q}>{q}</option>)}
-                            </select>
-                            <small className="form-hint">
-                                {myProfile?.securityQuestion
-                                    ? 'La usamos para verificar tu identidad en "Olvidé mi contraseña". Deja la respuesta vacía para conservar la actual.'
-                                    : 'No tienes una pregunta de seguridad configurada — sin ella no podrás recuperar tu contraseña si la olvidas.'}
-                            </small>
-                            <input name="securityAnswer" placeholder={myProfile?.securityQuestion ? 'Nueva respuesta (opcional)' : 'Tu respuesta'}
-                                required={!myProfile?.securityQuestion} />
-                        </div>
+
                         <div className="form-actions">
                             <button type="button" className="btn-cancel" onClick={() => { setProfileModal(false); setProfilePhoneError(''); }}>Cancelar</button>
                             <button type="submit" className="btn-save"><FaSave /> Guardar</button>
