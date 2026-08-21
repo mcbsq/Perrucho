@@ -25,6 +25,13 @@ const ForgotPassword = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    // AEGIS nunca acepta una contraseña elegida por la persona — siempre
+    // genera la suya. Bug real que esto reemplaza: antes el paso 3 pedía
+    // una contraseña nueva SIN IMPORTAR el negocio, y ese valor se
+    // guardaba en un campo local que el login AEGIS ni siquiera lee — el
+    // restablecimiento "funcionaba" pero no arreglaba nada.
+    const [aegisMode, setAegisMode] = useState(false);
+    const [tempPassword, setTempPassword] = useState('');
 
     const handleEmailSubmit = async (e) => {
         e.preventDefault();
@@ -50,8 +57,9 @@ const ForgotPassword = () => {
         setError('');
         setLoading(true);
         try {
-            const { resetToken: t } = await authApi.verifyAnswer(email, answer);
+            const { resetToken: t, authProvider } = await authApi.verifyAnswer(email, answer);
             setResetToken(t);
+            setAegisMode(authProvider === 'aegis');
             setStep(3);
         } catch (err) {
             setError(err.message || 'Respuesta incorrecta. Intenta de nuevo.');
@@ -69,6 +77,23 @@ const ForgotPassword = () => {
         setLoading(true);
         try {
             await authApi.resetPassword(resetToken, password);
+            setStep(4);
+        } catch (err) {
+            setError(err.message || 'El proceso expiró. Empieza de nuevo.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Modo AEGIS: no hay contraseña que elegir, solo confirmar — el sistema
+    // genera una temporal y la muestra una vez (mismo patrón que el alta de
+    // negocio y la creación de personal).
+    const handleAegisReset = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            const { tempPassword: t } = await authApi.resetPassword(resetToken);
+            setTempPassword(t);
             setStep(4);
         } catch (err) {
             setError(err.message || 'El proceso expiró. Empieza de nuevo.');
@@ -133,7 +158,17 @@ const ForgotPassword = () => {
                     </>
                 )}
 
-                {step === 3 && (
+                {step === 3 && aegisMode && (
+                    <>
+                        <p className="login-subtitle">Identidad verificada. Este negocio genera contraseñas temporales seguras automáticamente — no eliges una tú.</p>
+                        {error && <div className="error-message">{error}</div>}
+                        <button type="button" className="login-button" onClick={handleAegisReset} disabled={loading}>
+                            {loading ? 'Generando...' : 'Generar contraseña temporal'}
+                        </button>
+                    </>
+                )}
+
+                {step === 3 && !aegisMode && (
                     <>
                         <p className="login-subtitle">Identidad verificada. Elige tu nueva contraseña.</p>
                         <form onSubmit={handlePasswordSubmit}>
@@ -165,7 +200,15 @@ const ForgotPassword = () => {
                     </>
                 )}
 
-                {step === 4 && (
+                {step === 4 && aegisMode && (
+                    <>
+                        <p className="login-subtitle">Tu contraseña temporal es:</p>
+                        <div className="login-temp-password">{tempPassword}</div>
+                        <p className="login-subtitle">Guárdala ahora — no volverá a mostrarse. Úsala para iniciar sesión.</p>
+                    </>
+                )}
+
+                {step === 4 && !aegisMode && (
                     <p className="login-subtitle">¡Contraseña actualizada! Ya puedes iniciar sesión con tu nueva contraseña.</p>
                 )}
 

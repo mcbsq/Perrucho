@@ -336,7 +336,13 @@ app.post('/api/auth/verify-answer', authLimiter, async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await prisma.user.update({ where: { id: user.id }, data: { resetToken, resetTokenExpiry } });
-    res.json({ resetToken });
+
+    // El frontend necesita saber ANTES de pedir la nueva contraseña si este
+    // negocio es AEGIS — ahí no se puede reutilizar el password que la
+    // persona elija (AEGIS siempre genera el suyo), así que el paso 3 del
+    // flujo se ve distinto según el modo (ver reset-password abajo).
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    res.json({ resetToken, authProvider: business?.authProvider || 'local' });
   } catch (err) {
     console.error('POST /api/auth/verify-answer', err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -344,16 +350,41 @@ app.post('/api/auth/verify-answer', authLimiter, async (req, res) => {
 });
 
 // POST /api/auth/reset-password — completa el restablecimiento con el token.
+//
+// Bug real corregido: esta ruta escribía directo al password local (bcrypt)
+// SIN revisar el authProvider del negocio. Para un negocio en modo AEGIS,
+// el login nunca lee ese campo (pasa por aegisClient.passwordLogin), así
+// que la persona veía "contraseña actualizada" pero seguía sin poder
+// entrar — un reset que no restablecía nada. AEGIS tampoco acepta una
+// contraseña elegida por el usuario (siempre genera la suya), así que en
+// modo AEGIS este endpoint ignora newPassword y usa adminResetPassword,
+// devolviendo la temporal para mostrarla una vez (mismo patrón que el
+// alta de negocio y la creación de usuarios).
 app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
-    if (!token || !newPassword) return res.status(400).json({ error: 'Token y nueva contraseña requeridos' });
-    if (newPassword.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    if (!token) return res.status(400).json({ error: 'Token requerido' });
 
     const user = await prisma.user.findUnique({ where: { resetToken: token } });
     if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
       return res.status(400).json({ error: 'El enlace es inválido o expiró. Solicita uno nuevo.' });
     }
+
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+
+    if (business?.authProvider === 'aegis' && user.aegisUserId) {
+      const { data, error } = await aegisClient.adminResetPassword(user.aegisUserId);
+      if (error) {
+        console.warn('AEGIS adminResetPassword (reset-password) falló:', error);
+        return res.status(502).json({ error: 'No se pudo restablecer la contraseña. Intenta de nuevo.' });
+      }
+      await prisma.user.update({ where: { id: user.id }, data: { resetToken: null, resetTokenExpiry: null } });
+      return res.json({ ok: true, tempPassword: data.tempPassword });
+    }
+
+    // Modo local — comportamiento de siempre.
+    if (!newPassword) return res.status(400).json({ error: 'Nueva contraseña requerida' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
 
     const hash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
