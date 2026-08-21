@@ -389,6 +389,22 @@ const Perfil = () => {
                         )}
                     </div>
 
+                    {/* Mi membresía (giro gimnasio) */}
+                    {settings?.enableMemberships && myProfile?.membershipPlanId && (
+                        <div className="profile-card next-service">
+                            <h3><FaCalendarCheck /> Mi membresía</h3>
+                            <div className="next-appointment-box">
+                                <p className="appt-service">{myProfile.membershipPlan?.name || 'Plan'}</p>
+                                {myProfile.membershipExpiresAt && (
+                                    <p>{new Date(myProfile.membershipExpiresAt) > new Date() ? '✅' : '⚠️'} Vence {formatDate(myProfile.membershipExpiresAt.slice(0, 10))}</p>
+                                )}
+                                {myProfile.membershipPlan?.classesLimit != null && (
+                                    <p>🏋️ {myProfile.membershipClassesUsed || 0} / {myProfile.membershipPlan.classesLimit} clases usadas</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Notificaciones */}
                     {pendingAppts.length > 0 && (
                         <div className="profile-card notif-card">

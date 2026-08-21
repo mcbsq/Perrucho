@@ -116,6 +116,19 @@ export const staffApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MEMBERSHIP PLANS (giro gimnasio)
+// ─────────────────────────────────────────────────────────────────────────────
+export const membershipPlansApi = {
+  getAll: () => api.get('/membership-plans'),
+  create: (data) => api.post('/membership-plans', data),
+  update: (id, data) => api.put(`/membership-plans/${encodeURIComponent(id)}`, data),
+  delete: (id) => api.delete(`/membership-plans/${encodeURIComponent(id)}`),
+  // membershipPlanId: null cancela la membresía del cliente.
+  setForClient: (userId, membershipPlanId) =>
+    api.patch(`/users/${encodeURIComponent(userId)}/membership`, { membershipPlanId }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
 export const usersApi = {

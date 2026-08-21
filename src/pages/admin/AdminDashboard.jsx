@@ -13,12 +13,12 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
-import { appointmentsApi, usersApi } from '../../api/apiClient';
+import { appointmentsApi, usersApi, membershipPlansApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import NotificationBell from '../../components/shared/NotificationBell';
 import * as XLSX from 'xlsx';
 import {
-    FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers, FaKey,
+    FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers, FaKey, FaIdCard,
     FaFileExcel, FaCalendarAlt, FaClock, FaCashRegister,
     FaSearch, FaBoxOpen, FaCartPlus, FaReceipt, FaTrashAlt,
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
@@ -33,6 +33,7 @@ import {
     ServiceCard as DSServiceCard, ServiceFormModal,
     ProductCard, ProductFormModal,
     UserCard, UserFormModal,
+    MembershipPlanFormModal,
     PersonalizacionSection
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
@@ -158,6 +159,13 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
                     <span>{pet?.breed||'—'} · {pet?.weight ? `~${pet.weight} kg` : 'peso por verificar'}</span>
                     {(owner||getApptClientName(appt))&&<span className="appt-popup-owner">{owner?.name||getApptClientName(appt)}{(owner?.phone||getApptClientPhone(appt))?` · ${owner?.phone||getApptClientPhone(appt)}`:''}</span>}
                     {empName&&<span className="appt-popup-assigned"><FaUserTie/> {empName}</span>}
+                    {appt.service?.isClass && (() => {
+                        const expires=appt.client?.membershipExpiresAt?new Date(appt.client.membershipExpiresAt):null;
+                        const vigente=expires&&expires.getTime()>Date.now();
+                        return <span className={`stock-badge ${vigente?'ok':'danger'}`} style={{marginTop:4,width:'fit-content'}}>
+                            {vigente?`Membresía vigente hasta ${expires.toLocaleDateString('es-MX')}`:'⚠️ Sin membresía vigente'}
+                        </span>;
+                    })()}
                 </div>
                 <button className="appt-popup-close" onClick={onClose}><FaTimes/></button>
             </div>
@@ -743,6 +751,9 @@ const AdminDashboard = () => {
     const [petModal,setPetModal]=useState(null);
     const [serviceModal,setServiceModal]=useState(null);
     const [productModal,setProductModal]=useState(null);
+    const [membershipPlanModal,setMembershipPlanModal]=useState(null);
+    const [assignMembershipClientId,setAssignMembershipClientId]=useState('');
+    const [assignMembershipPlanId,setAssignMembershipPlanId]=useState('');
     const [userModal,setUserModal]=useState(null);
 
     const [appointments,setAppointments]=useState([]);
@@ -753,6 +764,14 @@ const AdminDashboard = () => {
     const [users,setUsers]=useState([]);
     useEffect(()=>{usersApi.getAll().then(setUsers).catch(()=>addToast('Error usuarios','error'));},[]);
     const empleados=users.filter(u=>u.role==='empleado');
+
+    // Giro gimnasio — solo se carga si el negocio tiene la función prendida.
+    const [membershipPlans,setMembershipPlans]=useState([]);
+    const loadMembershipPlans=useCallback(()=>{
+        if(!settings?.enableMemberships)return;
+        membershipPlansApi.getAll().then(setMembershipPlans).catch(()=>addToast('Error al cargar planes','error'));
+    },[settings?.enableMemberships,addToast]);
+    useEffect(()=>{loadMembershipPlans();},[loadMembershipPlans]);
 
     const [cart,setCart]=useState([]);
     const [posSearch,setPosSearch]=useState('');
@@ -843,6 +862,44 @@ const AdminDashboard = () => {
         if(c.tempPassword){await notify({type:'info',icon:'🔑',accent:'blue',title:'Contraseña temporal generada',message:`Entrega esta contraseña a ${c.name}, deberá cambiarla en su primer inicio de sesión:\n\n${c.tempPassword}`,confirmLabel:'Entendido'});}
     }addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveSettings=async(form)=>{try{const {id,...data}=form;await updateSettings(data);addToast('Configuración guardada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+
+    const handleSaveMembershipPlan=async(form)=>{
+        try{
+            if(form.id){const s=await membershipPlansApi.update(form.id,form);setMembershipPlans(p=>p.map(x=>x.id===form.id?s:x));}
+            else{const c=await membershipPlansApi.create(form);setMembershipPlans(p=>[...p,c]);}
+            addToast(form.id?'Plan actualizado':'Plan creado','success');
+            setMembershipPlanModal(null);
+        }catch(err){addToast(`Error: ${err.message}`,'error');throw err;}
+    };
+    const handleDeleteMembershipPlan=async(id,name)=>{
+        const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:`¿Eliminar el plan "${name}"?`,message:'Los clientes con este plan se quedan sin membresía asignada.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
+        if(!ok)return;
+        try{await membershipPlansApi.delete(id);setMembershipPlans(p=>p.filter(x=>x.id!==id));addToast('Plan eliminado','info');}catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
+    // Los clientes viven en el DataContext (sin setter expuesto — no es una
+    // operación CRUD normal de "cliente"), así que la membresía recién
+    // asignada/cancelada se guarda aparte y se mezcla al mostrar, en vez de
+    // mutar el arreglo de clients directamente.
+    const [membershipOverrides,setMembershipOverrides]=useState({});
+    const handleAssignMembership=async()=>{
+        if(!assignMembershipClientId||!assignMembershipPlanId){addToast('Elige un cliente y un plan','error');return;}
+        try{
+            const updated=await membershipPlansApi.setForClient(assignMembershipClientId,Number(assignMembershipPlanId));
+            setMembershipOverrides(p=>({...p,[updated.id]:updated}));
+            addToast('Membresía asignada','success');
+            setAssignMembershipClientId('');setAssignMembershipPlanId('');
+        }catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
+    const handleCancelMembership=async(clientId)=>{
+        const ok=await notify({type:'confirm',icon:'🚫',accent:'red',title:'¿Cancelar esta membresía?',message:'El cliente se queda sin plan activo.',confirmLabel:'Sí, cancelar',cancelLabel:'Volver'});
+        if(!ok)return;
+        try{
+            const updated=await membershipPlansApi.setForClient(clientId,null);
+            setMembershipOverrides(p=>({...p,[updated.id]:updated}));
+            addToast('Membresía cancelada','info');
+        }catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
+    const clientsWithMembership=clients.map(c=>membershipOverrides[c.id]?{...c,...membershipOverrides[c.id]}:c);
 
     const handleAddExpense=async(data)=>{try{await addExpense(data);addToast('Egreso agregado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleDeleteExpense=async(id)=>{
@@ -996,6 +1053,7 @@ const AdminDashboard = () => {
         {id:'pos',icon:<FaCashRegister/>,label:'Venta'},
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
         ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
+        ...(settings?.enableMemberships ? [{id:'membresias',icon:<FaIdCard/>,label:'Membresías'}] : []),
         {id:'servicios',icon:<FaCut/>,label:'Servicios'},
         {id:'productos',icon:<FaBoxOpen/>,label:'Inventario'},
         {id:'usuarios',icon:<FaUserCog/>,label:'Usuarios'},
@@ -1022,8 +1080,9 @@ const AdminDashboard = () => {
 
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)} extraFields={settings?.clientExtraFields||[]}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
-            {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)}/>}
+            {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)} settings={settings}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
+            {membershipPlanModal!==null&&<MembershipPlanFormModal initial={membershipPlanModal||undefined} onSave={handleSaveMembershipPlan} onClose={()=>setMembershipPlanModal(null)}/>}
             {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)}/>}
 
             {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>
@@ -1159,6 +1218,76 @@ const AdminDashboard = () => {
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
                     <div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus}/>)}</div>
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
+                </div>}
+
+                {tab==='membresias'&&<div className="fade-in">
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Membresías</h2><p>{membershipPlans.length} plan(es)</p></div></div>
+
+                    {membershipPlans.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8',background:'white',borderRadius:20,border:'2px dashed #e2e8f0'}}>
+                        <p style={{fontSize:'2.5rem',marginBottom:8}}>🏋️</p>
+                        <p style={{fontWeight:700,marginBottom:4}}>Sin planes todavía</p>
+                        <p style={{fontSize:'0.9rem'}}>Usa el botón + para crear tu primer plan (ej. "Mensualidad Ilimitada").</p>
+                    </div>}
+                    <div className="ds-cards-grid ds-cards-grid--compact">
+                        {membershipPlans.map(plan=>{
+                            const membersCount=clientsWithMembership.filter(c=>c.membershipPlanId===plan.id).length;
+                            return <div key={plan.id} className="ds-card">
+                                <div className="ds-card-body">
+                                    <div className="ds-card-name">{plan.name}</div>
+                                    <div className="ds-card-meta">
+                                        <span className="ds-tag ds-tag--green">${plan.price}</span>
+                                        <span className="ds-tag ds-tag--blue">{plan.durationDays} días</span>
+                                        <span className="ds-tag">{plan.classesLimit?`${plan.classesLimit} clases`:'Ilimitado'}</span>
+                                    </div>
+                                    <p className="muted-text" style={{marginTop:6}}>{membersCount} cliente(s) con este plan</p>
+                                </div>
+                                <div className="form-actions" style={{padding:'0 14px 14px'}}>
+                                    <button type="button" className="btn-secondary" onClick={()=>setMembershipPlanModal(plan)}>Editar</button>
+                                    <button type="button" className="btn-secondary" onClick={()=>handleDeleteMembershipPlan(plan.id,plan.name)}>Eliminar</button>
+                                </div>
+                            </div>;
+                        })}
+                    </div>
+                    <FAB onClick={()=>setMembershipPlanModal({})} title="Nuevo plan" color="#fdcb6e"/>
+
+                    <div className="ds-settings-block" style={{marginTop:24}}>
+                        <h3>Asignar / renovar membresía</h3>
+                        <p className="ds-gallery-hint">Renovar mueve la vigencia {assignMembershipPlanId&&membershipPlans.find(p=>String(p.id)===String(assignMembershipPlanId))?.durationDays} días hacia adelante desde hoy.</p>
+                        <div className="admin-cal-form-grid">
+                            <select value={assignMembershipClientId} onChange={e=>setAssignMembershipClientId(e.target.value)}>
+                                <option value="">Cliente...</option>
+                                {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                            <select value={assignMembershipPlanId} onChange={e=>setAssignMembershipPlanId(e.target.value)}>
+                                <option value="">Plan...</option>
+                                {membershipPlans.map(p=><option key={p.id} value={p.id}>{p.name} — ${p.price}</option>)}
+                            </select>
+                            <button type="button" className="btn-primary" onClick={handleAssignMembership}>Asignar / renovar</button>
+                        </div>
+                    </div>
+
+                    <div className="ds-settings-block" style={{marginTop:16}}>
+                        <h3>Clientes con membresía</h3>
+                        {(() => {
+                            const withPlan=clientsWithMembership.filter(c=>c.membershipPlanId);
+                            if(withPlan.length===0)return <p className="empty-td">Todavía nadie tiene una membresía asignada.</p>;
+                            return <div className="ds-price-table">
+                                {withPlan.map(c=>{
+                                    const plan=membershipPlans.find(p=>p.id===c.membershipPlanId);
+                                    const expires=c.membershipExpiresAt?new Date(c.membershipExpiresAt):null;
+                                    const isVigente=expires&&expires.getTime()>Date.now();
+                                    return <div key={c.id} className="ds-price-table-row">
+                                        <div className="ds-price-table-info">
+                                            <span className="ds-price-range-name">{c.name}</span>
+                                            <span className="ds-price-range-desc">{plan?.name||'Plan eliminado'} — vence {expires?expires.toLocaleDateString('es-MX'):'—'}</span>
+                                        </div>
+                                        <span className={`stock-badge ${isVigente?'ok':'danger'}`}>{isVigente?'Vigente':'Vencida'}</span>
+                                        <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={()=>handleCancelMembership(c.id)} title="Cancelar membresía"><FaTimes/></button>
+                                    </div>;
+                                })}
+                            </div>;
+                        })()}
+                    </div>
                 </div>}
 
                 {tab==='servicios'&&<div className="fade-in">
