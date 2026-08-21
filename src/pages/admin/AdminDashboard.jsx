@@ -13,7 +13,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
-import { appointmentsApi, usersApi, membershipPlansApi } from '../../api/apiClient';
+import { appointmentsApi, usersApi, membershipPlansApi, clinicalNotesApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import NotificationBell from '../../components/shared/NotificationBell';
 import * as XLSX from 'xlsx';
@@ -34,6 +34,7 @@ import {
     ProductCard, ProductFormModal,
     UserCard, UserFormModal,
     MembershipPlanFormModal,
+    ClinicalNoteModal,
     PersonalizacionSection
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
@@ -754,6 +755,7 @@ const AdminDashboard = () => {
     const [membershipPlanModal,setMembershipPlanModal]=useState(null);
     const [assignMembershipClientId,setAssignMembershipClientId]=useState('');
     const [assignMembershipPlanId,setAssignMembershipPlanId]=useState('');
+    const [clinicalNoteTarget,setClinicalNoteTarget]=useState(null); // {clientId, clientName, appointmentId}
     const [userModal,setUserModal]=useState(null);
 
     const [appointments,setAppointments]=useState([]);
@@ -1026,8 +1028,15 @@ const AdminDashboard = () => {
             const upd=await appointmentsApi.update(appo.id,{status:'Completada'});
             setAppointments(p=>p.map(a=>a.id===appo.id?{...a,...upd}:a));
             addToast('Servicio finalizado y cobrado','success');
+            // Giro clínica: ofrece dejar la nota de esta consulta — opcional,
+            // la cita ya se cobró antes de llegar aquí.
+            const clientId=pet?.ownerId||getApptClientId(appo);
+            if(settings?.enableClientNotes&&clientId){
+                const cl=clients.find(c=>String(c.id)===String(clientId));
+                setClinicalNoteTarget({clientId,clientName:cl?.name||getApptClientName(appo)||'Cliente',appointmentId:appo.id});
+            }
         }catch(err){addToast(`Error: ${err.message}`,'error');}
-    },[notify,pets,addSale,updatePet,todayStr_,addToast]);
+    },[notify,pets,addSale,updatePet,todayStr_,addToast,settings?.enableClientNotes,clients]);
 
     const handleDeleteAppt=useCallback(async(id)=>{
         const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:'¿Eliminar esta cita?',message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Mantener'});
@@ -1083,6 +1092,9 @@ const AdminDashboard = () => {
             {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)} settings={settings}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
             {membershipPlanModal!==null&&<MembershipPlanFormModal initial={membershipPlanModal||undefined} onSave={handleSaveMembershipPlan} onClose={()=>setMembershipPlanModal(null)}/>}
+            {clinicalNoteTarget&&<ClinicalNoteModal clientName={clinicalNoteTarget.clientName}
+                onSave={(note)=>clinicalNotesApi.add(clinicalNoteTarget.clientId,note,clinicalNoteTarget.appointmentId).then(()=>addToast('Nota guardada','success')).catch(err=>addToast(`Error: ${err.message}`,'error'))}
+                onClose={()=>setClinicalNoteTarget(null)}/>}
             {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)}/>}
 
             {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>

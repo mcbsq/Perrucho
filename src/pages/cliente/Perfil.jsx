@@ -405,6 +405,22 @@ const Perfil = () => {
                         </div>
                     )}
 
+                    {/* Mi expediente (giro clínica) */}
+                    {settings?.enableClientNotes && Array.isArray(myProfile?.clinicalHistory) && myProfile.clinicalHistory.length > 0 && (
+                        <div className="profile-card notif-card">
+                            <h3><FaInfoCircle /> Mi expediente</h3>
+                            {[...myProfile.clinicalHistory].reverse().slice(0, 5).map((entry, i) => (
+                                <div key={i} className="notif-item">
+                                    <div className="notif-dot" style={{ background: '#74b9ff' }} />
+                                    <div>
+                                        <strong>{formatDate(entry.date?.slice(0, 10))}</strong>
+                                        <span className="notif-date" style={{ display: 'block' }}>{entry.note}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Notificaciones */}
                     {pendingAppts.length > 0 && (
                         <div className="profile-card notif-card">
