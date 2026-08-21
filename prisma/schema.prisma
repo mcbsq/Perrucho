@@ -190,6 +190,13 @@ model Service {
   priceJumbo   Int @default(0)
   price        Int @default(0) // fallback / precio base
 
+  // Duración real de la cita en minutos — antes el sistema generaba slots
+  // cada 45 min sin importar el servicio (un corte de 20 min y una estética
+  // completa de 90 min ocupaban el mismo hueco). 45 es el valor que ya
+  // regía implícitamente vía SHOP_TIME_SLOTS, así que este default no
+  // cambia el comportamiento de ningún servicio existente.
+  durationMinutes Int @default(45)
+
   businessId Int? // multi-tenant — ver nota en User.businessId
   business   Business? @relation(fields: [businessId], references: [id])
 
@@ -386,6 +393,16 @@ model Settings {
 
   // ── Footer editable ──────────────────────────────────────────────────────
   footerLinks Json @default("[]") // [{ label, url }]
+
+  // ── Horarios de atención ─────────────────────────────────────────────────
+  // Antes el horario (10:15-17:00, todos los días) vivía hardcodeado en 3
+  // lugares distintos (bookingRules.js, SHOP_TIME_SLOTS en api/index.js, y
+  // un arreglo duplicado en Home.jsx) — el mismo para TODOS los negocios,
+  // sin días cerrados. Un arreglo de 7 entradas, índice = Date.getDay()
+  // (0=domingo...6=sábado). El default reproduce exactamente ese horario
+  // global anterior, así que ningún negocio existente (incluido Taylor's)
+  // cambia de comportamiento hasta que un admin lo edite en Personalización.
+  businessHours Json @default("[{\"day\":0,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"},{\"day\":1,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"},{\"day\":2,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"},{\"day\":3,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"},{\"day\":4,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"},{\"day\":5,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"},{\"day\":6,\"open\":true,\"start\":\"10:15\",\"end\":\"17:00\"}]")
 
   // ── Adaptable a otros giros de negocio ──────────────────────────────────
   // Si el negocio no maneja mascotas (podología, barbería, spa, etc.),

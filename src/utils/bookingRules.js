@@ -2,8 +2,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Reglas de negocio centralizadas para reservas y cancelaciones.
 //
-// ACTUALIZACIÓN según catálogo de servicios real:
-// - Horario de citas: 10:15 a 17:00 (antes 09:00-19:00)
+// El horario de atención (antes fijo 10:15-17:00 para cualquier negocio) ya
+// NO vive aquí — cada negocio lo configura en Personalización y el backend
+// lo calcula por día/servicio (ver Settings.businessHours en schema.prisma
+// y GET /api/appointments/availability).
 // - Tolerancia de 20 min para citas agendadas (pasado ese tiempo se
 //   otorga el lugar a la siguiente mascota)
 // - Cancelaciones con al menos MIN_CANCEL_HOURS de anticipación
@@ -11,11 +13,6 @@
 
 // Horas mínimas de anticipación para que un cliente pueda cancelar su cita.
 export const MIN_CANCEL_HOURS = 24;
-
-// Horario real de la estética para agendar citas
-// (catálogo: "Los horarios para agendar citas son desde las 10:15am y hasta las 5pm")
-export const SHOP_OPEN_TIME  = '10:15';
-export const SHOP_CLOSE_TIME = '17:00';
 
 // Tolerancia en minutos para citas agendadas
 // (catálogo: "Se tendrá una tolerancia de 20min para citas agendadas")
@@ -27,19 +24,6 @@ export const NON_CANCELLABLE_STATUSES = ['En proceso', 'Finalizada', 'Cancelada'
 // Teléfono de la estética (formato internacional sin '+') para wa.me/
 export const SHOP_WHATSAPP = '522283045591';
 export const SHOP_NAME     = 'Emporio';
-
-/**
- * Genera los slots de tiempo disponibles para agendar citas.
- * El primer slot es 10:15, luego cada hora: 11:00, 12:00, ... hasta 17:00.
- * (Los horarios exactos siguen siendo sugeridos — el groomer confirma disponibilidad)
- */
-export function getBookingSlots() {
-    return [
-        '10:15',
-        '11:00', '12:00', '13:00', '14:00',
-        '15:00', '16:00', '17:00',
-    ];
-}
 
 /**
  * Determina si una cita puede ser cancelada por el cliente.

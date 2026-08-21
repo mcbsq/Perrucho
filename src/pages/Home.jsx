@@ -75,18 +75,21 @@ const BookingExpressModal = ({ onClose, settings }) => {
         ownerName: '', ownerPhone: '', petName: '', breed: '', age: '', weight: '',
         date: '', time: '',
     });
+    const [availableTimes, setAvailableTimes] = useState([]);
     const [fullSlots, setFullSlots] = useState([]);
     const [slotsLoading, setSlotsLoading] = useState(false);
 
-    // Consulta qué horarios ya están llenos ese día — sin esto, el selector
-    // mostraba todos los horarios como disponibles aunque ya tuvieran cita
-    // (bug reportado por clientes reales de Taylor's).
+    // El horario del día (y cuáles ya están llenos) ahora lo calcula el
+    // servidor a partir de Settings.businessHours del negocio — antes era
+    // un arreglo fijo hardcodeado aquí mismo, igual para todos los negocios
+    // y sin noción de días cerrados (bug reportado por clientes reales de
+    // Taylor's, y por el propio dueño al pedir horarios configurables).
     useEffect(() => {
-        if (!form.date) { setFullSlots([]); return; }
+        if (!form.date) { setAvailableTimes([]); setFullSlots([]); return; }
         setSlotsLoading(true);
         appointmentsApi.getAvailability(form.date)
-            .then(res => setFullSlots(res.fullSlots || []))
-            .catch(() => setFullSlots([]))
+            .then(res => { setAvailableTimes(res.slots || []); setFullSlots(res.fullSlots || []); })
+            .catch(() => { setAvailableTimes([]); setFullSlots([]); })
             .finally(() => setSlotsLoading(false));
     }, [form.date]);
 
@@ -97,10 +100,6 @@ const BookingExpressModal = ({ onClose, settings }) => {
         setForm(prev => ({ ...prev, ownerPhone: formatted }));
         setPhoneError(formatted.length > 0 ? whatsAppValidationError(formatted) : '');
     };
-
-    const availableTimes = [
-        '10:15','11:00','11:45','12:30','13:15','14:00','14:45','15:30','16:15','17:00'
-    ];
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -202,6 +201,9 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         <div className="bx-field">
                             <label>Horario *</label>
                             {slotsLoading && <small className="field-hint">Consultando disponibilidad...</small>}
+                            {!slotsLoading && form.date && availableTimes.length === 0 && (
+                                <small className="field-hint">No atendemos ese día — elige otra fecha.</small>
+                            )}
                             <div className="bx-time-grid">
                                 {availableTimes.map(t => {
                                     const isFull = fullSlots.includes(t);

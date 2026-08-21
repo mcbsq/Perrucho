@@ -182,7 +182,9 @@ export const appointmentsApi = {
   getByDate:    (date)        => api.get(`/appointments?date=${encodeURIComponent(date)}`),
   // Pública — no requiere sesión (la usa el booking express para saber qué
   // horarios ya están llenos sin exponer datos de otras citas).
-  getAvailability: (date)      => api.get(`/appointments/availability?date=${encodeURIComponent(date)}`),
+  getAvailability: (date, serviceId) => api.get(
+    `/appointments/availability?date=${encodeURIComponent(date)}${serviceId ? `&serviceId=${encodeURIComponent(serviceId)}` : ''}`
+  ),
   create:       (data)        => api.post('/appointments', data),
   update:       (id, data)    => api.put(`/appointments/${encodeURIComponent(id)}`, data),
   patch:        (id, data)    => api.patch(`/appointments/${encodeURIComponent(id)}`, data),
