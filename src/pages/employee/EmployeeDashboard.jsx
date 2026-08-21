@@ -12,7 +12,7 @@ import { appointmentsApi, usersApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import NotificationBell from '../../components/shared/NotificationBell';
 import {
-    FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt,
+    FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt, FaKey,
     FaNotesMedical, FaClock, FaTimes, FaSave,
     FaHistory, FaBoxOpen, FaExclamationTriangle, FaClipboardList,
     FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp,
@@ -34,6 +34,7 @@ import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
 import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
+import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import './EmployeeDashboard.css';
 import '../admin/AdminDashboard.css'; // reutiliza los estilos del POS (.pos-container, .pos-cart, etc.)
 
@@ -420,6 +421,7 @@ const EMPLOYEE_ONBOARDING_STEPS=[
 const EmployeeDashboard = () => {
     const {products,pets,clients,services,settings,addClient,updateClient,addPet,updatePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
+    const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
     const {notify, NotifyNode} = useNotify();
     const {show:showOnboarding,dismiss:dismissOnboarding,reopen:reopenOnboarding}=useOnboarding('employee',user?.id);
@@ -767,9 +769,11 @@ const EmployeeDashboard = () => {
                     <NotificationBell log={notifLog} unseenCount={unseenCount} onOpen={markSeen}/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <span className="emp-greeting"><FaUserTie/> Hola, <strong>{user?.name||'Empleado'}</strong></span>
+                    <button className="emp-logout-btn" onClick={()=>setShowChangePassword(true)} title="Cambiar contraseña"><FaKey/></button>
                     <button className="emp-logout-btn" onClick={logout}><FaSignOutAlt/></button>
                 </div>
             </header>
+            {showChangePassword && <ChangePasswordModal onClose={()=>setShowChangePassword(false)}/>}
 
             {showOnboarding && <OnboardingTour steps={EMPLOYEE_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 

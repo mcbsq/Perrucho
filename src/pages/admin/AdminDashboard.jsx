@@ -18,7 +18,7 @@ import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../compo
 import NotificationBell from '../../components/shared/NotificationBell';
 import * as XLSX from 'xlsx';
 import {
-    FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers,
+    FaCut, FaPaw, FaSignOutAlt, FaUserShield, FaUsers, FaKey,
     FaFileExcel, FaCalendarAlt, FaClock, FaCashRegister,
     FaSearch, FaBoxOpen, FaCartPlus, FaReceipt, FaTrashAlt,
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
@@ -44,6 +44,7 @@ import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
 import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
+import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
 import { shopToClientOnConfirmation as emailOnConfirmation, shopToClientOnFinished as emailOnFinished, openEmail } from '../../utils/emailNotify';
 import './AdminDashboard.css';
@@ -717,6 +718,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 const AdminDashboard = () => {
     const {services,products,pets,clients,sales,expenses,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
+    const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
     const {notify, NotifyNode} = useNotify();
     const {show:showOnboarding,dismiss:dismissOnboarding,reopen:reopenOnboarding}=useOnboarding('admin',user?.id);
@@ -1080,9 +1082,11 @@ const AdminDashboard = () => {
                     <NotificationBell log={notifLog} unseenCount={unseenCount} onOpen={markSeen}/>
                     <OnboardingHelpButton onClick={reopenOnboarding}/>
                     <div className="user-pill"><FaUserShield/><span>{user?.name}</span></div>
+                    <button className="logout-pill" onClick={()=>setShowChangePassword(true)} title="Cambiar contraseña"><FaKey/></button>
                     <button className="logout-pill" onClick={logout}><FaSignOutAlt/></button>
                 </div>
             </header>
+            {showChangePassword && <ChangePasswordModal onClose={()=>setShowChangePassword(false)}/>}
 
             {showOnboarding && <OnboardingTour steps={ADMIN_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
