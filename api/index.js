@@ -944,6 +944,7 @@ const normalizeServiceBody = (body) => {
   for (const f of PRICE_FIELDS) {
     if (data[f] !== undefined) data[f] = parseInt(data[f]) || 0;
   }
+  if (data.durationMinutes !== undefined) data.durationMinutes = parseInt(data.durationMinutes) || 45;
   if (customPriceOptions !== undefined) {
     data.customPriceOptions = customPriceOptions.map(o => ({ ...o, price: Number(o.price) || 0 }));
   }

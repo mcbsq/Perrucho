@@ -21,6 +21,10 @@ import { WEIGHT_RANGES, PRICE_FIELD } from '../../utils/pricingRules';
 import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
 import { STOCK_IMAGE_CATEGORIES } from '../../data/stockImages';
 
+// Índice = Date.getDay() (0=domingo...6=sábado) — mismo orden que
+// Settings.businessHours en el backend.
+export const DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
 // ─── Emoji por especie ────────────────────────────────────────────────────────
 export const speciesEmoji = (sp) => {
     if (!sp) return '🐾';
@@ -445,7 +449,7 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
     const [form, setForm] = useState({
         title: '', category: 'Estética', description: '', icon: '', color: 'blue', popular: false,
         priceMini: '', priceChico: '', priceMediano: '', priceGrande: '', priceExtra: '', priceJumbo: '',
-        price: '', showOnHome: true, pricingMode: 'weight', customPriceOptions: [],
+        price: '', showOnHome: true, pricingMode: 'weight', customPriceOptions: [], durationMinutes: 45,
         ...initial,
     });
     const [saving, setSaving] = useState(false);
@@ -499,6 +503,13 @@ export const ServiceFormModal = ({ initial, onSave, onClose }) => {
                         <option value="weight">Por tamaño / peso de mascota</option>
                         <option value="custom">Personalizado (ej. tipo de trabajo)</option>
                     </select>
+                    <label>Duración de la cita</label>
+                    <div className="ds-hours-range">
+                        <input type="number" min="5" step="5" value={form.durationMinutes ?? 45}
+                            onChange={e => setForm({ ...form, durationMinutes: e.target.value })}
+                            style={{ width: 90 }} required />
+                        <span>minutos — define cada cuánto se ofrecen horarios para agendar este servicio</span>
+                    </div>
                 </div>
 
                 {pricingMode === 'weight' ? (
@@ -789,8 +800,15 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
     const whyUsFeatures = form.whyUsFeatures || [];
     const footerLinks = form.footerLinks || [];
     const extraFields = form.clientExtraFields || [];
+    const businessHours = form.businessHours && form.businessHours.length === 7
+        ? form.businessHours
+        : DAY_LABELS.map((_, day) => ({ day, open: true, start: '10:15', end: '17:00' }));
 
     const set = (patch) => setForm(prev => ({ ...prev, ...patch }));
+
+    const updateDayHours = (day, patch) => {
+        set({ businessHours: businessHours.map(d => d.day === day ? { ...d, ...patch } : d) });
+    };
 
     const updateStep = (i, field, value) => {
         set({ howItWorksSteps: steps.map((s, idx) => idx === i ? { ...s, [field]: value } : s) });
@@ -1039,6 +1057,33 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
                     ))}
                 </div>
                 <button type="button" className="ds-btn ds-btn--secondary" onClick={addExtraField}>+ Agregar campo</button>
+            </section>
+
+            <section className="ds-settings-block">
+                <h3>🕐 Horarios de atención</h3>
+                <p className="ds-gallery-hint">
+                    Define en qué días atiendes y de qué hora a qué hora — el sistema arma los horarios
+                    disponibles para agendar automáticamente, según la duración de cada servicio.
+                </p>
+                <div className="ds-hours-table">
+                    {businessHours.map(d => (
+                        <div key={d.day} className="ds-hours-row">
+                            <label className="ds-toggle-inline ds-hours-day">
+                                <input type="checkbox" checked={d.open} onChange={e => updateDayHours(d.day, { open: e.target.checked })} />
+                                <span>{DAY_LABELS[d.day]}</span>
+                            </label>
+                            {d.open ? (
+                                <div className="ds-hours-range">
+                                    <input type="time" value={d.start} onChange={e => updateDayHours(d.day, { start: e.target.value })} />
+                                    <span>a</span>
+                                    <input type="time" value={d.end} onChange={e => updateDayHours(d.day, { end: e.target.value })} />
+                                </div>
+                            ) : (
+                                <span className="ds-hours-closed">Cerrado</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </section>
 
             <div className="ds-form-actions">
