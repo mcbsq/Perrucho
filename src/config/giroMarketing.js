@@ -79,6 +79,16 @@ export const GIRO_MARKETING = {
             { title: 'Asistencia', desc: 'Lleva el registro de quién entra a cada clase, sin lista en papel.' },
         ],
     },
+    alimentos: {
+        headline: 'El sistema para cafeterías y restaurantes',
+        subtitle: 'Menú con tamaños y extras, punto de venta e inventario de insumos — y reservación de mesa si tu negocio la necesita.',
+        img: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=1600&q=70',
+        highlights: [
+            { title: 'Menú con variantes', desc: 'Cada platillo o bebida con sus tamaños y precios reales.' },
+            { title: 'Cobro rápido', desc: 'Punto de venta pensado para mostrador, no para citas.' },
+            { title: 'Mesas opcionales', desc: '¿Tu negocio reserva mesa? Actívalo cuando quieras, sin cambiar de sistema.' },
+        ],
+    },
 };
 
 export const getGiroMarketing = (giro) => GIRO_MARKETING[giro] || GIRO_MARKETING.mascotas;

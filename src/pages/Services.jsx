@@ -9,8 +9,17 @@ import ServiceCard         from '../components/ServiceCard/ServiceCard';
 import { useBusinessPath } from '../utils/businessPath';
 import './Services.css';
 
+// Copy del encabezado — antes fijo "Experiencias para tu mascota" sin
+// importar el giro (una cafetería mostraba eso también). El giro alimentos
+// además reencuadra la página como "menú", no "servicios".
+const HEADER_COPY = {
+    mascotas: { badge: 'Nuestros Servicios', title: <>Experiencias para tu <span>mascota</span></>, subtitle: 'Selecciona el tamaño de tu mascota para ver el precio exacto.' },
+    alimentos: { badge: 'Nuestro Menú', title: <>Lo que <span>ofrecemos</span></>, subtitle: 'Elige tu platillo o bebida y su tamaño.' },
+    default: { badge: 'Nuestros Servicios', title: <>Experiencias para <span>ti</span></>, subtitle: 'Selecciona una opción para ver el precio exacto.' },
+};
+
 const Services = () => {
-    const { services, loading } = useData();
+    const { services, loading, settings } = useData();
     const { isLoggedIn }        = useAuth();
     const navigate              = useNavigate();
     const { withBusinessPath }  = useBusinessPath();
@@ -24,14 +33,16 @@ const Services = () => {
         setSelected(service);
     };
 
+    const headerCopy = HEADER_COPY[settings?.giro] || HEADER_COPY.default;
+
     return (
         <div className="services-page-container">
 
             <header className="services-header">
-                <div className="premium-badge">Nuestros Servicios</div>
-                <h1>Experiencias para tu <span>mascota</span></h1>
+                <div className="premium-badge">{headerCopy.badge}</div>
+                <h1>{headerCopy.title}</h1>
                 <p className="services-subtitle">
-                    Selecciona el tamaño de tu mascota para ver el precio exacto.
+                    {headerCopy.subtitle}
                 </p>
             </header>
 

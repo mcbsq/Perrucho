@@ -1080,6 +1080,22 @@ export const PersonalizacionSection = ({ settings, onSave }) => {
                     <input type="checkbox" checked={form.enablePets !== false} onChange={e => set({ enablePets: e.target.checked })} />
                     <span>Este negocio maneja mascotas (muestra la sección "Pacientes")</span>
                 </label>
+                <label className="ds-toggle-inline">
+                    <input type="checkbox" checked={!!form.enableStaffSelection} onChange={e => set({ enableStaffSelection: e.target.checked })} />
+                    <span>El cliente puede elegir quién le atiende al reservar</span>
+                </label>
+                <label className="ds-toggle-inline">
+                    <input type="checkbox" checked={!!form.enableMemberships} onChange={e => set({ enableMemberships: e.target.checked })} />
+                    <span>Este negocio maneja membresías (mensualidades con vigencia)</span>
+                </label>
+                <label className="ds-toggle-inline">
+                    <input type="checkbox" checked={!!form.enableClientNotes} onChange={e => set({ enableClientNotes: e.target.checked })} />
+                    <span>Llevar expediente por cliente (notas por consulta)</span>
+                </label>
+                <label className="ds-toggle-inline">
+                    <input type="checkbox" checked={!!form.enableTableReservations} onChange={e => set({ enableTableReservations: e.target.checked })} />
+                    <span>Este negocio reserva mesa (en vez de solo mostrador)</span>
+                </label>
 
                 <div className="ds-price-table-label" style={{ marginTop: 12 }}>Campos extra al registrar un cliente</div>
                 <div className="ds-price-table">

@@ -508,6 +508,16 @@ app.post('/api/business/register', publicWriteLimiter, async (req, res) => {
         heroTagline: preset.copy.heroTagline,
         heroSubtitle: preset.copy.heroSubtitle,
         clientExtraFields: preset.clientExtraFieldsDefault,
+        // Herramientas específicas por giro — ver docs/superpowers/specs/
+        // 2026-08-21-herramientas-por-giro-design.md. Explícito por la misma
+        // razón que el resto de este objeto: un negocio nuevo no debe
+        // depender del default de la columna (que es "todo apagado", seguro
+        // para negocios YA existentes, pero no necesariamente lo correcto
+        // para el giro que se está registrando ahora).
+        enableStaffSelection: preset.enableStaffSelectionDefault,
+        enableMemberships: preset.enableMembershipsDefault,
+        enableClientNotes: preset.enableClientNotesDefault,
+        enableTableReservations: preset.enableTableReservationsDefault,
         // Explícito a propósito, aunque ya sea el default de la columna —
         // un negocio nuevo nunca debe depender de un default implícito
         // para datos propios del negocio (contacto, redes, slogan). Bug
