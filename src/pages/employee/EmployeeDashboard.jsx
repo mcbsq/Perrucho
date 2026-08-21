@@ -215,7 +215,11 @@ const MedicalModal = ({pet,clients,onSave,onClose}) => {
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusChange,onAssignTime,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds,onAddExtra,onRemoveExtra}) => {
+const CalendarModal = ({appointments,pets,clients,services,settings,onAddAppt,onStatusChange,onAssignTime,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds,onAddExtra,onRemoveExtra}) => {
+    // Mismo fix que en AdminDashboard.jsx: sin esto, un negocio sin
+    // mascotas no podía crear citas desde este formulario (el selector
+    // "Paciente" siempre usaba `pets`, vacío para esos giros).
+    const petsEnabled=settings?.enablePets!==false;
     const now=new Date();
     const [viewDate,setViewDate]=useState(new Date(now.getFullYear(),now.getMonth(),1));
     const [calView,setCalView]=useState('week');
@@ -225,7 +229,7 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
     const [showForm,setShowForm]=useState(false);
     const [saving,setSaving]=useState(false);
     const [slotError,setSlotError]=useState('');
-    const [newAppt,setNewAppt]=useState({petId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
+    const [newAppt,setNewAppt]=useState({petId:'',clientId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
     const empleados=(allUsers||[]).filter(u=>u.role==='empleado');
 
     useEffect(()=>{
@@ -256,12 +260,20 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
         try{
             const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));
             const pet=pets.find(p=>String(p.id)===String(newAppt.petId));
+            const client=clients.find(c=>String(c.id)===String(newAppt.clientId));
             // Bug real pre-existente: `assignedTo` no es columna de
             // Appointment (solo `employeeId`) — mandarlo tronaba
             // prisma.appointment.create() con "Error del servidor".
-            await onAddAppt({...newAppt,serviceName:svc?.title,petName:pet?.petName,employeeId:currentUser?.id||null,clientId:pet?.ownerId||null});
+            const {clientId,...newApptRest}=newAppt;
+            await onAddAppt({...newApptRest,
+                petId:petsEnabled?(newAppt.petId?Number(newAppt.petId):null):null,
+                serviceName:svc?.title,
+                petName:pet?.petName,
+                employeeId:currentUser?.id||null,
+                clientId:petsEnabled?(pet?.ownerId||null):(client?.id||null),
+            });
             setShowForm(false);
-            setNewAppt({petId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
+            setNewAppt({petId:'',clientId:'',serviceId:'',date:todayStr(),time:'',status:'Pendiente',finalPrice:0});
             setSlotError('');
         }finally{setSaving(false);}
     };
@@ -374,10 +386,17 @@ const CalendarModal = ({appointments,pets,clients,services,onAddAppt,onStatusCha
             </div>
             {showForm&&<form className="cal-appt-form fade-in" onSubmit={handleCreate}>
                 <div className="cal-form-grid">
-                    <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
-                        <option value="">Paciente...</option>
-                        {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
-                    </select>
+                    {petsEnabled ? (
+                        <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
+                            <option value="">Paciente...</option>
+                            {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
+                        </select>
+                    ) : (
+                        <select value={newAppt.clientId} onChange={e=>setNewAppt({...newAppt,clientId:e.target.value})} required>
+                            <option value="">Cliente...</option>
+                            {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    )}
                     <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value})} required>
                         <option value="">Servicio...</option>
                         {services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
@@ -708,7 +727,7 @@ const EmployeeDashboard = () => {
             <div className="emp-toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {NotifyNode}
 
-            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} settings={settings} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
             {medicalPet&&<MedicalModal pet={medicalPet} clients={clients} onSave={saveMedicalFile} onClose={()=>setMedicalPet(null)}/>}
             {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)} extraFields={settings?.clientExtraFields||[]}/>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
