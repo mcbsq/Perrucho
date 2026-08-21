@@ -623,6 +623,24 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
     const [saving, setSaving] = useState(false);
     const isEdit = !!initial?.id;
     const variants = form.variants || [];
+    // "Sumar stock" — antes solo se podía sobrescribir el total a mano (fácil
+    // de restar mal al recibir una compra nueva). Este campo no se guarda:
+    // solo suma su valor al stock actual y se limpia.
+    const [addQty, setAddQty] = useState('');
+    const [addVariantQty, setAddVariantQty] = useState({});
+
+    const applyAddStock = () => {
+        const n = Number(addQty);
+        if (!n) return;
+        setForm(f => ({ ...f, stock: (Number(f.stock) || 0) + n }));
+        setAddQty('');
+    };
+    const applyAddVariantStock = (i) => {
+        const n = Number(addVariantQty[i]);
+        if (!n) return;
+        setForm(f => ({ ...f, variants: (f.variants || []).map((v, idx) => idx === i ? { ...v, stock: (Number(v.stock) || 0) + n } : v) }));
+        setAddVariantQty(prev => ({ ...prev, [i]: '' }));
+    };
 
     const updateVariant = (i, field, value) => {
         setForm({ ...form, variants: variants.map((v, idx) => idx === i ? { ...v, [field]: value } : v) });
@@ -650,8 +668,19 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
                     <input type="number" placeholder="$" value={form.price}
                         onChange={e => setForm({ ...form, price: e.target.value })} required />
                     <label>Stock</label>
-                    <input type="number" placeholder="Unidades" value={form.stock}
-                        onChange={e => setForm({ ...form, stock: e.target.value })} required />
+                    <div>
+                        <input type="number" placeholder="Unidades" value={form.stock}
+                            onChange={e => setForm({ ...form, stock: e.target.value })} required />
+                        {isEdit && (
+                            <div className="ds-hours-range" style={{ marginTop: 8 }}>
+                                <input type="number" min="1" placeholder="Cantidad" value={addQty}
+                                    onChange={e => setAddQty(e.target.value)} style={{ width: 100 }} />
+                                <button type="button" className="ds-btn ds-btn--secondary" onClick={applyAddStock}>
+                                    + Sumar al stock actual
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <label>Categoría</label>
                     <CategoryField
                         value={form.category}
@@ -679,6 +708,16 @@ export const ProductFormModal = ({ initial, onSave, onClose }) => {
                             </div>
                             <input type="number" min="0" placeholder="Stock" value={v.stock}
                                 onChange={e => updateVariant(i, 'stock', e.target.value)} style={{ width: 90 }} required />
+                            {isEdit && (
+                                <>
+                                    <input type="number" min="1" placeholder="+" value={addVariantQty[i] || ''}
+                                        onChange={e => setAddVariantQty(prev => ({ ...prev, [i]: e.target.value }))}
+                                        style={{ width: 60 }} title="Cantidad a sumar" />
+                                    <button type="button" className="ds-btn-icon" onClick={() => applyAddVariantStock(i)} title="Sumar al stock de esta variante">
+                                        <FaPlus />
+                                    </button>
+                                </>
+                            )}
                             <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeVariant(i)}><FaTimes /></button>
                         </div>
                     ))}
