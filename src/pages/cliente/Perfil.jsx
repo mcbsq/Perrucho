@@ -553,18 +553,18 @@ const Perfil = () => {
                                 ) : (
                                     <div className="sales-list">
                                         {mySales.map(s => (
-                                            <div key={s.id} className="sale-row">
+                                            <div key={s.id} className="sale-row" style={s.status === 'cancelado' ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}>
                                                 <div className="sale-icon">{s.type === 'product' ? '📦' : '✂️'}</div>
                                                 <div className="sale-info">
                                                     <strong>{getSaleLabel(s)}</strong>
-                                                    <span className="sale-date">{formatDate(s.date)}</span>
+                                                    <span className="sale-date">{formatDate(s.date)}{s.status === 'cancelado' ? ' · Cancelada' : ''}</span>
                                                 </div>
                                                 <span className="sale-amount">${Number(getSaleAmount(s)).toLocaleString()}</span>
                                             </div>
                                         ))}
                                         <div className="sales-total">
                                             <span>Total gastado</span>
-                                            <strong>${mySales.reduce((a, s) => a + Number(getSaleAmount(s)), 0).toLocaleString()}</strong>
+                                            <strong>${mySales.filter(s => s.status !== 'cancelado').reduce((a, s) => a + Number(getSaleAmount(s)), 0).toLocaleString()}</strong>
                                         </div>
                                     </div>
                                 )}

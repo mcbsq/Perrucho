@@ -1677,6 +1677,38 @@ app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), as
   }
 });
 
+// PATCH /api/sales/:id/cancel — feedback real del cliente: "agregar opción
+// cancelar venta y que se vea reflejado en el sistema". Cancelar no borra
+// el registro (queda como historial/auditoría, visible en el listado de
+// Ventas) — marca status='cancelado' y REVIERTE el stock que esa venta
+// había descontado, dentro de la misma transacción. Las gráficas/KPIs de
+// ingresos ya excluyen 'cancelado' (ver excludeCancelled en el frontend).
+app.patch('/api/sales/:id/cancel', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const updated = await prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findUnique({ where: { id }, include: { items: true } });
+      if (!sale) throw Object.assign(new Error('Venta no encontrada'), { status: 404 });
+      if (sale.status === 'cancelado') throw Object.assign(new Error('Esta venta ya está cancelada'), { status: 409 });
+
+      for (const item of sale.items) {
+        if (!item.productId) continue;
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        }).catch(() => {}); // el producto pudo haberse borrado desde entonces — no bloquea la cancelación
+      }
+
+      return tx.sale.update({ where: { id }, data: { status: 'cancelado' }, include: saleInclude });
+    });
+    res.json(updated);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    console.error('PATCH /api/sales/:id/cancel', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 app.put('/api/sales/:id', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
     const { items, ...data } = req.body;
