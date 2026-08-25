@@ -211,13 +211,21 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
 };
 
 // ─── Gráficas ─────────────────────────────────────────────────────────────────
+// Una venta cancelada no cuenta como ingreso en ninguna gráfica/reporte —
+// se filtra aquí, adentro de cada componente, para que ningún caller pueda
+// olvidarlo (antes las ventas canceladas seguían sumando en KPIs, gráficas
+// y reportes por cliente, como si nunca se hubieran cancelado).
+const excludeCancelled=(sales)=>sales.filter(s=>s.status!=='cancelado');
+
 const ServiceChart = ({sales,services}) => {
+    sales=excludeCancelled(sales);
     const cats=useMemo(()=>{const now=new Date(),map={};sales.forEach(s=>{if(!isSameMonth(s.date||s.createdAt,now.getFullYear(),now.getMonth()))return;const label=getSaleLabel(s);const svc=services.find(sv=>String(label).toLowerCase().includes(sv.title?.toLowerCase()));map[svc?.category||'Otros']=(map[svc?.category||'Otros']||0)+Number(getSaleAmount(s));});return Object.entries(map).sort((a,b)=>b[1]-a[1]);},[sales,services]);
     const max=Math.max(...cats.map(c=>c[1]),1);
     const COLORS=['#74b9ff','#a29bfe','#55efc4','#fdcb6e','#ff7675'];
     return <div className="service-chart">{cats.length===0?<p className="empty-chart">Sin datos este mes</p>:cats.map(([cat,total],i)=><div key={cat} className="svc-bar-row"><span className="svc-bar-label">{cat}</span><div className="svc-bar-track"><div className="svc-bar-fill" style={{width:`${(total/max)*100}%`,background:COLORS[i%5]}}/></div><span className="svc-bar-val">${total.toLocaleString()}</span></div>)}</div>;
 };
 const WeeklyChart = ({sales}) => {
+    sales=excludeCancelled(sales);
     const tod=new Date().getDay();
     const totals=useMemo(()=>{const m=[0,0,0,0,0,0,0],now=new Date();sales.forEach(s=>{const d=parseDate(s.date||s.createdAt);if(!d||isNaN(d))return;const diff=Math.floor((now-d)/86400000);if(diff>=0&&diff<7)m[d.getDay()]+=Number(getSaleAmount(s))||0;});return m;},[sales]);
     const max=Math.max(...totals,1);
@@ -231,6 +239,7 @@ const WeeklyChart = ({sales}) => {
 const RANGE_OPTIONS = [{ days: 7, label: '7 días' }, { days: 30, label: '30 días' }, { days: 90, label: '90 días' }];
 
 const IncomeExpenseChart = ({ sales, expenses, days }) => {
+    sales=excludeCancelled(sales);
     const data = useMemo(() => {
         const now = new Date();
         const buckets = Array.from({ length: days }, (_, i) => {
@@ -269,6 +278,7 @@ const IncomeExpenseChart = ({ sales, expenses, days }) => {
 };
 
 const TopItemsRanking = ({ sales }) => {
+    sales=excludeCancelled(sales);
     const items = useMemo(() => {
         const map = {};
         sales.forEach(s => (s.items || [{ name: getSaleLabel(s), quantity: 1, price: getSaleAmount(s) }]).forEach(it => {
@@ -294,6 +304,7 @@ const TopItemsRanking = ({ sales }) => {
 };
 
 const AnalyticsSection = ({ sales, expenses, appointments, clients, services }) => {
+    sales=excludeCancelled(sales);
     const [days, setDays] = useState(30);
 
     const kpis = useMemo(() => {
@@ -590,19 +601,33 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,settings,o
 };
 
 // ─── Modales de reporte ───────────────────────────────────────────────────────
-const SalesModal = ({sales,onClose,onShowReceipt}) => {
+const SALE_STATUS_LABEL={pagado:'Pagado',pendiente:'Pendiente',cancelado:'Cancelada'};
+const SalesModal = ({sales,onClose,onShowReceipt,onCancelSale}) => {
     const now=new Date();
     const months=Array.from({length:4},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth()-i,1);return{label:`${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`,year:d.getFullYear(),month:d.getMonth()};});
     const [sel,setSel]=useState(0);
     const {year,month}=months[sel];
     const filtered=sales.filter(s=>isSameMonth(s.date||s.createdAt,year,month));
-    const total=filtered.reduce((a,s)=>a+Number(getSaleAmount(s)),0);
-    const exportExcel=()=>{const ws=XLSX.utils.json_to_sheet(filtered.map(s=>({Fecha:s.date,Descripción:getSaleLabel(s),Monto:getSaleAmount(s),Método:s.paymentMethod||'—',Estado:s.status||'—'})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');XLSX.writeFile(wb,`Ventas_${months[sel].label}.xlsx`);};
+    // El total del mes no debe incluir ventas canceladas — la tabla de abajo
+    // sí las sigue mostrando (con su estado), solo se excluyen de la suma.
+    const total=filtered.filter(s=>s.status!=='cancelado').reduce((a,s)=>a+Number(getSaleAmount(s)),0);
+    const exportExcel=()=>{const ws=XLSX.utils.json_to_sheet(filtered.map(s=>({Fecha:s.date,Descripción:getSaleLabel(s),Monto:getSaleAmount(s),Método:s.paymentMethod||'—',Estado:SALE_STATUS_LABEL[s.status]||s.status||'—'})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ventas');XLSX.writeFile(wb,`Ventas_${months[sel].label}.xlsx`);};
     return <Modal title="Ventas del mes" onClose={onClose} wide>
         <div className="modal-filters">{months.map((m,i)=><button key={i} className={`pill-btn ${sel===i?'active':''}`} onClick={()=>setSel(i)}>{m.label}</button>)}<button className="pill-btn export-btn" onClick={exportExcel}><FaFileExcel/> Exportar</button></div>
         <div className="modal-summary-row"><span>Total</span><span className="modal-total">${total.toLocaleString()}</span></div>
         <table className="modal-table"><thead><tr><th>Fecha</th><th>Descripción</th><th>Método</th><th>Estado</th><th>Monto</th><th></th></tr></thead>
-        <tbody>{filtered.length===0?<tr><td colSpan="6" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=><tr key={s.id}><td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.paymentMethod||'efectivo'}</td><td>{s.status||'pagado'}</td><td className="td-amount">${Number(getSaleAmount(s)).toLocaleString()}</td><td><button type="button" className="ds-btn-icon" title="Ver recibo" onClick={()=>onShowReceipt(s)}><FaReceipt/></button></td></tr>)}</tbody></table>
+        <tbody>{filtered.length===0?<tr><td colSpan="6" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=>{
+            const isCancelled=s.status==='cancelado';
+            return <tr key={s.id} style={isCancelled?{opacity:0.55,textDecoration:'line-through'}:undefined}>
+                <td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.paymentMethod||'efectivo'}</td>
+                <td style={{textDecoration:'none'}}>{SALE_STATUS_LABEL[s.status]||s.status||'Pagado'}</td>
+                <td className="td-amount">${Number(getSaleAmount(s)).toLocaleString()}</td>
+                <td style={{textDecoration:'none',display:'flex',gap:6}}>
+                    <button type="button" className="ds-btn-icon" title="Ver recibo" onClick={()=>onShowReceipt(s)}><FaReceipt/></button>
+                    {!isCancelled&&onCancelSale&&<button type="button" className="ds-btn-icon ds-btn-icon--del" title="Cancelar venta" onClick={()=>onCancelSale(s)}><FaTimes/></button>}
+                </td>
+            </tr>;
+        })}</tbody></table>
     </Modal>;
 };
 
@@ -720,6 +745,7 @@ const ExpensesModal = ({expenses,onClose,onAdd,onDelete}) => {
 };
 
 const ClientsReportModal = ({sales,clients,onClose}) => {
+    sales=excludeCancelled(sales);
     const [date,setDate]=useState(todayISO());
     const dObj=new Date(date+'T12:00:00');
     const daySales=sales.filter(s=>isSameDay(s.date||s.createdAt,dObj));
@@ -752,7 +778,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,expenses,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
+    const {services,products,pets,clients,sales,expenses,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
     const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
@@ -805,8 +831,13 @@ const AdminDashboard = () => {
     const [receiptSale,setReceiptSale]=useState(null);
 
     const now=new Date(),todayStr_=todayISO();
+    // Una venta cancelada no debe seguir contando como ingreso en ningún
+    // lado (KPIs, gráficas, reportes por cliente) — pero SÍ debe seguir
+    // apareciendo en el listado de Ventas con su estado, para que quede
+    // registro de que existió y se canceló.
+    const activeSales=useMemo(()=>sales.filter(s=>s.status!=='cancelado'),[sales]);
     const stats=useMemo(()=>{
-        const ms=sales.filter(s=>isSameMonth(s.date||s.createdAt,now.getFullYear(),now.getMonth()));
+        const ms=activeSales.filter(s=>isSameMonth(s.date||s.createdAt,now.getFullYear(),now.getMonth()));
         const me=expenses.filter(e=>isSameMonth(e.date,now.getFullYear(),now.getMonth()));
         const ta=appointments.filter(a=>a.date===todayStr_);
         return{
@@ -816,7 +847,7 @@ const AdminDashboard = () => {
             totalClients:clients.length,
             lowStock:products.filter(p=>Number(p.stock)<5).length
         };
-    },[sales,expenses,appointments,clients,products,todayStr_]);
+    },[activeSales,expenses,appointments,clients,products,todayStr_]);
 
     // ── POS con nuevo formato de addSale ──────────────────────────────────────
     // item.variantName distingue líneas de carrito de un mismo producto con
@@ -924,6 +955,12 @@ const AdminDashboard = () => {
     const clientsWithMembership=clients.map(c=>membershipOverrides[c.id]?{...c,...membershipOverrides[c.id]}:c);
 
     const handleAddExpense=async(data)=>{try{await addExpense(data);addToast('Egreso agregado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+
+    const handleCancelSale=async(sale)=>{
+        const ok=await notify({type:'confirm',icon:'🚫',accent:'red',title:'¿Cancelar esta venta?',message:`"${getSaleLabel(sale)}" — $${getSaleAmount(sale)}. Se revierte el stock de los productos vendidos.`,confirmLabel:'Sí, cancelar',cancelLabel:'Volver'});
+        if(!ok)return;
+        try{await cancelSale(sale.id);addToast('Venta cancelada','info');}catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
     const handleDeleteExpense=async(id)=>{
         const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:'¿Eliminar este egreso?',message:'Esta acción no se puede deshacer.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
         if(!ok)return;
@@ -1094,7 +1131,7 @@ const AdminDashboard = () => {
             <div className="toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {NotifyNode}
 
-            {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)} onShowReceipt={setReceiptSale}/>}
+            {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)} onShowReceipt={setReceiptSale} onCancelSale={handleCancelSale}/>}
             {receiptSale &&<ReceiptModal sale={receiptSale} settings={settings} client={clients.find(c=>String(c.id)===String(receiptSale.clientId))} onClose={()=>setReceiptSale(null)}/>}
             {activeModal==='egresos'  &&<ExpensesModal expenses={expenses} onClose={()=>setActiveModal(null)} onAdd={handleAddExpense} onDelete={handleDeleteExpense}/>}
             {activeModal==='clientes' &&<ClientsReportModal sales={sales} clients={clients} onClose={()=>setActiveModal(null)}/>}

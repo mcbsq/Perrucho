@@ -42,6 +42,7 @@ enum PaymentMethod {
 enum SaleStatus {
   pagado
   pendiente
+  cancelado
 }
 
 enum SaleType {

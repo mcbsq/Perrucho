@@ -238,6 +238,9 @@ export const salesApi = {
   update:  (id, data)    => api.put(`/sales/${encodeURIComponent(id)}`, data),
   patch:   (id, data)    => api.patch(`/sales/${encodeURIComponent(id)}`, data),
   delete:  (id)          => api.delete(`/sales/${encodeURIComponent(id)}`),
+  // Marca la venta como cancelada y revierte el stock que había descontado
+  // — no borra el registro, queda como historial.
+  cancel:  (id)          => api.patch(`/sales/${encodeURIComponent(id)}/cancel`),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
