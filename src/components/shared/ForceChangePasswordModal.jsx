@@ -5,12 +5,18 @@
 // contraseña, o el cutover a AEGIS). Bloquea el resto de la app hasta que
 // la persona fije su propia contraseña; AEGIS exige mínimo 12 caracteres
 // para la nueva.
+//
+// Bug real reportado por el cliente: si el cambio fallaba (temporal
+// equivocada, error transitorio de AEGIS), no había NINGUNA salida — ni
+// botón de cerrar sesión, nada — la persona quedaba completamente
+// atorada, sin poder ni siquiera volver a intentar con "olvidé mi
+// contraseña". Se agrega un enlace de escape que cierra la sesión.
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import './ForceChangePasswordModal.css';
 
 const ForceChangePasswordModal = () => {
-    const { changePassword } = useAuth();
+    const { changePassword, logout } = useAuth();
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -83,6 +89,11 @@ const ForceChangePasswordModal = () => {
                         {loading ? 'Guardando...' : 'Cambiar contraseña'}
                     </button>
                 </form>
+                {error && (
+                    <button type="button" className="fcp-escape-link" onClick={logout}>
+                        ¿No puedes cambiarla? Cerrar sesión y volver a intentar
+                    </button>
+                )}
             </div>
         </div>
     );
