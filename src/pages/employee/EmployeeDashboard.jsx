@@ -499,9 +499,14 @@ const EmployeeDashboard = () => {
                     price: i.price,
                     quantity: i.qty,
                     productId: i.type==='product' ? i.id : undefined,
+                    variantName: i.variantName,
                 })),
                 total: +cartTotal.toFixed(2),
-                clientId: posClientId||null,
+                // FIX: <select> siempre da string — Prisma exige Int para
+                // clientId (mismo bug ya resuelto en AdminDashboard.jsx,
+                // faltaba replicarlo aquí) y tronaba con "Error del
+                // servidor" cada vez que un empleado elegía un cliente.
+                clientId: posClientId?Number(posClientId):null,
                 type: allProducts?'product':allServices?'service':'mixed',
                 paymentMethod: posPaymentMethod,
                 status: posSaleStatus,
