@@ -812,7 +812,16 @@ app.post('/api/clients', publicWriteLimiter, async (req, res) => {
 
 app.put('/api/clients/:id', verifyToken, requireOwnerOrRole('administrador', 'empleado'), async (req, res) => {
   try {
-    const { password, confirmPassword, role, ...data } = req.body;
+    // Bug real: ClientFormModal (admin/empleado) arma `form` como
+    // {...defaults, ...initial} donde `initial` es el cliente tal cual lo
+    // devuelve GET /api/clients — que incluye `pets` (relación, ver
+    // include:{pets:true} arriba). Al guardar reenvía ese `pets` crudo y
+    // Prisma lo rechaza con PrismaClientValidationError ("Error del
+    // servidor" en TODO guardado de un cliente que ya tenga mascotas).
+    // Mismo problema ya se había resuelto para el autoservicio del cliente
+    // en Perfil.jsx armando el payload a mano — aquí se cierra para
+    // cualquier llamador filtrando las relaciones antes de pasarlas a Prisma.
+    const { password, confirmPassword, role, pets, business, appointments, assignedAppointments, sales, expenses, membershipPlan, ...data } = req.body;
     // Solo admin/empleado pueden fijar la contraseña de un cliente aquí — es
     // el respaldo para clientes que aún no configuraron su pregunta de
     // seguridad y por lo tanto no pueden usar "Olvidé mi contraseña" solos.
@@ -1625,11 +1634,16 @@ app.get('/api/sales/:id', verifyToken, requireRole('administrador'), async (req,
 app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
     const { items, ...data } = req.body;
+    // variantName viaja en el payload solo para la lógica de descuento de
+    // stock de abajo — NO es una columna real de SaleItem (ver schema.prisma)
+    // así que hay que quitarlo antes de pasar los items a `create`, igual que
+    // se hizo con normalizeAppointmentIds para Appointment.
+    const saleItemsData = (items || []).map(({ variantName, ...rest }) => rest);
     const sale = await prisma.$transaction(async (tx) => {
       const createdSale = await tx.sale.create({
         data: {
           ...data,
-          items: items ? { create: items } : undefined,
+          items: items ? { create: saleItemsData } : undefined,
         },
         include: saleInclude,
       });

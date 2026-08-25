@@ -878,10 +878,11 @@ const AdminDashboard = () => {
             const allServices = cart.every(i=>i.type==='service');
             const savedSale = await addSale({
                 items: cart.map(i=>({
-                    name:      i.name||i.title,
-                    price:     i.price,
-                    quantity:  i.qty,
-                    productId: i.type==='product' ? i.id : undefined,
+                    name:        i.name||i.title,
+                    price:       i.price,
+                    quantity:    i.qty,
+                    productId:   i.type==='product' ? i.id : undefined,
+                    variantName: i.variantName,
                 })),
                 total:         +cartTotal.toFixed(2),
                 // FIX: <select> siempre da string — Prisma exige Int para
