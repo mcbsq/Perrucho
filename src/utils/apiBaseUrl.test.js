@@ -14,4 +14,12 @@ describe('resolveApiBaseUrl', () => {
             configuredUrl: 'http://localhost:3001/api',
         })).toBe('http://localhost:3001/api');
     });
+
+    test('en el contenedor usa la API del mismo origen incluso en localhost', () => {
+        expect(resolveApiBaseUrl({
+            hostname: 'localhost',
+            configuredUrl: 'http://localhost:3001/api',
+            sameOrigin: true,
+        })).toBe('/api');
+    });
 });

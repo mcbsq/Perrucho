@@ -1,5 +1,33 @@
 # Getting Started with Create React App
 
+## Docker
+
+Emporio puede ejecutarse como un único contenedor: Express sirve la aplicación
+React compilada y la API bajo el mismo dominio. Neon, AEGIS y Resend siguen
+siendo servicios externos configurados con variables de entorno.
+
+1. Crea/actualiza `.env` a partir de `.env.example` con tus credenciales.
+2. Construye y arranca el contenedor:
+
+   ```bash
+   docker compose up --build
+   ```
+
+3. Abre `http://localhost:3000`.
+
+El contenedor **no ejecuta migraciones automáticamente**. Antes de una nueva
+versión con migraciones, ejecútalas de forma explícita y revisable:
+
+```bash
+docker compose run --rm emporio npm run prisma:migrate
+```
+
+Para detenerlo:
+
+```bash
+docker compose down
+```
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

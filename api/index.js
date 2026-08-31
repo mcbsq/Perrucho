@@ -11,6 +11,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const path = require('path');
 const { verifyToken, attachUserIfPresent, requireRole, requireOwnerOrRole } = require('../middleware/auth');
 const { resolveBusiness } = require('../middleware/tenant');
 
@@ -26,6 +27,7 @@ const prisma = require('./lib/tenantClient');
 const prismaRaw = require('./lib/prismaRaw');
 const aegisClient = require('./lib/aegisClient');
 const { getGiroPreset } = require('./config/giroPresets');
+const { shouldStartStandaloneServer, shouldServeStaticApp } = require('./lib/runtime');
 
 // Horario por defecto si un negocio todavía no tiene Settings creado (no
 // debería pasar en producción, pero evita que availability truene antes de
@@ -1873,13 +1875,23 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ARRANQUE LOCAL vs PRODUCCIÓN (patrón Booz)
+// APP ESTÁTICA Y ARRANQUE
 // ─────────────────────────────────────────────────────────────────────────────
 
-if (process.env.NODE_ENV !== 'production') {
+// Docker reúne la app React y la API en el mismo contenedor/origen. Vercel
+// conserva su manejo de estáticos actual porque SERVE_STATIC no se define allí.
+if (shouldServeStaticApp(process.env)) {
+  const buildDir = path.join(__dirname, '..', 'build');
+  app.use(express.static(buildDir));
+  app.get(/^\/(?!api(?:\/|$)).*/, (_req, res) => res.sendFile(path.join(buildDir, 'index.html')));
+}
+
+// Vercel importa `app` como función serverless; Docker y ejecución local sí
+// necesitan escuchar un puerto aun usando NODE_ENV=production.
+if (shouldStartStandaloneServer(process.env)) {
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
-    console.log(`🐾 Perrucho API corriendo en http://localhost:${PORT}/api`);
+    console.log(`🐾 Emporio disponible en http://localhost:${PORT}`);
   });
 }
 

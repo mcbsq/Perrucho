@@ -16,6 +16,7 @@ import { resolveApiBaseUrl } from '../utils/apiBaseUrl';
 const BASE_URL = resolveApiBaseUrl({
   hostname: window.location.hostname,
   configuredUrl: process.env.REACT_APP_API_URL,
+  sameOrigin: process.env.REACT_APP_SAME_ORIGIN_API === 'true',
 });
 
 // ── Token helpers ─────────────────────────────────────────────────────────────

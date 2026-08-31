@@ -2,7 +2,8 @@
 // una URL absoluta compilada aquí hace que los previews apunten a producción
 // y el navegador bloquee las peticiones por CORS. Solo el entorno local usa
 // una API externa para poder ejecutar CRA y Express en puertos distintos.
-export const resolveApiBaseUrl = ({ hostname = '', configuredUrl } = {}) => {
+export const resolveApiBaseUrl = ({ hostname = '', configuredUrl, sameOrigin = false } = {}) => {
+    if (sameOrigin) return '/api';
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
     return isLocal ? (configuredUrl || 'http://localhost:3001/api') : '/api';
 };
