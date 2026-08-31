@@ -11,7 +11,12 @@
 //   - Las respuestas de appointments/clients incluyen objetos anidados (join)
 //   - El token JWT se adjunta automáticamente en cada request
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+import { resolveApiBaseUrl } from '../utils/apiBaseUrl';
+
+const BASE_URL = resolveApiBaseUrl({
+  hostname: window.location.hostname,
+  configuredUrl: process.env.REACT_APP_API_URL,
+});
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 const getToken = () => localStorage.getItem('perrucho_token');
