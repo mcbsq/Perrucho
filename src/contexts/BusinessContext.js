@@ -16,23 +16,32 @@ export const BusinessProvider = ({ slug, children }) => {
     const [business, setBusiness] = useState(null);
     const [loading,  setLoading]  = useState(true);
     const [notFound, setNotFound] = useState(false);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
         setNotFound(false);
+        setError('');
         setActiveBusinessSlug(slug);
 
         businessApi.getBySlug(slug)
             .then(data => { if (!cancelled) setBusiness(data); })
-            .catch(() => { if (!cancelled) setNotFound(true); })
+            .catch((err) => {
+                if (cancelled) return;
+                if (err?.status === 404) {
+                    setNotFound(true);
+                    return;
+                }
+                setError(err?.message || 'No fue posible conectar con el servicio.');
+            })
             .finally(() => { if (!cancelled) setLoading(false); });
 
         return () => { cancelled = true; };
     }, [slug]);
 
     return (
-        <BusinessContext.Provider value={{ business, loading, notFound }}>
+        <BusinessContext.Provider value={{ business, loading, notFound, error }}>
             {children}
         </BusinessContext.Provider>
     );

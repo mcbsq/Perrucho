@@ -13,7 +13,7 @@ import { BusinessProvider, useBusiness } from '../contexts/BusinessContext';
 import { getGiroUrlLabel } from '../config/giroPresets';
 
 const BusinessGate = ({ children }) => {
-    const { business, loading, notFound } = useBusiness();
+    const { business, loading, notFound, error } = useBusiness();
     const { giro: urlGiro, businessSlug } = useParams();
     const location = useLocation();
 
@@ -27,6 +27,15 @@ const BusinessGate = ({ children }) => {
             <div style={centered}>
                 <h1>Negocio no encontrado</h1>
                 <p>La dirección a la que intentas entrar no corresponde a ningún negocio registrado.</p>
+            </div>
+        );
+    }
+    if (error) {
+        return (
+            <div style={centered} role="alert">
+                <h1>No pudimos cargar este negocio</h1>
+                <p>{error}</p>
+                <p>Intenta recargar la página en unos momentos.</p>
             </div>
         );
     }
