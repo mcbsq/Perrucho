@@ -88,6 +88,24 @@ export function getAllPrices(service) {
 }
 
 /**
+ * Opciones que puede elegir el staff al cobrar un servicio desde el POS.
+ * Los servicios de mascotas usan sus seis tallas; los demás giros muestran
+ * las opciones personalizadas que el negocio configuró.
+ */
+export function getPosServicePriceOptions(service) {
+    if (!service) return [];
+    if (service.pricingMode === 'custom') {
+        return (service.customPriceOptions || []).map((option, index) => ({
+            key: `custom-${index}`,
+            label: option.label,
+            desc: '',
+            price: Number(option.price) || 0,
+        }));
+    }
+    return getAllPrices(service);
+}
+
+/**
  * Label amigable del rango de una mascota según su peso.
  * Ej: 8 kg → "Chico (6-9 kg)"
  */

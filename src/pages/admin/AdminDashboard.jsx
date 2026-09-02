@@ -47,6 +47,7 @@ import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
+import PosServicePricePicker from '../../components/shared/PosServicePricePicker';
 import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
 import { shopToClientOnConfirmation as emailOnConfirmation, shopToClientOnFinished as emailOnFinished, openEmail } from '../../utils/emailNotify';
 import './AdminDashboard.css';
@@ -859,6 +860,7 @@ const AdminDashboard = () => {
         else setCart([...cart,{...item,qty:1,type}]);
     };
     const [posVariantPicker,setPosVariantPicker]=useState(null); // producto con variantes pendiente de elegir
+    const [posServicePicker,setPosServicePicker]=useState(null);
     const addProductToCart=(product)=>{
         if((product.variants||[]).length>0){setPosVariantPicker(product);return;}
         addToCart(product,'product');
@@ -866,6 +868,19 @@ const AdminDashboard = () => {
     const pickVariant=(product,variant)=>{
         addToCart({...product,price:variant.price,stock:variant.stock,variantName:variant.name,name:`${product.name} — ${variant.name}`},'product');
         setPosVariantPicker(null);
+    };
+    const addServiceToCart=(service)=>setPosServicePicker(service);
+    const pickServicePrice=(service,option,pet)=>{
+        const selection = pet ? `Mascota:${pet.id} · ${option.key}` : `Servicio:${option.key}`;
+        const petSuffix = pet ? ` — ${pet.petName}` : '';
+        addToCart({
+            ...service,
+            name: `${service.title} — ${option.label}${petSuffix}`,
+            price: Number(option.price) || 0,
+            variantName: selection,
+        },'service');
+        if(pet?.ownerId) setPosClientId(String(pet.ownerId));
+        setPosServicePicker(null);
     };
     const removeFromCart=(id,type,variantName)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type&&c.variantName===variantName)));
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
@@ -1169,6 +1184,11 @@ const AdminDashboard = () => {
                 </div>
             </Modal>}
 
+            {posServicePicker&&<Modal title={`Precio del servicio — ${posServicePicker.title}`} onClose={()=>setPosServicePicker(null)}>
+                <PosServicePricePicker service={posServicePicker} pets={pets} clients={clients}
+                    showPets={settings?.enablePets} onPick={(option,pet)=>pickServicePrice(posServicePicker,option,pet)}/>
+            </Modal>}
+
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Configura los detalles de la venta.</p>
                 <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
@@ -1267,7 +1287,7 @@ const AdminDashboard = () => {
                             )}
                             <div className="pos-grid">
                                 {(posCategory==='Todos'||posCategory==='Productos')&&posProducts.map(p=><div key={p.id} className={`pos-card ${p.stock<=0?'pos-card--disabled':''}`} onClick={()=>addProductToCart(p)}>{p.imageUrl?<img src={p.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon product-icon"><FaBoxOpen/></div>}<h5>{p.name}</h5><p className="pos-price">{(p.variants||[]).length>0?'Ver opciones':`$${p.price}`}</p><span className={p.stock<5?'low-stock':'in-stock'}>{(p.variants||[]).length>0?`${p.variants.length} variantes`:p.stock<=0?'Sin stock':`Stock: ${p.stock}`}</span></div>)}
-                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addToCart(s,'service')}>{s.imageUrl?<img src={s.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon service-icon"><FaCut/></div>}<h5>{s.title}</h5><p className="pos-price">${s.price} base*</p><span className="in-stock">Precio según talla</span></div>)}
+                                {(posCategory==='Todos'||posCategory==='Servicios')&&posServices.map(s=><div key={s.id} className="pos-card pos-card--service" onClick={()=>addServiceToCart(s)}>{s.imageUrl?<img src={s.imageUrl} alt="" className="pos-card-photo"/>:<div className="pos-card-icon service-icon"><FaCut/></div>}<h5>{s.title}</h5><p className="pos-price">Elegir precio</p><span className="in-stock">Por mascota o talla</span></div>)}
                             </div>
                         </div>
                         <aside className="pos-cart">
