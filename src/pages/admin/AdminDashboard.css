@@ -636,6 +636,24 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     margin-top: -4px;
 }
 
+/* Selector de precio del POS: primero deja usar una mascota registrada y,
+   si no existe, permite cobrar por talla manualmente sin inventar un cliente. */
+.pos-service-picker { display: grid; gap: 18px; }
+.pos-service-picker-section { display: grid; gap: 10px; }
+.pos-service-picker-heading { display: grid; gap: 2px; }
+.pos-service-picker-heading strong { color: var(--text-main); font-size: .92rem; }
+.pos-service-picker-heading span { color: var(--text-muted); font-size: .78rem; }
+.pos-pet-price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 2px; }
+.pos-pet-price-option, .pos-service-price-option { width: 100%; border: 1.5px solid #e0e4ea; background: #f8fafc; border-radius: 12px; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.pos-pet-price-option { display: flex; align-items: center; gap: 9px; padding: 10px; text-align: left; }
+.pos-pet-price-option:hover, .pos-service-price-option:hover { transform: translateY(-1px); border-color: var(--accent-blue); box-shadow: 0 6px 16px rgba(116,185,255,.16); }
+.pos-pet-price-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: #e6f1fb; color: var(--accent-blue); }
+.pos-pet-price-copy, .pos-service-price-copy { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.pos-pet-price-copy strong, .pos-service-price-copy strong { color: var(--text-main); font-size: .84rem; }
+.pos-pet-price-copy small, .pos-service-price-copy small { color: var(--text-muted); font-size: .74rem; }
+.pos-pet-price-value, .pos-service-price-value { color: #059669; font-size: .9rem; white-space: nowrap; }
+.pos-service-price-option { display: flex; align-items: center; gap: 10px; padding: 11px 13px; text-align: left; }
+
 .pos-cart { background: var(--card-bg, white); border-radius: var(--radius-lg); border: 1px solid var(--card-border, #f1f2f6); box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: sticky; top: 20px; }
 .pos-cart-header { padding: 16px 20px; border-bottom: 1px solid var(--card-border, #f1f2f6); display: flex; justify-content: space-between; align-items: center; }
 .pos-cart-header h4 { display: flex; align-items: center; gap: 8px; font-size: 1rem; color: var(--sidebar-bg); }

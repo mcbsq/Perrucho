@@ -3,6 +3,7 @@ import {
     getWeightRange,
     calcServicePrice,
     getAllPrices,
+    getPosServicePriceOptions,
     weightRangeLabel,
     WEIGHT_RANGES,
 } from './pricingRules';
@@ -135,6 +136,40 @@ describe('getAllPrices', () => {
         const service = { price: 99 };
         const prices = getAllPrices(service);
         expect(prices.every(p => p.price === 99)).toBe(true);
+    });
+});
+
+describe('getPosServicePriceOptions', () => {
+    test('ofrece cada talla con su precio real para cobrar un servicio en el POS', () => {
+        const service = {
+            pricingMode: 'weight',
+            priceMini: 100, priceChico: 150, priceMediano: 200,
+            priceGrande: 250, priceExtra: 300, priceJumbo: 400,
+        };
+
+        expect(getPosServicePriceOptions(service)).toEqual([
+            { key: 'mini', label: 'Mini', desc: '1-5 kg', price: 100 },
+            { key: 'chico', label: 'Chico', desc: '6-9 kg', price: 150 },
+            { key: 'mediano', label: 'Mediano', desc: '10-19 kg', price: 200 },
+            { key: 'grande', label: 'Grande', desc: '20-34 kg', price: 250 },
+            { key: 'extra', label: 'Extra', desc: '35-44 kg', price: 300 },
+            { key: 'jumbo', label: 'Jumbo', desc: '45 kg+', price: 400 },
+        ]);
+    });
+
+    test('ofrece las opciones personalizadas de un servicio que no cobra por talla', () => {
+        const service = {
+            pricingMode: 'custom',
+            customPriceOptions: [
+                { label: 'Gelish', price: 250 },
+                { label: 'Acrílico', price: 350 },
+            ],
+        };
+
+        expect(getPosServicePriceOptions(service)).toEqual([
+            { key: 'custom-0', label: 'Gelish', desc: '', price: 250 },
+            { key: 'custom-1', label: 'Acrílico', desc: '', price: 350 },
+        ]);
     });
 });
 
