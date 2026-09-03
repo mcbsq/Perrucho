@@ -286,10 +286,16 @@ model Appointment {
   businessId Int? // multi-tenant — ver nota en User.businessId
   createdAt  DateTime          @default(now())
 
-  client   User?     @relation(fields: [clientId], references: [id])
-  pet      Pet?      @relation(fields: [petId], references: [id])
-  service  Service?  @relation(fields: [serviceId], references: [id])
-  employee User?     @relation("AssignedEmployee", fields: [employeeId], references: [id])
+  // onDelete: SetNull en las 4 de abajo — bug real reportado por el cliente:
+  // borrar un paciente (o cliente/servicio/empleado) con citas asociadas
+  // tronaba con "Error del servidor", porque Postgres bloqueaba el borrado
+  // por la referencia (comportamiento RESTRICT por default de Prisma). Ahora
+  // la cita sobrevive y simplemente pierde esa referencia — se sigue viendo
+  // en el historial, solo sin mascota/cliente/servicio/empleado asociado.
+  client   User?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  pet      Pet?      @relation(fields: [petId], references: [id], onDelete: SetNull)
+  service  Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  employee User?     @relation("AssignedEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
   business Business? @relation(fields: [businessId], references: [id])
 
   extras AppointmentExtra[] // servicios adicionales (punto 3 del cliente)
@@ -345,7 +351,7 @@ model Sale {
   date          DateTime      @default(now())
   businessId    Int? // multi-tenant — ver nota en User.businessId
 
-  client      User?        @relation(fields: [clientId], references: [id])
+  client      User?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
   business    Business?    @relation(fields: [businessId], references: [id])
   items       SaleItem[]
@@ -364,7 +370,7 @@ model SaleItem {
   quantity  Int    @default(1)
 
   sale    Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id])
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
 
 // ─────────────────────────────────────────────
