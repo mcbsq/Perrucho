@@ -39,6 +39,7 @@ const BreedCombobox = ({ value, onChange, species }) => {
     const [open,    setOpen]    = useState(false);
     const [query,   setQuery]   = useState(value || '');
     const ref                   = useRef(null);
+    const inputRef              = useRef(null);
 
     // Sincronizar cuando el padre resetea el form
     useEffect(() => { setQuery(value || ''); }, [value]);
@@ -71,6 +72,7 @@ const BreedCombobox = ({ value, onChange, species }) => {
     return (
         <div className="breed-combobox" ref={ref}>
             <input
+                ref={inputRef}
                 type="text"
                 className="breed-input"
                 placeholder="Raza (buscar o escribir nueva)..."
@@ -103,6 +105,19 @@ const BreedCombobox = ({ value, onChange, species }) => {
                             onMouseDown={() => select(query.trim())}
                         >
                             + Agregar "{query.trim()}" como nueva raza
+                        </div>
+                    )}
+                    {/* Punto del cliente: la opción de agregar una raza nueva solo
+                        aparecía DESPUÉS de escribir algo sin coincidencias — no era
+                        visible de entrada, así que muchos no sabían que se podía.
+                        Esta fila queda siempre visible al final de la lista (salvo
+                        que ya se esté mostrando la de arriba, para no duplicar). */}
+                    {!showAddOption && (
+                        <div
+                            className="breed-option breed-option--hint"
+                            onMouseDown={(e) => { e.preventDefault(); inputRef.current?.focus(); }}
+                        >
+                            ✏️ ¿No está en la lista? Escribe aquí arriba para agregarla como "Otra"
                         </div>
                     )}
                 </div>
