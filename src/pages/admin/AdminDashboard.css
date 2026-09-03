@@ -673,6 +673,51 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .checkout-btn:hover:not(:disabled) { background: #00b894; color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(85,239,196,0.3); }
 .checkout-btn:disabled { background: var(--card-border, #f1f2f6); color: var(--text-muted); cursor: not-allowed; }
 
+/* ── Cantidad +/- por línea del carrito (feedback cliente: como en Mercado
+   Libre/Amazon/Temu) y botón de descuento ─────────────────────────────── */
+.cart-item-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.cart-item-qty { display: flex; align-items: center; gap: 6px; margin: 0 8px; }
+.cart-item-qty button {
+    width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--card-border, #e0e4ea);
+    background: var(--card-bg, white); color: var(--text-main); font-weight: 800; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.cart-item-qty button:disabled { opacity: 0.4; cursor: not-allowed; }
+.cart-item-qty span { min-width: 18px; text-align: center; font-weight: 700; font-size: 0.85rem; }
+.cart-item-del { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+.cart-item-del:hover { color: var(--accent-red); }
+.cart-discount-btn {
+    width: 100%; padding: 10px; margin-bottom: 12px; border-radius: var(--radius-md);
+    border: 1.5px dashed var(--accent-blue, #74b9ff); background: none; color: var(--accent-blue, #185FA5);
+    font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;
+}
+.cart-discount-btn:hover { background: rgba(116,185,255,0.08); }
+.cart-total-row--sub, .cart-total-row--discount { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+.cart-total-row--discount { color: var(--accent-red, #e63946); }
+
+/* ── Pop-up de descuento ──────────────────────────────────────────────── */
+.discount-type-toggle { display: flex; gap: 8px; }
+.discount-type-toggle button {
+    flex: 1; padding: 10px; border-radius: var(--radius-md); border: 1.5px solid var(--card-border, #e0e4ea);
+    background: var(--card-bg, white); font-weight: 700; cursor: pointer; color: var(--text-muted);
+}
+.discount-type-toggle button.active { border-color: var(--accent-blue, #74b9ff); background: #e0f2fe; color: #185FA5; }
+.discount-preview { background: var(--bg-main); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px; }
+.discount-preview > div { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px; }
+.discount-preview-total { border-top: 1.5px dashed var(--card-border, #e0e4ea); padding-top: 8px; margin-top: 4px; font-size: 1rem !important; }
+
+/* ── Enviar nota de venta — pop-up aparte, cada opción en su propia fila ── */
+.share-receipt-options { display: flex; flex-direction: column; gap: 10px; }
+.share-receipt-option {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 18px;
+    border-radius: var(--radius-md); border: 1.5px solid var(--card-border, #e0e4ea);
+    background: var(--card-bg, white); font-weight: 700; font-size: 0.95rem; text-align: left;
+    cursor: pointer; transition: all 0.2s;
+}
+.share-receipt-option svg { flex-shrink: 0; font-size: 1.2rem; }
+.share-receipt-option span { white-space: normal; overflow: visible; }
+.share-receipt-option:hover { border-color: var(--accent-blue, #74b9ff); background: #f0f9ff; transform: translateY(-1px); }
+
 /* ==========================================================================
    PACIENTES
    ========================================================================== */

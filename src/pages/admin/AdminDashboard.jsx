@@ -24,7 +24,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaExclamationTriangle, FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaWhatsapp, FaEnvelope
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaWhatsapp, FaEnvelope, FaShareAlt
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -48,6 +48,7 @@ import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import PosServicePricePicker from '../../components/shared/PosServicePricePicker';
+import DiscountModal from '../../components/shared/DiscountModal';
 import { shopToClientOnConfirmation, shopToClientOnFinished, openWhatsApp } from '../../utils/whatsappNotify';
 import { shopToClientOnConfirmation as emailOnConfirmation, shopToClientOnFinished as emailOnFinished, openEmail } from '../../utils/emailNotify';
 import './AdminDashboard.css';
@@ -636,7 +637,28 @@ const SalesModal = ({sales,onClose,onShowReceipt,onCancelSale}) => {
 // Se imprime/guarda como PDF con Ctrl+P (window.print), sin depender de
 // ninguna librería nueva. #receipt-print-area es lo único visible al imprimir
 // (ver regla @media print en AdminDashboard.css).
+// Punto 3 del feedback del cliente: las 3 opciones para enviar la nota
+// (WhatsApp/correo/imprimir) se veían apretadas dentro del mismo modal que
+// la nota — el texto se cortaba. Ahora viven en su propio pop-up, aparte,
+// bien posicionado y con espacio de sobra para leer cada opción completa.
+const ShareReceiptModal = ({onClose,onWhatsApp,onEmail,onPrint,hasPhone,hasEmail}) => (
+    <Modal title="Enviar nota de venta" onClose={onClose}>
+        <div className="share-receipt-options">
+            {hasPhone && <button type="button" className="share-receipt-option" onClick={()=>{onWhatsApp();onClose();}}>
+                <FaWhatsapp/> <span>Enviar por WhatsApp</span>
+            </button>}
+            {hasEmail && <button type="button" className="share-receipt-option" onClick={()=>{onEmail();onClose();}}>
+                <FaEnvelope/> <span>Enviar por correo</span>
+            </button>}
+            <button type="button" className="share-receipt-option" onClick={()=>{onPrint();onClose();}}>
+                <FaReceipt/> <span>Imprimir / Guardar PDF</span>
+            </button>
+        </div>
+    </Modal>
+);
+
 const ReceiptModal = ({sale,settings,client,onClose}) => {
+    const [showShare,setShowShare]=useState(false);
     const items=sale.items?.length?sale.items:[{name:getSaleLabel(sale),quantity:1,price:getSaleAmount(sale)}];
     const total=getSaleAmount(sale);
     const dateObj=new Date(sale.date||sale.createdAt||Date.now());
@@ -685,10 +707,11 @@ const ReceiptModal = ({sale,settings,client,onClose}) => {
             <p className="receipt-footer">¡Gracias por confiar en nosotros! 🐾</p>
         </div>
         <div className="form-actions form-actions--end" style={{marginTop:16}}>
-            {clientPhone && <button className="btn-secondary" onClick={handleWhatsApp}><FaWhatsapp/> Enviar por WhatsApp</button>}
-            {clientEmail && <button className="btn-secondary" onClick={handleEmail}><FaEnvelope/> Enviar por correo</button>}
-            <button className="btn-primary" onClick={()=>window.print()}><FaReceipt/> Imprimir / Guardar PDF</button>
+            <button className="btn-primary" onClick={()=>setShowShare(true)}><FaShareAlt/> Enviar nota</button>
         </div>
+        {showShare&&<ShareReceiptModal onClose={()=>setShowShare(false)}
+            onWhatsApp={handleWhatsApp} onEmail={handleEmail} onPrint={()=>window.print()}
+            hasPhone={!!clientPhone} hasEmail={!!clientEmail}/>}
     </Modal>;
 };
 
@@ -883,7 +906,28 @@ const AdminDashboard = () => {
         setPosServicePicker(null);
     };
     const removeFromCart=(id,type,variantName)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type&&c.variantName===variantName)));
+    // Punto 4 del feedback del cliente: antes había que dar clic en la
+    // tarjeta del producto una y otra vez para subir la cantidad — ahora hay
+    // un stepper +/- por línea del carrito, como en Mercado Libre/Amazon/Temu.
+    const setCartQty=(id,type,variantName,nextQty)=>{
+        if(nextQty<1)return;
+        setCart(cart.map(c=>{
+            if(!(c.id===id&&c.type===type&&c.variantName===variantName))return c;
+            if(c.type==='product'&&nextQty>Number(c.stock))return c; // no exceder el stock disponible
+            return{...c,qty:nextQty};
+        }));
+    };
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
+
+    // Punto 1 del feedback del cliente: "agregar descuento" al carrito, por
+    // porcentaje o por monto fijo, con el total recalculado en automático.
+    const [discount,setDiscount]=useState({type:'percent',value:''});
+    const [showDiscountModal,setShowDiscountModal]=useState(false);
+    const discountValue=Number(discount.value)||0;
+    const discountAmount=discountValue<=0?0:discount.type==='percent'
+        ?cartTotal*(Math.min(discountValue,100)/100)
+        :Math.min(discountValue,cartTotal);
+    const cartTotalWithDiscount=Math.max(0,cartTotal-discountAmount);
 
     // FIX: addSale con nuevo formato { items, total, clientId, type, paymentMethod, status }
     const processCheckout=async()=>{
@@ -892,14 +936,25 @@ const AdminDashboard = () => {
             const allProducts = cart.every(i=>i.type==='product');
             const allServices = cart.every(i=>i.type==='service');
             const savedSale = await addSale({
-                items: cart.map(i=>({
-                    name:        i.name||i.title,
-                    price:       i.price,
-                    quantity:    i.qty,
-                    productId:   i.type==='product' ? i.id : undefined,
-                    variantName: i.variantName,
-                })),
-                total:         +cartTotal.toFixed(2),
+                items: [
+                    ...cart.map(i=>({
+                        name:        i.name||i.title,
+                        price:       i.price,
+                        quantity:    i.qty,
+                        productId:   i.type==='product' ? i.id : undefined,
+                        variantName: i.variantName,
+                    })),
+                    // Descuento como línea negativa — así queda visible en la
+                    // nota de venta igual que cualquier otro renglón, sin
+                    // tocar productId (no descuenta stock) ni el precio real
+                    // de cada línea (sigue sirviendo para reportes/inventario).
+                    ...(discountAmount>0?[{
+                        name: discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento',
+                        price: -discountAmount,
+                        quantity: 1,
+                    }]:[]),
+                ],
+                total:         +cartTotalWithDiscount.toFixed(2),
                 // FIX: <select> siempre da string — Prisma exige Int para
                 // clientId y tronaba con "Error del servidor" cada vez que
                 // se elegía un cliente en el checkout del POS.
@@ -911,7 +966,7 @@ const AdminDashboard = () => {
             // El stock ya se descontó en el servidor, dentro de la misma
             // transacción que creó la venta (ver POST /api/sales) — addSale
             // refresca products, no hay que tocarlo aquí.
-            setCart([]);setPosClientId('');setShowCheckout(false);
+            setCart([]);setPosClientId('');setShowCheckout(false);setDiscount({type:'percent',value:''});
             addToast('¡Venta procesada!','success');
             setReceiptSale(savedSale);
         }catch(err){addToast(`Error al procesar: ${err.message}`,'error');}
@@ -1189,6 +1244,8 @@ const AdminDashboard = () => {
                     showPets={settings?.enablePets} onPick={(option,pet)=>pickServicePrice(posServicePicker,option,pet)}/>
             </Modal>}
 
+            {showDiscountModal&&<DiscountModal Modal={Modal} initial={discount} cartTotal={cartTotal} onApply={setDiscount} onClose={()=>setShowDiscountModal(false)}/>}
+
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Configura los detalles de la venta.</p>
                 <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
@@ -1215,8 +1272,12 @@ const AdminDashboard = () => {
                 </div>
                 <div className="checkout-items-preview">
                     {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
+                    {discountAmount>0&&<div className="checkout-item-row"><span>{discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento'}</span><span>−${discountAmount.toFixed(2)}</span></div>}
                 </div>
-                <div className="checkout-total-row"><span>Total</span><strong>${cartTotal.toFixed(2)}</strong></div>
+                <button type="button" className="cart-discount-btn" style={{marginBottom:12}} onClick={()=>setShowDiscountModal(true)}>
+                    🏷️ {discountAmount>0?'Editar descuento':'Agregar descuento'}
+                </button>
+                <div className="checkout-total-row"><span>Total</span><strong>${cartTotalWithDiscount.toFixed(2)}</strong></div>
                 <div className="form-actions form-actions--end" style={{marginTop:16}}>
                     <button className="btn-secondary" onClick={()=>setShowCheckout(false)}>Cancelar</button>
                     <button className="btn-primary" onClick={processCheckout}><FaReceipt/> Confirmar</button>
@@ -1292,8 +1353,24 @@ const AdminDashboard = () => {
                         </div>
                         <aside className="pos-cart">
                             <div className="pos-cart-header"><h4><FaCartPlus/> Carrito</h4><button className="clear-cart-btn" onClick={()=>setCart([])}>Vaciar</button></div>
-                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${item.variantName||''}-${i}`} className="cart-item"><div><span className="cart-item-name">{item.qty}x {item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div><button onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button></div>)}</div>
-                            <div className="pos-cart-footer"><div className="cart-total-row"><span>Total</span><span className="cart-total-amount">${cartTotal.toFixed(2)}</span></div><button className="checkout-btn" onClick={()=>setShowCheckout(true)} disabled={!cart.length}><FaReceipt/> Finalizar</button></div>
+                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${item.variantName||''}-${i}`} className="cart-item">
+                                <div className="cart-item-info"><span className="cart-item-name">{item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div>
+                                <div className="cart-item-qty">
+                                    <button type="button" onClick={()=>setCartQty(item.id,item.type,item.variantName,item.qty-1)}>−</button>
+                                    <span>{item.qty}</span>
+                                    <button type="button" onClick={()=>setCartQty(item.id,item.type,item.variantName,item.qty+1)} disabled={item.type==='product'&&item.qty>=Number(item.stock)}>+</button>
+                                </div>
+                                <button className="cart-item-del" onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button>
+                            </div>)}</div>
+                            <div className="pos-cart-footer">
+                                <button type="button" className="cart-discount-btn" onClick={()=>setShowDiscountModal(true)}>
+                                    🏷️ {discountAmount>0?'Editar descuento':'Agregar descuento'}
+                                </button>
+                                {discountAmount>0&&<div className="cart-total-row cart-total-row--sub"><span>Subtotal</span><span>${cartTotal.toFixed(2)}</span></div>}
+                                {discountAmount>0&&<div className="cart-total-row cart-total-row--discount"><span>Descuento</span><span>−${discountAmount.toFixed(2)}</span></div>}
+                                <div className="cart-total-row"><span>Total</span><span className="cart-total-amount">${cartTotalWithDiscount.toFixed(2)}</span></div>
+                                <button className="checkout-btn" onClick={()=>setShowCheckout(true)} disabled={!cart.length}><FaReceipt/> Finalizar</button>
+                            </div>
                         </aside>
                     </div>
                 </div>}

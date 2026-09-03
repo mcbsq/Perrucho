@@ -36,6 +36,7 @@ import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import '../../components/shared/AssignTimePicker.css';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import PosServicePricePicker from '../../components/shared/PosServicePricePicker';
+import DiscountModal from '../../components/shared/DiscountModal';
 import './EmployeeDashboard.css';
 import '../admin/AdminDashboard.css'; // reutiliza los estilos del POS (.pos-container, .pos-cart, etc.)
 
@@ -499,7 +500,27 @@ const EmployeeDashboard = () => {
         setPosServicePicker(null);
     };
     const removeFromCart=(id,type,variantName)=>setCart(cart.filter(c=>!(c.id===id&&c.type===type&&c.variantName===variantName)));
+    // Punto 4 del feedback del cliente: stepper +/- por línea del carrito,
+    // como en Mercado Libre/Amazon/Temu, en vez de dar clic uno por uno.
+    const setCartQty=(id,type,variantName,nextQty)=>{
+        if(nextQty<1)return;
+        setCart(cart.map(c=>{
+            if(!(c.id===id&&c.type===type&&c.variantName===variantName))return c;
+            if(c.type==='product'&&nextQty>Number(c.stock))return c;
+            return{...c,qty:nextQty};
+        }));
+    };
     const cartTotal=cart.reduce((a,i)=>a+i.price*i.qty,0);
+
+    // Punto 1 del feedback del cliente: descuento por porcentaje o monto fijo.
+    const [discount,setDiscount]=useState({type:'percent',value:''});
+    const [showDiscountModal,setShowDiscountModal]=useState(false);
+    const discountValue=Number(discount.value)||0;
+    const discountAmount=discountValue<=0?0:discount.type==='percent'
+        ?cartTotal*(Math.min(discountValue,100)/100)
+        :Math.min(discountValue,cartTotal);
+    const cartTotalWithDiscount=Math.max(0,cartTotal-discountAmount);
+
     const posProducts=products.filter(p=>p.name?.toLowerCase().includes(posSearch.toLowerCase()));
     const posServices=services.filter(s=>s.title?.toLowerCase().includes(posSearch.toLowerCase()));
 
@@ -509,14 +530,21 @@ const EmployeeDashboard = () => {
             const allProducts=cart.every(i=>i.type==='product');
             const allServices=cart.every(i=>i.type==='service');
             await addSale({
-                items: cart.map(i=>({
-                    name: i.name||i.title,
-                    price: i.price,
-                    quantity: i.qty,
-                    productId: i.type==='product' ? i.id : undefined,
-                    variantName: i.variantName,
-                })),
-                total: +cartTotal.toFixed(2),
+                items: [
+                    ...cart.map(i=>({
+                        name: i.name||i.title,
+                        price: i.price,
+                        quantity: i.qty,
+                        productId: i.type==='product' ? i.id : undefined,
+                        variantName: i.variantName,
+                    })),
+                    ...(discountAmount>0?[{
+                        name: discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento',
+                        price: -discountAmount,
+                        quantity: 1,
+                    }]:[]),
+                ],
+                total: +cartTotalWithDiscount.toFixed(2),
                 // FIX: <select> siempre da string — Prisma exige Int para
                 // clientId (mismo bug ya resuelto en AdminDashboard.jsx,
                 // faltaba replicarlo aquí) y tronaba con "Error del
@@ -529,7 +557,7 @@ const EmployeeDashboard = () => {
             // El stock ya se descontó en el servidor, dentro de la misma
             // transacción que creó la venta (ver POST /api/sales) — addSale
             // refresca products, no hay que tocarlo aquí.
-            setCart([]);setPosClientId('');setShowCheckout(false);
+            setCart([]);setPosClientId('');setShowCheckout(false);setDiscount({type:'percent',value:''});
             addToast('¡Venta procesada!','success');
         }catch(err){addToast(`Error: ${err.message}`,'error');}
     };
@@ -771,6 +799,8 @@ const EmployeeDashboard = () => {
                     showPets={settings?.enablePets} onPick={(option,pet)=>pickServicePrice(posServicePicker,option,pet)}/>
             </Modal>}
 
+            {showDiscountModal&&<DiscountModal Modal={Modal} initial={discount} cartTotal={cartTotal} onApply={setDiscount} onClose={()=>setShowDiscountModal(false)}/>}
+
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Configura los detalles de la venta.</p>
                 <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
@@ -795,8 +825,12 @@ const EmployeeDashboard = () => {
                 </div>
                 <div className="checkout-items-preview">
                     {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
+                    {discountAmount>0&&<div className="checkout-item-row"><span>{discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento'}</span><span>−${discountAmount.toFixed(2)}</span></div>}
                 </div>
-                <div className="checkout-total-row"><strong>Total: ${cartTotal.toFixed(2)}</strong></div>
+                <button type="button" className="cart-discount-btn" style={{marginBottom:12}} onClick={()=>setShowDiscountModal(true)}>
+                    🏷️ {discountAmount>0?'Editar descuento':'Agregar descuento'}
+                </button>
+                <div className="checkout-total-row"><strong>Total: ${cartTotalWithDiscount.toFixed(2)}</strong></div>
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={()=>setShowCheckout(false)}>Cancelar</button>
                     <button type="button" className="ds-btn ds-btn--primary" onClick={processCheckout}>Confirmar venta</button>
@@ -938,8 +972,24 @@ const EmployeeDashboard = () => {
                         </div>
                         <aside className="pos-cart">
                             <div className="pos-cart-header"><h4><FaCartPlus/> Carrito</h4><button className="clear-cart-btn" onClick={()=>setCart([])}>Vaciar</button></div>
-                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${item.variantName||''}-${i}`} className="cart-item"><div><span className="cart-item-name">{item.qty}x {item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div><button onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button></div>)}</div>
-                            <div className="pos-cart-footer"><div className="cart-total-row"><span>Total</span><span className="cart-total-amount">${cartTotal.toFixed(2)}</span></div><button className="checkout-btn" onClick={()=>setShowCheckout(true)} disabled={!cart.length}><FaReceipt/> Finalizar</button></div>
+                            <div className="pos-cart-items">{cart.length===0&&<p className="empty-cart">Vacío</p>}{cart.map((item,i)=><div key={`${item.id}-${item.variantName||''}-${i}`} className="cart-item">
+                                <div className="cart-item-info"><span className="cart-item-name">{item.name||item.title}</span><span className="cart-item-price">${(item.price*item.qty).toFixed(2)}</span></div>
+                                <div className="cart-item-qty">
+                                    <button type="button" onClick={()=>setCartQty(item.id,item.type,item.variantName,item.qty-1)}>−</button>
+                                    <span>{item.qty}</span>
+                                    <button type="button" onClick={()=>setCartQty(item.id,item.type,item.variantName,item.qty+1)} disabled={item.type==='product'&&item.qty>=Number(item.stock)}>+</button>
+                                </div>
+                                <button className="cart-item-del" onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button>
+                            </div>)}</div>
+                            <div className="pos-cart-footer">
+                                <button type="button" className="cart-discount-btn" onClick={()=>setShowDiscountModal(true)}>
+                                    🏷️ {discountAmount>0?'Editar descuento':'Agregar descuento'}
+                                </button>
+                                {discountAmount>0&&<div className="cart-total-row cart-total-row--sub"><span>Subtotal</span><span>${cartTotal.toFixed(2)}</span></div>}
+                                {discountAmount>0&&<div className="cart-total-row cart-total-row--discount"><span>Descuento</span><span>−${discountAmount.toFixed(2)}</span></div>}
+                                <div className="cart-total-row"><span>Total</span><span className="cart-total-amount">${cartTotalWithDiscount.toFixed(2)}</span></div>
+                                <button className="checkout-btn" onClick={()=>setShowCheckout(true)} disabled={!cart.length}><FaReceipt/> Finalizar</button>
+                            </div>
                         </aside>
                     </div>
                 </div>}
