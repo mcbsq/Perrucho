@@ -688,20 +688,24 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .cart-item-del:hover { color: var(--accent-red); }
 .cart-discount-btn {
     width: 100%; padding: 10px; margin-bottom: 12px; border-radius: var(--radius-md);
-    border: 1.5px dashed var(--accent-blue, #74b9ff); background: none; color: var(--accent-blue, #185FA5);
-    font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;
+    border: 1.5px solid #74b9ff; background: #e0f2fe; color: #185FA5;
+    font-weight: 700; font-size: 0.85rem; font-family: 'Quicksand', sans-serif;
+    cursor: pointer; transition: all 0.2s;
 }
-.cart-discount-btn:hover { background: rgba(116,185,255,0.08); }
+.cart-discount-btn:hover { background: #cfeaff; border-color: #4fa3f7; }
+.cart-discount-btn.has-discount { border-color: #55efc4; background: #d1fae5; color: #065f46; }
+.cart-discount-btn.has-discount:hover { background: #b7f5da; border-color: #2ecc9a; }
 .cart-total-row--sub, .cart-total-row--discount { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
 .cart-total-row--discount { color: var(--accent-red, #e63946); }
 
 /* ── Pop-up de descuento ──────────────────────────────────────────────── */
 .discount-type-toggle { display: flex; gap: 8px; }
 .discount-type-toggle button {
-    flex: 1; padding: 10px; border-radius: var(--radius-md); border: 1.5px solid var(--card-border, #e0e4ea);
-    background: var(--card-bg, white); font-weight: 700; cursor: pointer; color: var(--text-muted);
+    flex: 1; padding: 10px; border-radius: var(--radius-md); border: 1.5px solid #e2e8f0;
+    background: white; font-weight: 700; font-family: 'Quicksand', sans-serif;
+    cursor: pointer; color: #64748b; transition: all 0.2s;
 }
-.discount-type-toggle button.active { border-color: var(--accent-blue, #74b9ff); background: #e0f2fe; color: #185FA5; }
+.discount-type-toggle button.active { border-color: #74b9ff; background: #e0f2fe; color: #185FA5; }
 .discount-preview { background: var(--bg-main); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px; }
 .discount-preview > div { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 6px; }
 .discount-preview-total { border-top: 1.5px dashed var(--card-border, #e0e4ea); padding-top: 8px; margin-top: 4px; font-size: 1rem !important; }
