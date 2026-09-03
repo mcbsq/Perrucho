@@ -466,6 +466,7 @@ const EmployeeDashboard = () => {
     const [posCategory,setPosCategory]=useState('Todos');
     const [posSearch,setPosSearch]=useState('');
     const [posClientId,setPosClientId]=useState('');
+    const [linkNewClientToPos,setLinkNewClientToPos]=useState(false);
     const [posPaymentMethod,setPosPaymentMethod]=useState('efectivo');
     const [posSaleStatus,setPosSaleStatus]=useState('pagado');
     const [showCheckout,setShowCheckout]=useState(false);
@@ -744,7 +745,7 @@ const EmployeeDashboard = () => {
         catch(err){setAppointments(prevAppts);addToast(`No se pudo eliminar: ${err.message||'sin detalle'}`,'error');}
     };
 
-    const handleSaveClient=async(form)=>{try{form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Actualizado':'Guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveClient=async(form)=>{try{const saved=form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Actualizado':'Guardado','success');setClientModal(null);if(!form.id&&linkNewClientToPos){setPosClientId(String(saved.id));setLinkNewClientToPos(false);}}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Actualizado':'Guardado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleTogglePetStatus=async(pet,newStatus)=>{try{await updatePet(pet.id,{...pet,status:newStatus});addToast(newStatus==='activo'?'Paciente marcado como activo':'Paciente marcado como inactivo','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
     const saveMedicalFile=async(updatedPet)=>{try{await updatePet(updatedPet.id,updatedPet);setMedicalPet(null);addToast('Expediente guardado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
@@ -777,7 +778,7 @@ const EmployeeDashboard = () => {
 
             {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} settings={settings} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
             {medicalPet&&<MedicalModal pet={medicalPet} clients={clients} onSave={saveMedicalFile} onClose={()=>setMedicalPet(null)}/>}
-            {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)} extraFields={settings?.clientExtraFields||[]}/>}
+            {clientModal!==null&&<div style={linkNewClientToPos?{position:'relative',zIndex:2000}:undefined}><ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>{setClientModal(null);setLinkNewClientToPos(false);}} extraFields={settings?.clientExtraFields||[]}/></div>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
 
             {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>
@@ -803,9 +804,10 @@ const EmployeeDashboard = () => {
 
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Configura los detalles de la venta.</p>
-                <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
-                    <option value="">Sin cliente</option>
+                <select value={posClientId} onChange={e=>{if(e.target.value==='__new__'){setLinkNewClientToPos(true);setClientModal({});}else{setPosClientId(e.target.value);}}} className="checkout-client-select">
+                    <option value="">Sin cliente (venta anónima)</option>
                     {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="__new__">➕ Registrar nuevo cliente…</option>
                 </select>
                 <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
                     {['efectivo','tarjeta','transferencia'].map(m=>(

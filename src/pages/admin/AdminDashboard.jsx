@@ -849,6 +849,7 @@ const AdminDashboard = () => {
     const [posSearch,setPosSearch]=useState('');
     const [posCategory,setPosCategory]=useState('Todos');
     const [posClientId,setPosClientId]=useState('');
+    const [linkNewClientToPos,setLinkNewClientToPos]=useState(false);
     const [posPaymentMethod,setPosPaymentMethod]=useState('efectivo');
     const [posSaleStatus,setPosSaleStatus]=useState('pagado');
     const [showCheckout,setShowCheckout]=useState(false);
@@ -973,7 +974,7 @@ const AdminDashboard = () => {
     };
 
     // ── CRUD ─────────────────────────────────────────────────────────────────
-    const handleSaveClient=async(form)=>{try{form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveClient=async(form)=>{try{const saved=form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Cliente actualizado':'Cliente guardado','success');setClientModal(null);if(!form.id&&linkNewClientToPos){setPosClientId(String(saved.id));setLinkNewClientToPos(false);}}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Paciente actualizado':'Paciente registrado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleTogglePetStatus=async(pet,newStatus)=>{try{await updatePet(pet.id,{...pet,status:newStatus});addToast(newStatus==='activo'?'Paciente marcado como activo':'Paciente marcado como inactivo','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
     const handleSaveService=async(form)=>{try{form.id?await updateService(form.id,form):await addService(form);addToast(form.id?'Servicio actualizado':'Servicio guardado','success');setServiceModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
@@ -1215,7 +1216,7 @@ const AdminDashboard = () => {
                 onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}
                 onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}/>}
 
-            {clientModal!==null&&<ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>setClientModal(null)} extraFields={settings?.clientExtraFields||[]}/>}
+            {clientModal!==null&&<div style={linkNewClientToPos?{position:'relative',zIndex:2000}:undefined}><ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>{setClientModal(null);setLinkNewClientToPos(false);}} extraFields={settings?.clientExtraFields||[]}/></div>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
             {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)} settings={settings}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
@@ -1248,9 +1249,10 @@ const AdminDashboard = () => {
 
             {showCheckout&&<Modal title="Confirmar venta" onClose={()=>setShowCheckout(false)}>
                 <p className="checkout-modal-note">Configura los detalles de la venta.</p>
-                <select value={posClientId} onChange={e=>setPosClientId(e.target.value)} className="checkout-client-select">
-                    <option value="">Sin cliente</option>
+                <select value={posClientId} onChange={e=>{if(e.target.value==='__new__'){setLinkNewClientToPos(true);setClientModal({});}else{setPosClientId(e.target.value);}}} className="checkout-client-select">
+                    <option value="">Sin cliente (venta anónima)</option>
                     {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="__new__">➕ Registrar nuevo cliente…</option>
                 </select>
                 {/* Forma de pago */}
                 <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
