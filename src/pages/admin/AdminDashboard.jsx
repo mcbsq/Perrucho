@@ -1274,7 +1274,7 @@ const AdminDashboard = () => {
                     {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
                     {discountAmount>0&&<div className="checkout-item-row"><span>{discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento'}</span><span>−${discountAmount.toFixed(2)}</span></div>}
                 </div>
-                <button type="button" className="cart-discount-btn" style={{marginBottom:12}} onClick={()=>setShowDiscountModal(true)}>
+                <button type="button" className={`cart-discount-btn ${discountAmount>0?'has-discount':''}`} style={{marginBottom:12}} onClick={()=>setShowDiscountModal(true)}>
                     🏷️ {discountAmount>0?'Editar descuento':'Agregar descuento'}
                 </button>
                 <div className="checkout-total-row"><span>Total</span><strong>${cartTotalWithDiscount.toFixed(2)}</strong></div>
@@ -1363,7 +1363,7 @@ const AdminDashboard = () => {
                                 <button className="cart-item-del" onClick={()=>removeFromCart(item.id,item.type,item.variantName)}><FaTrashAlt/></button>
                             </div>)}</div>
                             <div className="pos-cart-footer">
-                                <button type="button" className="cart-discount-btn" onClick={()=>setShowDiscountModal(true)}>
+                                <button type="button" className={`cart-discount-btn ${discountAmount>0?'has-discount':''}`} onClick={()=>setShowDiscountModal(true)}>
                                     🏷️ {discountAmount>0?'Editar descuento':'Agregar descuento'}
                                 </button>
                                 {discountAmount>0&&<div className="cart-total-row cart-total-row--sub"><span>Subtotal</span><span>${cartTotal.toFixed(2)}</span></div>}
