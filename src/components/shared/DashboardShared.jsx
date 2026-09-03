@@ -25,6 +25,39 @@ import { STOCK_IMAGE_CATEGORIES } from '../../data/stockImages';
 // Settings.businessHours en el backend.
 export const DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+// ─── Orden de listas (Clientes / Pacientes / Servicios / Inventario / Usuarios) ─
+// Petición del cliente: poder ordenar por "últimos registrados" (asc/desc) y
+// alfabético en todas las pantallas de catálogo. Ninguno de los modelos trae
+// createdAt en todos lados (Service/Product no lo tienen), pero el id
+// autoincremental ya refleja el orden de alta sin necesitar una migración —
+// se usa como proxy de "más reciente" de forma uniforme en las 5 pantallas.
+export const SORT_OPTIONS = [
+    { value: '',            label: 'Orden por defecto' },
+    { value: 'recent_desc', label: 'Más recientes primero' },
+    { value: 'recent_asc',  label: 'Más antiguos primero' },
+    { value: 'alpha_asc',   label: 'A → Z' },
+    { value: 'alpha_desc',  label: 'Z → A' },
+];
+
+export const sortList = (list, mode, nameKey) => {
+    if (!mode) return list;
+    const sorted = [...list];
+    switch (mode) {
+        case 'recent_desc': sorted.sort((a, b) => (b.id ?? 0) - (a.id ?? 0)); break;
+        case 'recent_asc':  sorted.sort((a, b) => (a.id ?? 0) - (b.id ?? 0)); break;
+        case 'alpha_asc':   sorted.sort((a, b) => String(a[nameKey] || '').localeCompare(String(b[nameKey] || ''), 'es')); break;
+        case 'alpha_desc':  sorted.sort((a, b) => String(b[nameKey] || '').localeCompare(String(a[nameKey] || ''), 'es')); break;
+        default: break;
+    }
+    return sorted;
+};
+
+export const SortSelect = ({ value, onChange }) => (
+    <select className="ds-sort-select" value={value} onChange={e => onChange(e.target.value)} title="Ordenar">
+        {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+);
+
 // ─── Emoji por especie ────────────────────────────────────────────────────────
 export const speciesEmoji = (sp) => {
     if (!sp) return '🐾';
@@ -344,7 +377,7 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
                     <select value={form.ownerId}
                         onChange={e => setForm({ ...form, ownerId: e.target.value })} required>
                         <option value="">Seleccionar dueño...</option>
-                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {[...clients].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <label>Notas / alergias</label>
                     <input placeholder="Condiciones especiales, medicamentos..." value={form.notes}

@@ -79,6 +79,17 @@
     pointer-events: none;
 }
 
+.breed-option--hint {
+    color: var(--text-muted, #767e86);
+    font-size: 0.8rem;
+    font-style: italic;
+    font-weight: 600;
+    background: #fafbfc;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.breed-option--hint:hover { background: #f0f4ff; color: var(--accent-blue, #74b9ff); }
+
 /* Scrollbar del dropdown */
 .breed-dropdown::-webkit-scrollbar { width: 4px; }
 .breed-dropdown::-webkit-scrollbar-track { background: transparent; }

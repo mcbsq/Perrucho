@@ -35,7 +35,8 @@ import {
     UserCard, UserFormModal,
     MembershipPlanFormModal,
     ClinicalNoteModal,
-    PersonalizacionSection
+    PersonalizacionSection,
+    SortSelect, sortList
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/DashboardShared.css';
@@ -815,6 +816,13 @@ const AdminDashboard = () => {
     const searchRef=useRef(null);
     useEffect(()=>{const h=(e)=>{if(searchRef.current&&!searchRef.current.contains(e.target))setSearchFocus(false);};document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);},[]);
     const showSearchPanel=searchFocus&&searchTerm.length>=2;
+    // Orden de listas — pedido del cliente: "últimos registrados" asc/desc y
+    // alfabético en todas las pantallas de catálogo donde aplique.
+    const [clientSort,setClientSort]=useState('');
+    const [petSort,setPetSort]=useState('');
+    const [serviceSort,setServiceSort]=useState('');
+    const [productSort,setProductSort]=useState('');
+    const [userSort,setUserSort]=useState('');
 
     const [activeModal,setActiveModal]=useState(null);
     const [showCalendar,setShowCalendar]=useState(false);
@@ -1177,11 +1185,11 @@ const AdminDashboard = () => {
 
     // ── Filtros ───────────────────────────────────────────────────────────────
     const q=searchTerm.toLowerCase();
-    const filteredClients=clients.filter(c=>c.name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q));
-    const filteredPets=pets.filter(p=>p.petName?.toLowerCase().includes(q)||p.breed?.toLowerCase().includes(q));
-    const filteredServices=services.filter(s=>s.title?.toLowerCase().includes(q)||s.category?.toLowerCase().includes(q));
-    const filteredProducts=products.filter(p=>p.name?.toLowerCase().includes(q)||p.category?.toLowerCase().includes(q));
-    const filteredUsers=users.filter(u=>u.name?.toLowerCase().includes(q)||u.email?.toLowerCase().includes(q));
+    const filteredClients=sortList(clients.filter(c=>c.name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q)),clientSort,'name');
+    const filteredPets=sortList(pets.filter(p=>p.petName?.toLowerCase().includes(q)||p.breed?.toLowerCase().includes(q)),petSort,'petName');
+    const filteredServices=sortList(services.filter(s=>s.title?.toLowerCase().includes(q)||s.category?.toLowerCase().includes(q)),serviceSort,'title');
+    const filteredProducts=sortList(products.filter(p=>p.name?.toLowerCase().includes(q)||p.category?.toLowerCase().includes(q)),productSort,'name');
+    const filteredUsers=sortList(users.filter(u=>u.name?.toLowerCase().includes(q)||u.email?.toLowerCase().includes(q)),userSort,'name');
     const posProducts=products.filter(p=>p.name?.toLowerCase().includes(posSearch.toLowerCase()));
     const posServices=services.filter(s=>s.title?.toLowerCase().includes(posSearch.toLowerCase()));
 
@@ -1378,13 +1386,13 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div><div className="ds-page-header-actions"><SortSelect value={clientSort} onChange={setClientSort}/></div></div>
                     <div className="ds-cards-grid">{filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} petsCount={pets.filter(p=>String(p.ownerId)===String(c.id)).length} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)}/>)}</div>
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
                 {tab==='pacientes'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><SortSelect value={petSort} onChange={setPetSort}/><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
                     <div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus}/>)}</div>
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
@@ -1460,7 +1468,7 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='servicios'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Servicios</h2><p>{services.length} en catálogo</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Servicios</h2><p>{services.length} en catálogo</p></div><div className="ds-page-header-actions"><SortSelect value={serviceSort} onChange={setServiceSort}/></div></div>
                     {services.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8',background:'white',borderRadius:20,border:'2px dashed #e2e8f0'}}>
                         <p style={{fontSize:'2.5rem',marginBottom:8}}>✂️</p>
                         <p style={{fontWeight:700,marginBottom:4}}>Sin servicios todavía</p>
@@ -1471,7 +1479,7 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='productos'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>{products.length} productos</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>{products.length} productos</p></div><div className="ds-page-header-actions"><SortSelect value={productSort} onChange={setProductSort}/></div></div>
                     {products.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8',background:'white',borderRadius:20,border:'2px dashed #e2e8f0'}}>
                         <p style={{fontSize:'2.5rem',marginBottom:8}}>📦</p>
                         <p style={{fontWeight:700,marginBottom:4}}>Sin productos todavía</p>
@@ -1482,7 +1490,7 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='usuarios'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Usuarios</h2><p>{users.length} registrados</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Usuarios</h2><p>{users.length} registrados</p></div><div className="ds-page-header-actions"><SortSelect value={userSort} onChange={setUserSort}/></div></div>
                     <div className="ds-cards-grid ds-cards-grid--compact">{filteredUsers.length===0&&<p className="empty-td">Sin resultados</p>}{filteredUsers.map(u=><UserCard key={u.id} user={u} currentUserId={user?.id} onEdit={usr=>setUserModal(usr)} onDelete={(id,name)=>handleDelete('user',id,name)}/>)}</div>
                     <FAB onClick={()=>setUserModal({})} title="Nuevo usuario" color="#636e72"/>
                 </div>}

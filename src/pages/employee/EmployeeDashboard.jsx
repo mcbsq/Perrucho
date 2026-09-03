@@ -21,7 +21,8 @@ import {
 import {
     FAB, StatusBadge, StatusSelector,
     ClientCard, ClientFormModal,
-    PetCard, PetFormModal
+    PetCard, PetFormModal,
+    SortSelect, sortList
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/DashboardShared.css';
@@ -452,6 +453,9 @@ const EmployeeDashboard = () => {
 
     const [tab,setTab]=useState('agenda');
     const [searchTerm,setSearchTerm]=useState('');
+    const [clientSort,setClientSort]=useState('');
+    const [petSort,setPetSort]=useState('');
+    const [productSort,setProductSort]=useState('');
     const [showCalendar,setShowCalendar]=useState(false);
     const [medicalPet,setMedicalPet]=useState(null);
     const [clientModal,setClientModal]=useState(null);
@@ -755,9 +759,9 @@ const EmployeeDashboard = () => {
     const confirmDeletePet=async(id,name)=>{addToast('Solo el administrador puede eliminar pacientes','warning');};
 
     const q=searchTerm.toLowerCase();
-    const filteredClients=clients.filter(c=>c.name?.toLowerCase().includes(q)||c.phone?.includes(q));
-    const filteredPets=pets.filter(p=>p.petName?.toLowerCase().includes(q)||p.breed?.toLowerCase().includes(q));
-    const filteredProducts=products.filter(p=>p.name?.toLowerCase().includes(q)||p.category?.toLowerCase().includes(q));
+    const filteredClients=sortList(clients.filter(c=>c.name?.toLowerCase().includes(q)||c.phone?.includes(q)),clientSort,'name');
+    const filteredPets=sortList(pets.filter(p=>p.petName?.toLowerCase().includes(q)||p.breed?.toLowerCase().includes(q)),petSort,'petName');
+    const filteredProducts=sortList(products.filter(p=>p.name?.toLowerCase().includes(q)||p.category?.toLowerCase().includes(q)),productSort,'name');
 
     const selectedPet=selAppt?pets.find(p=>String(p.id)===String(getApptPetId(selAppt))):null;
     const selectedOwner=selectedPet?clients.find(c=>String(c.id)===String(selectedPet.ownerId)):null;
@@ -997,19 +1001,19 @@ const EmployeeDashboard = () => {
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div><div className="ds-page-header-actions"><SortSelect value={clientSort} onChange={setClientSort}/></div></div>
                     <div className="ds-cards-grid">{filteredClients.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} petsCount={pets.filter(p=>String(p.ownerId)===String(c.id)).length} onEdit={cl=>setClientModal(cl)} onDelete={confirmDeleteClient}/>)}</div>
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
                 {tab==='pacientes'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><SortSelect value={petSort} onChange={setPetSort}/></div></div>
                     <div className="ds-cards-grid">{filteredPets.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet} onToggleStatus={handleTogglePetStatus}/>)}</div>
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 
                 {tab==='inventario'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>Solo lectura</p></div></div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Inventario</h2><p>Solo lectura</p></div><div className="ds-page-header-actions"><SortSelect value={productSort} onChange={setProductSort}/></div></div>
                     {kpis.stockBajo>0&&<div className="emp-stock-alert"><FaExclamationTriangle/><span>{kpis.stockBajo} producto(s) con stock crítico</span></div>}
                     {products.length===0&&<div style={{textAlign:'center',padding:'60px 20px',color:'#94a3b8'}}><p style={{fontSize:'2rem'}}>📦</p><p>Sin productos en inventario todavía.</p></div>}
                     <div className="ds-cards-grid">{filteredProducts.map(p=>{const isLow=Number(p.stock)<5&&Number(p.stock)>0;const isOut=Number(p.stock)===0;return<div key={p.id} className={`ds-card ${isOut?'ds-card--out':isLow?'ds-card--low':''}`}><div className="ds-product-icon">📦</div><div className="ds-card-body"><div className="ds-card-name">{p.name}</div><div className="ds-card-meta"><span className="ds-tag ds-tag--blue">{p.category}</span><span className="ds-tag ds-tag--green">${p.price}</span></div><span className={`ds-stock-badge ${isOut?'out':isLow?'low':'ok'}`}>{isOut?'❌ Agotado':isLow?`⚠️ ${p.stock} unid.`:`✓ ${p.stock} unid.`}</span></div></div>;})}</div>
