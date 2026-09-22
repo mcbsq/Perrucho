@@ -419,6 +419,26 @@ app.get('/api/me', verifyToken, async (req, res) => {
 // BUSINESS (multi-tenant)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// GET /api/businesses — pública, lista mínima (id/nombre/slug/giro) de
+// negocios activos. Pedida para el selector de negocio del login mobile
+// (combobox en vez de escribir el slug a mano) — antes solo existía la
+// búsqueda por slug exacto (GET /api/business/:slug, abajo), que no permite
+// listar/explorar. No expone nada sensible (sin datos de Settings, usuarios,
+// ni authProvider) y no requiere autenticación, igual que ese otro endpoint.
+app.get('/api/businesses', async (req, res) => {
+  try {
+    const businesses = await prismaRaw.business.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true, giro: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(businesses);
+  } catch (err) {
+    console.error('GET /api/businesses', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // GET /api/business/:slug — pública, resuelve el slug de la URL al negocio.
 // El frontend la llama primero (BusinessLayout) para saber si el slug existe
 // antes de mandar cualquier otra request con X-Business-Slug.
