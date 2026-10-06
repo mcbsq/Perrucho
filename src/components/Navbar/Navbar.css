@@ -143,3 +143,9 @@
     .nav-item--logout-mobile { background: #fff0f0 !important; color: #ff7675 !important; font-weight: 700; }
 }
 @media (min-width: 851px) { .nav-links-mobile { display: none !important; } }
+/* "Mi panel" (admin/empleado viendo su propia página) */
+.nav-panel-btn { padding: 8px 16px; white-space: nowrap; }
+@media (max-width: 520px) {
+    .nav-panel-btn span { display: none; }
+    .nav-panel-btn { padding: 9px 11px; }
+}

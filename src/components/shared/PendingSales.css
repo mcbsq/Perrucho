@@ -1,0 +1,113 @@
+/* src/components/shared/PendingSales.css — Por cobrar */
+
+.ps { display: flex; flex-direction: column; gap: 16px; padding-bottom: 88px; font-family: 'Quicksand', sans-serif; }
+
+.ps-summary {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding: 20px 22px;
+    background: #fff;
+    border: 1px solid rgba(30, 39, 46, 0.08);
+    border-radius: 18px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+.ps-summary-main { display: flex; flex-direction: column; gap: 2px; }
+.ps-summary-main span { font-size: 0.82rem; font-weight: 700; color: #64748b; }
+.ps-summary-main strong { font: 800 2rem 'Montserrat', sans-serif; letter-spacing: -0.02em; color: #9a3412; font-variant-numeric: tabular-nums; }
+.ps-summary-facts { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 0.84rem; color: #475569; }
+.ps-summary-facts b { color: #1e293b; }
+
+.ps-filters { display: inline-flex; gap: 4px; padding: 3px; align-self: flex-start; flex-wrap: wrap; border-radius: 12px; background: rgba(30, 39, 46, 0.06); }
+.ps-filter {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px;
+    border: none; border-radius: 9px; background: transparent; cursor: pointer;
+    font: 700 0.8rem 'Quicksand', sans-serif; color: #64748b;
+}
+.ps-filter span { font-size: 0.7rem; padding: 1px 7px; border-radius: 999px; background: rgba(30, 39, 46, 0.08); }
+.ps-filter.is-active { background: #fff; color: #1e293b; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1); }
+.ps-filter:focus-visible { outline: 2px solid #185FA5; outline-offset: 1px; }
+
+.ps-list {
+    list-style: none; margin: 0; padding: 0;
+    background: #fff; border: 1px solid rgba(30, 39, 46, 0.08); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+.ps-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(200px, 1.5fr) minmax(130px, 0.9fr) auto auto;
+    align-items: center; gap: 16px;
+    padding: 14px 18px;
+    border-top: 1px solid rgba(30, 39, 46, 0.06);
+}
+.ps-row:first-child { border-top: none; }
+.ps-row:hover { background: #fafbfd; }
+.ps-who, .ps-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ps-who strong { font: 700 0.92rem 'Montserrat', sans-serif; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-who span, .ps-meta { font-size: 0.78rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-concept { font-weight: 700; font-size: 0.86rem; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-row--warn .ps-age { color: #b45309; }
+.ps-row--late .ps-age { color: #b91c1c; }
+.ps-reminder { font-size: 0.78rem; font-weight: 600; color: #475569; }
+.ps-muted { color: #94a3b8; }
+.ps-amount { font: 800 1.02rem 'Montserrat', sans-serif; color: #1e293b; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ps-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.ps-icon {
+    width: 36px; height: 36px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #475569; cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ps-icon:hover { border-color: #74b9ff; color: #185FA5; background: #f7faff; }
+.ps-icon:focus-visible, .ps-btn-primary:focus-visible { outline: 2px solid #185FA5; outline-offset: 2px; }
+.ps-btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 0 18px;
+    border: none; border-radius: 12px; cursor: pointer;
+    background: #185FA5; color: #fff;
+    font: 700 0.88rem 'Montserrat', sans-serif;
+    transition: background 0.15s;
+}
+.ps-btn-primary:hover:not(:disabled) { background: #134d87; }
+.ps-btn-primary:disabled { opacity: 0.6; cursor: progress; }
+.ps-btn-sm { min-height: 36px; padding: 0 14px; font-size: 0.82rem; }
+
+.ps-empty {
+    display: flex; align-items: center; gap: 16px; padding: 28px 24px;
+    background: #fff; border: 1px dashed #cbd5e1; border-radius: 18px; color: #475569;
+}
+.ps-empty > svg { font-size: 1.8rem; color: #0f8a6a; flex-shrink: 0; }
+.ps-empty strong { font: 800 1rem 'Montserrat', sans-serif; color: #1e293b; }
+.ps-empty p { margin: 4px 0 0; font-size: 0.86rem; line-height: 1.5; max-width: 60ch; }
+.ps-empty--soft { justify-content: center; }
+
+/* Pop-up de cobro */
+.ps-pay { display: flex; flex-direction: column; gap: 14px; }
+.ps-pay-amount {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 18px;
+    border-radius: 14px; background: #f8fafc; text-align: center;
+}
+.ps-pay-amount span, .ps-pay-amount small { font-size: 0.8rem; color: #64748b; }
+.ps-pay-amount strong { font: 800 2rem 'Montserrat', sans-serif; color: #1e293b; font-variant-numeric: tabular-nums; }
+.ps-pay-label { font: 700 0.8rem 'Montserrat', sans-serif; color: #334155; }
+.ps-pay-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ps-method {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px;
+    border: 1.5px solid #e2e8f0; border-radius: 12px; background: #fff; cursor: pointer;
+    font: 700 0.82rem 'Quicksand', sans-serif; color: #475569;
+}
+.ps-method svg { font-size: 1.15rem; }
+.ps-method.is-active { border-color: #185FA5; background: #eef4fb; color: #185FA5; }
+.ps-method:focus-visible { outline: 2px solid #185FA5; outline-offset: 2px; }
+.ps-error { margin: 0; font-size: 0.8rem; font-weight: 700; color: #b91c1c; }
+.ps-pay-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 900px) {
+    .ps-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "who amount" "what what" "reminder reminder" "actions actions";
+        gap: 6px 12px;
+    }
+    .ps-who { grid-area: who; } .ps-amount { grid-area: amount; } .ps-what { grid-area: what; }
+    .ps-reminder { grid-area: reminder; } .ps-actions { grid-area: actions; justify-content: flex-start; margin-top: 4px; }
+    .ps-actions .ps-btn-primary { margin-left: auto; }
+    .ps-summary-facts { align-items: flex-start; }
+}

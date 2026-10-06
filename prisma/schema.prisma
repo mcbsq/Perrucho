@@ -391,11 +391,17 @@ model Sale {
   employeeId    Int?
   appointmentId Int?          @unique
   total         Int
-  paymentMethod PaymentMethod @default(efectivo)
+  // Null mientras la venta está pendiente de pago: el método se registra
+  // cuando el cliente paga (Por cobrar → Registrar pago), no al venderle.
+  paymentMethod PaymentMethod? @default(efectivo)
   status        SaleStatus    @default(pendiente)
   type          SaleType      @default(service)
   notes         String?
   date          DateTime      @default(now())
+  // Seguimiento de cuentas por cobrar.
+  paidAt         DateTime?
+  lastReminderAt DateTime?
+  reminderCount  Int       @default(0)
   branchId      Int?
   businessId    Int? // multi-tenant — ver nota en User.businessId
 

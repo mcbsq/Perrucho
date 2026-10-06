@@ -16,7 +16,7 @@ import {
     FaNotesMedical, FaClock, FaTimes, FaSave,
     FaHistory, FaBoxOpen, FaExclamationTriangle, FaClipboardList,
     FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp,
-    FaCashRegister, FaCartPlus, FaReceipt, FaTrashAlt, FaSearch, FaCut
+    FaCashRegister, FaCartPlus, FaReceipt, FaTrashAlt, FaSearch, FaCut, FaFileInvoiceDollar
 } from 'react-icons/fa';
 import {
     FAB, StatusBadge, StatusSelector,
@@ -29,6 +29,8 @@ import '../../components/shared/DashboardShared.css';
 import { ViewToggle, useViewMode, ClientsList, PetsList } from '../../components/shared/RelationViews';
 import AppointmentFormModal from '../../components/shared/AppointmentFormModal';
 import { ReceiptModal } from '../../components/shared/Ticket';
+import { PendingSalesPanel, pendingSalesOf } from '../../components/shared/PendingSales';
+import '../../components/shared/PendingSales.css';
 import { getPetsOfClient, getOwnersOfPet } from '../../utils/petOwners';
 import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
@@ -386,7 +388,7 @@ const EMPLOYEE_ONBOARDING_STEPS=[
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const EmployeeDashboard = () => {
-    const {products,pets,clients,services,settings,branches,addClient,updateClient,addPet,updatePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
+    const {products,pets,clients,services,settings,branches,sales,paySale,remindSale,addClient,updateClient,addPet,updatePet,addSale,addAppointmentExtra,removeAppointmentExtra}=useData();
     const {logout,user}=useAuth();
     const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
@@ -482,6 +484,8 @@ const EmployeeDashboard = () => {
     const effectivePosBranchId=posBranchId||String((activeBranches.find(b=>b.isMain)||activeBranches[0])?.id||'');
     const processCheckout=async()=>{
         if(!cart.length)return;
+        // Sin cliente no hay a quién cobrarle ni recordarle después.
+        if(posSaleStatus==='pendiente'&&!posClientId){addToast('Elige al cliente: una venta pendiente necesita a quién cobrarle después','error');return;}
         try{
             const allProducts=cart.every(i=>i.type==='product');
             const allServices=cart.every(i=>i.type==='service');
@@ -507,7 +511,8 @@ const EmployeeDashboard = () => {
                 // servidor" cada vez que un empleado elegía un cliente.
                 clientId: posClientId?Number(posClientId):null,
                 type: allProducts?'product':allServices?'service':'mixed',
-                paymentMethod: posPaymentMethod,
+                // Pendiente = todavía no paga: el método se registra al cobrar.
+                paymentMethod: posSaleStatus==='pendiente'?null:posPaymentMethod,
                 status: posSaleStatus,
                 branchId: effectivePosBranchId?Number(effectivePosBranchId):null,
             });
@@ -723,6 +728,7 @@ const EmployeeDashboard = () => {
     const NAV=[
         {id:'agenda',icon:<FaCalendarAlt/>,label:'Agenda'},
         {id:'venta',icon:<FaCashRegister/>,label:'Venta'},
+        {id:'porcobrar',icon:<FaFileInvoiceDollar/>,label:'Por cobrar',badge:pendingSalesOf(sales).length},
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
         ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
         {id:'inventario',icon:<FaBoxOpen/>,label:'Inventario'},
@@ -772,15 +778,7 @@ const EmployeeDashboard = () => {
                 {activeBranches.length>1&&<select value={effectivePosBranchId} onChange={e=>setPosBranchId(e.target.value)} className="checkout-client-select" style={{marginTop:8}} aria-label="Sucursal">
                     {activeBranches.map(b=><option key={b.id} value={b.id}>Sucursal: {b.name}</option>)}
                 </select>}
-                <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
-                    {['efectivo','tarjeta','transferencia'].map(m=>(
-                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
-                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
-                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
-                        </button>
-                    ))}
-                </div>
-                <div style={{display:'flex',gap:8,marginBottom:12}}>
+                <div style={{display:'flex',gap:8,margin:'12px 0'}}>
                     {['pagado','pendiente'].map(s=>(
                         <button key={s} className={`checkout-pay-btn ${posSaleStatus===s?'active':''}`}
                             onClick={()=>setPosSaleStatus(s)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posSaleStatus===s?'#55efc4':'#e2e8f0',background:posSaleStatus===s?'#d1fae5':'white',color:posSaleStatus===s?'#065f46':'#64748b'}}>
@@ -788,6 +786,16 @@ const EmployeeDashboard = () => {
                         </button>
                     ))}
                 </div>
+                {posSaleStatus==='pendiente'
+                    ?<p className="checkout-modal-note" style={{margin:'0 0 12px'}}>La forma de pago se registra cuando el cliente pague, desde <strong>Por cobrar</strong>.{!posClientId&&<><br/><strong style={{color:'#b45309'}}>Elige al cliente para poder darle seguimiento.</strong></>}</p>
+                    :<div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'0 0 12px'}}>
+                    {['efectivo','tarjeta','transferencia'].map(m=>(
+                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
+                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
+                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
+                        </button>
+                    ))}
+                </div>}
                 <div className="checkout-items-preview">
                     {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
                     {discountAmount>0&&<div className="checkout-item-row"><span>{discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento'}</span><span>−${discountAmount.toFixed(2)}</span></div>}
@@ -824,7 +832,7 @@ const EmployeeDashboard = () => {
             {showOnboarding && <OnboardingTour steps={EMPLOYEE_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
             <aside className="emp-sidebar">
-                <nav className="emp-sidebar-nav">{NAV.map(item=><button key={item.id} data-tour={`employee-${item.id}`} className={`emp-nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');}} title={item.label}>{item.icon}<span className="emp-nav-label">{item.label}</span></button>)}</nav>
+                <nav className="emp-sidebar-nav">{NAV.map(item=><button key={item.id} data-tour={`employee-${item.id}`} className={`emp-nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');}} title={item.label}>{item.icon}<span className="emp-nav-label">{item.label}</span>{item.badge>0&&<span className="nav-badge" aria-label={`${item.badge} pendientes`}>{item.badge}</span>}</button>)}</nav>
                 <button className="emp-sidebar-logout" onClick={logout}><FaSignOutAlt/></button>
             </aside>
 
@@ -957,6 +965,14 @@ const EmployeeDashboard = () => {
                             </div>
                         </aside>
                     </div>
+                </div>}
+
+                {tab==='porcobrar'&&<div className="fade-in">
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Por cobrar</h2><p>Ventas registradas como pendientes, de la más antigua a la más reciente.</p></div></div>
+                    <PendingSalesPanel sales={sales} clients={clients} settings={settings}
+                        onPay={async(sale,method)=>{try{const saved=await paySale(sale.id,method);addToast('Pago registrado','success');return saved;}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}}}
+                        onRemind={async(sale)=>{const saved=await remindSale(sale.id);addToast('Recordatorio anotado','info');return saved;}}
+                        onShowReceipt={setReceiptSale} onToast={addToast}/>
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">

@@ -1742,8 +1742,13 @@ app.get('/api/sales/:id', verifyToken, requireRole('administrador'), async (req,
 // la venta completa se revierte (409) en vez de quedar a medias.
 app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
-    const { items, branch, client, appointment, ...data } = req.body;
+    const { items, branch, client, appointment, paidAt, lastReminderAt, reminderCount, ...data } = req.body;
     if (data.branchId !== undefined) data.branchId = await resolveBranchId(data.branchId);
+    // Una venta pendiente todavía no se pagó: no tiene método de pago (se
+    // elige al cobrarla, ver PATCH /api/sales/:id/pay). Antes se guardaba el
+    // método que estuviera seleccionado por default en el POS.
+    if (data.status === 'pendiente') data.paymentMethod = null;
+    else if (!data.status || data.status === 'pagado') data.paidAt = new Date();
     // variantName viaja en el payload solo para la lógica de descuento de
     // stock de abajo — NO es una columna real de SaleItem (ver schema.prisma)
     // así que hay que quitarlo antes de pasar los items a `create`, igual que
@@ -1797,6 +1802,52 @@ app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), as
   } catch (err) {
     if (err.status === 409) return res.status(409).json({ error: err.message });
     console.error('POST /api/sales', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+const PAYMENT_METHODS = new Set(['efectivo', 'tarjeta', 'transferencia']);
+
+// PATCH /api/sales/:id/pay — cobra una venta pendiente: registra con qué se
+// pagó y cuándo. Admin y empleado (quien está en caja es quien recibe el pago).
+app.patch('/api/sales/:id/pay', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { paymentMethod } = req.body;
+    if (!PAYMENT_METHODS.has(paymentMethod))
+      return res.status(400).json({ error: 'Elige cómo se pagó: efectivo, tarjeta o transferencia' });
+    const existing = await prisma.sale.findFirst({ where: { id }, select: { status: true } });
+    if (!existing) return res.status(404).json({ error: 'Venta no encontrada' });
+    if (existing.status !== 'pendiente')
+      return res.status(409).json({ error: existing.status === 'pagado' ? 'Esta venta ya estaba pagada' : 'Esta venta está cancelada' });
+    const sale = await prisma.sale.update({
+      where: { id },
+      data: { status: 'pagado', paymentMethod, paidAt: new Date() },
+      include: saleInclude,
+    });
+    res.json(sale);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// PATCH /api/sales/:id/reminder — anota que se le mandó recordatorio de pago
+// (el mensaje lo envía quien está en el panel, por WhatsApp o correo).
+app.patch('/api/sales/:id/reminder', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.sale.findFirst({ where: { id }, select: { status: true } });
+    if (!existing) return res.status(404).json({ error: 'Venta no encontrada' });
+    if (existing.status !== 'pendiente') return res.status(409).json({ error: 'Esta venta ya no está pendiente' });
+    const sale = await prisma.sale.update({
+      where: { id },
+      data: { lastReminderAt: new Date(), reminderCount: { increment: 1 } },
+      include: saleInclude,
+    });
+    res.json(sale);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });

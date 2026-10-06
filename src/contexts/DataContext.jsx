@@ -249,6 +249,16 @@ export const DataProvider = ({ children }) => {
     // Cancelar una venta revierte el stock en el servidor (ver PATCH
     // /api/sales/:id/cancel) — refrescamos products para que el inventario
     // se vea correcto de inmediato, mismo patrón que addSale.
+    const paySale = async (id, paymentMethod) => {
+        const saved = await salesApi.pay(id, paymentMethod);
+        setSales(prev => prev.map(s => s.id === id ? saved : s));
+        return saved;
+    };
+    const remindSale = async (id) => {
+        const saved = await salesApi.remind(id);
+        setSales(prev => prev.map(s => s.id === id ? saved : s));
+        return saved;
+    };
     const cancelSale = async (id) => {
         const saved = await salesApi.cancel(id);
         setSales(prev => prev.map(s => s.id === id ? saved : s));
@@ -352,7 +362,7 @@ export const DataProvider = ({ children }) => {
             addAppointmentExtra, removeAppointmentExtra,
 
             // CRUD Sales
-            addSale, updateSale, patchSale, cancelSale,
+            addSale, updateSale, patchSale, cancelSale, paySale, remindSale,
 
             // CRUD Expenses
             addExpense, deleteExpense,

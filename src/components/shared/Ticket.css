@@ -55,7 +55,7 @@
     background: #fff; color: #334155;
     font: 700 0.86rem 'Montserrat', sans-serif;
     cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s;
-    flex: 1 1 130px;
+    flex: 1 1 130px; white-space: nowrap;
 }
 .tk-action:hover:not(:disabled) { border-color: #74b9ff; background: #f7faff; }
 .tk-action--primary { flex-basis: 100%; background: #185FA5; border-color: #185FA5; color: #fff; }

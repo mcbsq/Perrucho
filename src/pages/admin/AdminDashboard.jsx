@@ -24,7 +24,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaFileInvoiceDollar
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -50,6 +50,8 @@ import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import AppointmentFormModal from '../../components/shared/AppointmentFormModal';
 import { ReceiptModal } from '../../components/shared/Ticket';
 import SettingsHub from '../../components/shared/SettingsHub';
+import { PendingSalesPanel, pendingSalesOf } from '../../components/shared/PendingSales';
+import '../../components/shared/PendingSales.css';
 import '../../components/shared/AssignTimePicker.css';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import PosServicePricePicker from '../../components/shared/PosServicePricePicker';
@@ -536,7 +538,7 @@ const SalesModal = ({sales,onClose,onShowReceipt,onCancelSale}) => {
         <tbody>{filtered.length===0?<tr><td colSpan="6" className="empty-td">Sin ventas</td></tr>:filtered.slice().reverse().map(s=>{
             const isCancelled=s.status==='cancelado';
             return <tr key={s.id} style={isCancelled?{opacity:0.55,textDecoration:'line-through'}:undefined}>
-                <td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.paymentMethod||'efectivo'}</td>
+                <td>{s.date}</td><td>{getSaleLabel(s)}</td><td>{s.status==='pendiente'?'Por cobrar':(s.paymentMethod||'—')}</td>
                 <td style={{textDecoration:'none'}}>{SALE_STATUS_LABEL[s.status]||s.status||'Pagado'}</td>
                 <td className="td-amount">${Number(getSaleAmount(s)).toLocaleString()}</td>
                 <td style={{textDecoration:'none',display:'flex',gap:6}}>
@@ -639,7 +641,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,expenses,settings,branches,saveBranch,deleteBranch,reloadBranches,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
+    const {services,products,pets,clients,sales,expenses,settings,branches,saveBranch,deleteBranch,reloadBranches,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,paySale,remindSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
     const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
@@ -724,9 +726,11 @@ const AdminDashboard = () => {
             monthExpenses:me.reduce((a,e)=>a+Number(e.amount),0),
             appointmentsCount:ta.length,
             totalClients:clients.length,
-            lowStock:products.filter(p=>Number(p.stock)<5).length
+            lowStock:products.filter(p=>Number(p.stock)<5).length,
+            pendingTotal:pendingSalesOf(sales).reduce((a,s)=>a+Number(s.total||0),0),
+            pendingCount:pendingSalesOf(sales).length,
         };
-    },[activeSales,expenses,appointments,clients,products,todayStr_]);
+    },[sales,activeSales,expenses,appointments,clients,products,todayStr_]);
 
     // ── POS con nuevo formato de addSale ──────────────────────────────────────
     // item.variantName distingue líneas de carrito de un mismo producto con
@@ -787,6 +791,8 @@ const AdminDashboard = () => {
     // FIX: addSale con nuevo formato { items, total, clientId, type, paymentMethod, status }
     const processCheckout=async()=>{
         if(!cart.length)return;
+        // Sin cliente no hay a quién cobrarle ni recordarle después.
+        if(posSaleStatus==='pendiente'&&!posClientId){addToast('Elige al cliente: una venta pendiente necesita a quién cobrarle después','error');return;}
         try{
             const allProducts = cart.every(i=>i.type==='product');
             const allServices = cart.every(i=>i.type==='service');
@@ -815,7 +821,9 @@ const AdminDashboard = () => {
                 // se elegía un cliente en el checkout del POS.
                 clientId:      posClientId?Number(posClientId):null,
                 type:          allProducts?'product':allServices?'service':'mixed',
-                paymentMethod: posPaymentMethod,
+                // Pendiente = todavía no paga: el método se registra al cobrar
+                // (Por cobrar → Cobrar), no el que estaba seleccionado aquí.
+                paymentMethod: posSaleStatus==='pendiente'?null:posPaymentMethod,
                 status:        posSaleStatus,
                 branchId:      effectivePosBranchId?Number(effectivePosBranchId):null,
             });
@@ -885,6 +893,8 @@ const AdminDashboard = () => {
 
     const handleAddExpense=async(data)=>{try{await addExpense(data);addToast('Egreso agregado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
+    const handlePaySale=async(sale,method)=>{try{const saved=await paySale(sale.id,method);addToast(`Pago registrado — $${Number(sale.total).toLocaleString('es-MX')}`,'success');return saved;}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleRemindSale=async(sale)=>{const saved=await remindSale(sale.id);addToast('Recordatorio anotado','info');return saved;};
     const handleCancelSale=async(sale)=>{
         const ok=await notify({type:'confirm',icon:'🚫',accent:'red',title:'¿Cancelar esta venta?',message:`"${getSaleLabel(sale)}" — $${getSaleAmount(sale)}. Se revierte el stock de los productos vendidos.`,confirmLabel:'Sí, cancelar',cancelLabel:'Volver'});
         if(!ok)return;
@@ -1048,6 +1058,7 @@ const AdminDashboard = () => {
         {id:'control',icon:<FaTachometerAlt/>,label:'Panel'},
         {id:'analiticos',icon:<FaChartBar/>,label:'Analíticos'},
         {id:'pos',icon:<FaCashRegister/>,label:'Venta'},
+        {id:'porcobrar',icon:<FaFileInvoiceDollar/>,label:'Por cobrar',badge:stats.pendingCount},
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
         ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
         ...(settings?.enableMemberships ? [{id:'membresias',icon:<FaIdCard/>,label:'Membresías'}] : []),
@@ -1118,17 +1129,8 @@ const AdminDashboard = () => {
                 {activeBranches.length>1&&<select value={effectivePosBranchId} onChange={e=>setPosBranchId(e.target.value)} className="checkout-client-select" style={{marginTop:8}} aria-label="Sucursal">
                     {activeBranches.map(b=><option key={b.id} value={b.id}>Sucursal: {b.name}</option>)}
                 </select>}
-                {/* Forma de pago */}
-                <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
-                    {['efectivo','tarjeta','transferencia'].map(m=>(
-                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
-                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
-                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
-                        </button>
-                    ))}
-                </div>
                 {/* Estado de venta */}
-                <div style={{display:'flex',gap:8,marginBottom:12}}>
+                <div style={{display:'flex',gap:8,margin:'12px 0'}}>
                     {['pagado','pendiente'].map(s=>(
                         <button key={s} className={`checkout-pay-btn ${posSaleStatus===s?'active':''}`}
                             onClick={()=>setPosSaleStatus(s)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posSaleStatus===s?'#55efc4':'#e2e8f0',background:posSaleStatus===s?'#d1fae5':'white',color:posSaleStatus===s?'#065f46':'#64748b'}}>
@@ -1136,6 +1138,17 @@ const AdminDashboard = () => {
                         </button>
                     ))}
                 </div>
+                {/* Forma de pago — solo si se paga ahora */}
+                {posSaleStatus==='pendiente'
+                    ?<p className="checkout-modal-note" style={{margin:'0 0 12px'}}>La forma de pago se registra cuando el cliente pague, desde <strong>Por cobrar</strong>.{!posClientId&&<><br/><strong style={{color:'#b45309'}}>Elige al cliente para poder darle seguimiento.</strong></>}</p>
+                    :<div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'0 0 12px'}}>
+                    {['efectivo','tarjeta','transferencia'].map(m=>(
+                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
+                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
+                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
+                        </button>
+                    ))}
+                </div>}
                 <div className="checkout-items-preview">
                     {cart.map((i,idx)=><div key={idx} className="checkout-item-row"><span>{i.qty}x {i.name||i.title}</span><span>${(i.price*i.qty).toFixed(2)}</span></div>)}
                     {discountAmount>0&&<div className="checkout-item-row"><span>{discount.type==='percent'?`Descuento (${discountValue}%)`:'Descuento'}</span><span>−${discountAmount.toFixed(2)}</span></div>}
@@ -1174,7 +1187,7 @@ const AdminDashboard = () => {
             {showOnboarding && <OnboardingTour steps={ADMIN_ONBOARDING_STEPS} onClose={dismissOnboarding}/>}
 
             <aside className="admin-sidebar">
-                <nav className="sidebar-nav">{NAV.map(item=><button key={item.id} data-tour={`admin-${item.id}`} className={`nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');setSearchFocus(false);}} title={item.label}>{item.icon}<span className="nav-label">{item.label}</span></button>)}</nav>
+                <nav className="sidebar-nav">{NAV.map(item=><button key={item.id} data-tour={`admin-${item.id}`} className={`nav-btn ${tab===item.id?'active':''}`} onClick={()=>{setTab(item.id);setSearchTerm('');setSearchFocus(false);}} title={item.label}>{item.icon}<span className="nav-label">{item.label}</span>{item.badge>0&&<span className="nav-badge" aria-label={`${item.badge} pendientes`}>{item.badge}</span>}</button>)}</nav>
                 <button className="sidebar-logout" onClick={logout}><FaSignOutAlt/></button>
             </aside>
 
@@ -1187,6 +1200,7 @@ const AdminDashboard = () => {
                         <div className="stat-card stat-card--red clickable" onClick={()=>setActiveModal('egresos')}><span className="stat-label">Egresos del mes</span><span className="stat-value">${stats.monthExpenses.toLocaleString()}</span><span className="stat-hint">Ver detalle →</span></div>
                         <div className="stat-card stat-card--teal clickable" onClick={()=>setShowCalendar(true)}><span className="stat-label">Citas hoy</span><span className="stat-value">{stats.appointmentsCount}</span><span className="stat-hint">Ver agenda →</span></div>
                         <div className="stat-card stat-card--purple clickable" onClick={()=>setActiveModal('clientes')}><span className="stat-label">Clientes</span><span className="stat-value">{stats.totalClients}</span><span className="stat-hint">Reporte →</span></div>
+                        <div className="stat-card stat-card--amber clickable" onClick={()=>setTab('porcobrar')}><span className="stat-label">Por cobrar</span><span className="stat-value">${stats.pendingTotal.toLocaleString()}</span><span className="stat-hint">{stats.pendingCount} pendiente{stats.pendingCount===1?'':'s'} →</span></div>
                         <div className="stat-card stat-card--red clickable" onClick={()=>setActiveModal('stock')}><span className="stat-label">Stock crítico</span><span className="stat-value">{stats.lowStock}</span><span className="stat-hint">Ver →</span></div>
                     </div>
                     <div className="control-lower-grid">
@@ -1239,6 +1253,12 @@ const AdminDashboard = () => {
                             </div>
                         </aside>
                     </div>
+                </div>}
+
+                {tab==='porcobrar'&&<div className="fade-in">
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Por cobrar</h2><p>Ventas registradas como pendientes, de la más antigua a la más reciente.</p></div></div>
+                    <PendingSalesPanel sales={sales} clients={clients} settings={settings}
+                        onPay={handlePaySale} onRemind={handleRemindSale} onShowReceipt={setReceiptSale} onToast={addToast}/>
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">

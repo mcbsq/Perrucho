@@ -247,6 +247,10 @@ export const salesApi = {
   // Marca la venta como cancelada y revierte el stock que había descontado
   // — no borra el registro, queda como historial.
   cancel:  (id)          => api.patch(`/sales/${encodeURIComponent(id)}/cancel`),
+  // Cuentas por cobrar: cobrar una venta pendiente (con su método de pago)
+  // y anotar que se le mandó recordatorio al cliente.
+  pay:     (id, paymentMethod) => api.patch(`/sales/${encodeURIComponent(id)}/pay`, { paymentMethod }),
+  remind:  (id)          => api.patch(`/sales/${encodeURIComponent(id)}/reminder`),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

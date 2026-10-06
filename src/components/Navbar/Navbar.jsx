@@ -35,6 +35,12 @@ const ProfileIcon = () => (
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08s5.97 1.09 6 3.08c-1.29 1.94-3.5 3.22-6 3.22z"/>
     </svg>
 );
+const PanelIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />
+        <rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" />
+    </svg>
+);
 const LogoutIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 24 24" width="20" fill="currentColor">
         <path d="M0 0h24v24H0z" fill="none"/>
@@ -70,6 +76,12 @@ const Navbar = () => {
 
     const handleLogout = () => { logout(); navigate(homePath); };
 
+    // Feedback real (Taylor's): el admin entraba a ver su página y no había
+    // forma de volver al panel sin cerrar sesión. El personal del negocio
+    // ve "Mi panel" en vez del perfil de cliente.
+    const PANEL_PATH = { administrador: '/admin-dashboard', empleado: '/employee-dashboard', superadmin: '/superadmin/panel' };
+    const panelPath = isLoggedIn ? PANEL_PATH[user?.role] : null;
+
     const handleHomeClick = (e) => {
         if (location.pathname === homePath) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
@@ -101,7 +113,9 @@ const Navbar = () => {
                     {isLoggedIn ? (
                         <>
                             <span className="user-greeting">Hola, <strong>{user.name.split(' ')[0]}</strong></span>
-                            <NavLink to="/perfil" className="nav-icon" title="Mi Perfil" data-tour="nav-perfil"><ProfileIcon /></NavLink>
+                            {panelPath
+                                ? <NavLink to={panelPath} className="nav-access-btn nav-panel-btn"><PanelIcon /><span>Mi panel</span></NavLink>
+                                : <NavLink to="/perfil" className="nav-icon" title="Mi Perfil" data-tour="nav-perfil"><ProfileIcon /></NavLink>}
                             <button className="nav-icon nav-icon--logout" title="Cerrar Sesión" onClick={handleLogout}><LogoutIcon /></button>
                         </>
                     ) : (
@@ -125,7 +139,9 @@ const Navbar = () => {
                 <NavLink to={withSlug('/sobre-nosotros')} className={navClass}>Sobre nosotros</NavLink>
                 {isLoggedIn ? (
                     <>
-                        <NavLink to="/perfil" className={navClass}>Mi Perfil</NavLink>
+                        {panelPath
+                            ? <NavLink to={panelPath} className={navClass}>Ir a mi panel</NavLink>
+                            : <NavLink to="/perfil" className={navClass}>Mi Perfil</NavLink>}
                         <button className="nav-item nav-item--logout-mobile" onClick={handleLogout}>
                             Cerrar sesión ({user.name.split(' ')[0]})
                         </button>

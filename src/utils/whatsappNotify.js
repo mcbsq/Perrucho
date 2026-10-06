@@ -139,6 +139,18 @@ ${petName} ya está listo(a) tras su servicio de *${serviceName}*.
 }
 
 /**
+ * Recordatorio de pago de una venta pendiente (Por cobrar).
+ */
+export function shopToClientPaymentReminder({ clientName, clientPhone, amount, concept, date, shopName = SHOP_NAME }) {
+    const msg =
+`¡Hola ${clientName}! 👋
+Te escribimos de *${shopName}* para recordarte que tienes un pago pendiente de *${amount}*${concept ? ` por ${concept}` : ''}${date ? ` (del ${date})` : ''}.
+
+Puedes pagarlo en efectivo, tarjeta o transferencia. Si ya lo hiciste, avísanos y lo registramos. ¡Gracias!`;
+    return buildWaLink(clientPhone, msg);
+}
+
+/**
  * Helper genérico: abre el link en una nueva pestaña.
  * Si no se puede generar (sin teléfono válido), devuelve false.
  */
