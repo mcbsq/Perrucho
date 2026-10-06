@@ -61,7 +61,7 @@ describe('Login', () => {
         fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
 
         await waitFor(() => {
-            expect(screen.getByText('Error al conectar con el servidor.')).toBeInTheDocument();
+            expect(screen.getByText('Correo o contraseña incorrectos.')).toBeInTheDocument();
         });
     });
 

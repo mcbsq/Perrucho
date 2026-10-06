@@ -48,7 +48,7 @@ const Login = () => {
                 setError('Email o contraseña incorrectos.');
             }
         } catch (err) {
-            setError('Error al conectar con el servidor.');
+            setError(err.message || 'No se pudo conectar con el servidor.');
         } finally {
             setLoading(false);
         }

@@ -76,7 +76,12 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
             console.error('Error en login:', err);
             if (err.status === 401) throw new Error('Correo o contraseña incorrectos.');
-            throw new Error('No se pudo conectar con el servidor.');
+            // 4xx/5xx con mensaje propio del API (ej. 403 "Cuenta no
+            // registrada en este negocio", 429 "Demasiados intentos"): se
+            // muestra tal cual. Antes TODO caía en "no se pudo conectar" y
+            // parecía que el servidor estaba caído.
+            if (err.status && err.message) throw new Error(err.message);
+            throw new Error('No se pudo conectar con el servidor. Revisa tu conexión a internet.');
         }
     };
 
