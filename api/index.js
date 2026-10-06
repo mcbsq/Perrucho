@@ -229,7 +229,17 @@ app.post('/api/auth/change-password', authLimiter, verifyToken, async (req, res)
       if (error) {
         const { status } = error;
         if (status === 401 || status === 403) return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
-        console.warn('AEGIS changePassword falló:', error);
+        console.warn('AEGIS changePassword falló:', status, JSON.stringify(error.body));
+        // AEGIS rechaza por reglas propias (ej. política de contraseñas) con
+        // 4xx y un detalle — antes se escondía detrás de un 502 genérico y
+        // nadie sabía qué cambiar. Se muestra el motivo tal como lo da AEGIS.
+        if (status >= 400 && status < 500) {
+          const b = error.body || {};
+          const reason = (Array.isArray(b.errors) && b.errors.map((e) => e.msg).filter(Boolean).join('. '))
+            || (typeof b.detail === 'string' && b.detail !== 'Request validation failed.' && b.detail)
+            || b.title || b.error;
+          return res.status(400).json({ error: reason ? `No se pudo cambiar la contraseña: ${reason}` : 'La contraseña nueva no cumple los requisitos. Prueba con una más larga, con mayúsculas, números y símbolos.' });
+        }
         return res.status(502).json({ error: 'No se pudo cambiar la contraseña' });
       }
       return res.json({ ok: true });
