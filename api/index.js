@@ -158,7 +158,29 @@ app.post('/api/login', authLimiter, async (req, res) => {
         user = await prisma.user.findFirst({ where: { email: aegisEmail } });
       }
       if (!user) {
-        return res.status(403).json({ error: 'Cuenta no registrada en este negocio. Contacta a un administrador.' });
+        // AEGIS ya confirmó correo + contraseña, pero esta persona no tiene
+        // registro en ESTE negocio (ej. su cuenta de cliente se perdió, o se
+        // registró en AEGIS y el alta en Emporio falló). Antes quedaba
+        // atorada: "ya existe" al registrarse y "no registrada" al entrar.
+        // Como la identidad ya está probada, se da de alta como cliente.
+        // Si el correo pertenece a otro negocio (User.email es único en toda
+        // la plataforma) no se puede duplicar: se explica en vez de crearla.
+        if (!aegisEmail) return res.status(403).json({ error: 'Cuenta no registrada en este negocio. Contacta a un administrador.' });
+        const elsewhere = await prismaRaw.user.findFirst({
+          where: { OR: [{ email: aegisEmail }, { aegisUserId: String(profile.id) }] },
+          select: { id: true },
+        });
+        if (elsewhere) {
+          return res.status(403).json({ error: 'Tu cuenta está registrada en otro negocio de Emporio. Contacta al administrador de este negocio para que te dé acceso.' });
+        }
+        user = await prisma.user.create({
+          data: {
+            name: (profile.name || profile.full_name || aegisEmail.split('@')[0]).trim(),
+            email: aegisEmail,
+            aegisUserId: String(profile.id),
+            role: 'cliente',
+          },
+        });
       }
 
       const token = signToken(user);
@@ -260,7 +282,10 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
       if (aegisErr) {
         const { body, status } = aegisErr;
         console.warn('AEGIS adminCreateUser (signup) falló:', status, body);
-        if (status === 409) return res.status(409).json({ error: 'El email ya está registrado' });
+        // 409: la identidad ya existe en AEGIS (ej. se registró antes y su
+        // alta en Emporio se perdió). Con iniciar sesión basta: el login la
+        // da de alta en este negocio (ver POST /api/login).
+        if (status === 409) return res.status(409).json({ error: 'Ya tienes una cuenta con este correo. Inicia sesión con tu contraseña (o usa "¿Olvidaste tu contraseña?").' });
         return res.status(502).json({ error: 'No se pudo crear la cuenta. Intenta de nuevo.' });
       }
       tempPassword = aegisUser.tempPassword;
@@ -272,9 +297,7 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
           aegisUserId: String(aegisUser.id),
           phone: phone || null,
           role: 'cliente',
-          pets: petData,
         },
-        include: { pets: true },
       });
     } else {
       const hash = await bcrypt.hash(password || 'perrucho123', 10);
@@ -293,10 +316,20 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
           role: 'cliente',
           securityQuestion: securityQuestion || null,
           securityAnswerHash: answerHash,
-          pets: petData,
         },
-        include: { pets: true },
       });
+    }
+
+    // La mascota se crea aparte y no anidada en user.create: el filtro
+    // multi-tenant (api/lib/tenantClient.js) solo pone businessId en la
+    // query de primer nivel, así que una mascota anidada quedaba SIN negocio
+    // (invisible en el panel) y sin su fila en PetOwner.
+    if (petData) {
+      const pet = await prisma.pet.create({
+        data: { ...petData.create, ownerId: newUser.id, owners: { create: [{ userId: newUser.id }] } },
+        include: petInclude,
+      });
+      newUser = { ...newUser, pets: [serializePet(pet)] };
     }
 
     const token = signToken(newUser);
@@ -814,10 +847,14 @@ const serializePet = (pet) => {
 
 // `pets` de un cliente = TODAS las mascotas ligadas a él (propias y
 // compartidas con otros clientes), no solo donde es el dueño principal.
-const clientInclude = { petLinks: { include: { pet: { include: petInclude } } } };
+// Se unen las dos vías (dueño principal + PetOwner) por si alguna mascota
+// vieja quedó sin su fila en PetOwner.
+const clientInclude = { pets: { include: petInclude }, petLinks: { include: { pet: { include: petInclude } } } };
 const serializeClient = (client) => {
-  const { petLinks, ...rest } = client;
-  return safeUser({ ...rest, pets: (petLinks || []).map((l) => serializePet(l.pet)) });
+  const { petLinks, pets, ...rest } = client;
+  const byId = new Map();
+  [...(pets || []), ...(petLinks || []).map((l) => l.pet)].forEach((p) => { if (p) byId.set(p.id, serializePet(p)); });
+  return safeUser({ ...rest, pets: [...byId.values()] });
 };
 
 app.get('/api/clients', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
