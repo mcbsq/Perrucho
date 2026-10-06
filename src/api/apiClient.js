@@ -112,6 +112,13 @@ export const authApi = {
 
   changePassword: (currentPassword, newPassword) =>
     api.post('/auth/change-password', { currentPassword, newPassword }),
+
+  // Negocios AEGIS: recuperación por correo (AEGIS manda el enlace).
+  passwordResetRequest: (email) =>
+    api.post('/auth/password-reset/request', { email }),
+
+  passwordResetConfirm: (token, newPassword) =>
+    api.post('/auth/password-reset/confirm', { token, newPassword }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,6 +158,8 @@ export const usersApi = {
   create:  (data)     => api.post('/users', data),
   update:  (id, data) => api.put(`/users/${encodeURIComponent(id)}`, data),
   delete:  (id)       => api.delete(`/users/${encodeURIComponent(id)}`),
+  // Da o restablece el acceso en línea (AEGIS) y regresa la contraseña temporal.
+  grantAccess: (id)   => api.post(`/users/${encodeURIComponent(id)}/access`, {}),
 
   // Login — devuelve { token, user }
   login: (email, password) => api.post('/login', { email, password }),

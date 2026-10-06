@@ -146,7 +146,11 @@ export const AuthProvider = ({ children }) => {
             return tempPassword ? { ...userData, tempPassword } : userData;
         } catch (err) {
             console.error('Error en registro:', err);
-            if (err.status === 409) throw new Error('Ya existe una cuenta con ese correo.');
+            // 4xx con mensaje propio (ej. "el teléfono no coincide con tu
+            // ficha", "ya tienes cuenta, inicia sesión"): se muestra tal cual.
+            const generic = !err.message || /^(HTTP \d+|Conflict|Bad Request)/i.test(err.message);
+            if (err.status === 409 && generic) throw new Error('Ya existe una cuenta con ese correo.');
+            if (err.status && err.status < 500 && !generic) throw new Error(err.message);
             throw new Error('No se pudo completar el registro. Intenta de nuevo.');
         }
     };

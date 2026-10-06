@@ -20,6 +20,7 @@ import Contact           from './pages/Contact';
 import SobreNosotros     from './pages/SobreNosotros';
 import Login             from './components/Login/Login';
 import ForgotPassword    from './components/Login/ForgotPassword';
+import ResetPasswordConfirm from './components/Login/ResetPasswordConfirm';
 import Register          from './components/Register/Register';
 import AdminDashboard    from './pages/admin/AdminDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
@@ -112,7 +113,7 @@ const AppContent = () => {
     // de la landing de giro (bug real, visto al probar /uñas).
     const segments = decodeURIComponent(location.pathname).split('/').filter(Boolean);
     const lastSegment = segments[segments.length - 1] || '';
-    const isAuthPage = !isDashboard && ['acceso', 'registro', 'olvide-contrasena'].includes(lastSegment);
+    const isAuthPage = !isDashboard && ['acceso', 'registro', 'olvide-contrasena', 'restablecer', 'restablecer-contrasena'].includes(lastSegment);
 
     // La landing de la plataforma, el alta de negocio y las landings por
     // giro (/:giro, un solo segmento — ej. /uñas, sin slug de negocio
@@ -141,6 +142,7 @@ const AppContent = () => {
                         <Route path="sobre-nosotros" element={<SobreNosotros />} />
                         <Route path="acceso"         element={<Login />} />
                         <Route path="olvide-contrasena" element={<ForgotPassword />} />
+                        <Route path="restablecer" element={<ResetPasswordConfirm />} />
                         <Route path="registro"       element={<Register />} />
                     </Route>
 
@@ -172,6 +174,8 @@ const AppContent = () => {
                     <Route path="/sobre-nosotros"  element={<Navigate to={`${LEGACY_BASE}/sobre-nosotros`} replace />} />
                     <Route path="/acceso"          element={<Navigate to={`${LEGACY_BASE}/acceso`} replace />} />
                     <Route path="/olvide-contrasena" element={<Navigate to={`${LEGACY_BASE}/olvide-contrasena`} replace />} />
+                    {/* Enlace del correo de AEGIS sin negocio en la URL */}
+                    <Route path="/restablecer-contrasena" element={<ResetPasswordConfirm />} />
                     <Route path="/registro"        element={<Navigate to={`${LEGACY_BASE}/registro`} replace />} />
 
                     {/* ── Dashboards protegidos — sin prefijo: el JWT ya trae el businessId ── */}

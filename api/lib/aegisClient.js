@@ -175,4 +175,59 @@ const changePassword = async (identifier, currentPassword, newPassword) => {
   }
 };
 
-module.exports = { passwordLogin, getMe, adminCreateUser, adminResetPassword, adminSetActive, changePassword };
+// GET /v1/admin/users?q= — busca la identidad por correo (coincidencia
+// exacta, el filtro de AEGIS es por texto). Para ligar una ficha de Emporio
+// a una identidad que ya existía en AEGIS.
+const adminFindUserByEmail = async (email) => {
+  const s = getAegisSettings();
+  if (!s.adminEnabled) return { data: null, error: { body: { error: 'AEGIS_API_KEY no configurada' }, status: 503 } };
+  const target = email.trim().toLowerCase();
+  try {
+    const r = await doFetch(`${s.baseUrl}/v1/admin/users?q=${encodeURIComponent(target)}`, { headers: adminHeaders() }, s.timeout);
+    const body = await parseBody(r);
+    if (!r.ok) return { data: null, error: { body, status: r.status } };
+    const hit = (body.items || []).find((u) => String(u.email || '').toLowerCase() === target);
+    return { data: hit || null, error: null };
+  } catch (e) {
+    console.error('AEGIS adminFindUserByEmail:', e.message);
+    return { data: null, error: { body: { error: 'AEGIS admin no disponible' }, status: 503 } };
+  }
+};
+
+// POST /v1/auth/password-reset/request — AEGIS manda el correo con el enlace
+// de restablecimiento. Siempre responde 202 (no revela si el correo existe).
+const requestPasswordReset = async (email) => {
+  const s = getAegisSettings();
+  try {
+    const r = await doFetch(`${s.baseUrl}/v1/auth/password-reset/request`, {
+      method: 'POST',
+      headers: { 'X-Tenant-Id': s.tenantId, 'X-App-Id': s.appId, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    }, s.timeout);
+    if (r.ok) return { error: null };
+    return { error: { body: await parseBody(r), status: r.status } };
+  } catch (e) {
+    console.error('AEGIS requestPasswordReset:', e.message);
+    return { error: { body: { error: 'Servicio de autenticación no disponible' }, status: 503 } };
+  }
+};
+
+// POST /v1/auth/password-reset/confirm — consume el token del correo y fija
+// la contraseña nueva (mínimo 12 caracteres).
+const confirmPasswordReset = async (token, newPassword) => {
+  const s = getAegisSettings();
+  try {
+    const r = await doFetch(`${s.baseUrl}/v1/auth/password-reset/confirm`, {
+      method: 'POST',
+      headers: { 'X-Tenant-Id': s.tenantId, 'X-App-Id': s.appId, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }, s.timeout);
+    if (r.ok) return { error: null };
+    return { error: { body: await parseBody(r), status: r.status } };
+  } catch (e) {
+    console.error('AEGIS confirmPasswordReset:', e.message);
+    return { error: { body: { error: 'Servicio de autenticación no disponible' }, status: 503 } };
+  }
+};
+
+module.exports = { passwordLogin, getMe, adminCreateUser, adminResetPassword, adminSetActive, changePassword, adminFindUserByEmail, requestPasswordReset, confirmPasswordReset };

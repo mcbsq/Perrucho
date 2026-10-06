@@ -248,8 +248,39 @@ export const ClientCard = ({ client, petsCount = 0, pets, onEdit, onDelete, onOp
     </div>
 );
 
+// ─── ACCESO EN LÍNEA (negocios con AEGIS) ─────────────────────────────────────
+// En negocios AEGIS la contraseña la genera AEGIS: el administrador no la
+// escribe, "da acceso" y recibe una temporal para entregarla. Sirve también
+// para restablecer la de alguien que la olvidó.
+export const AccessSection = ({ person, onGrant }) => {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    if (!onGrant || !person?.id) return null;
+    const hasAccess = !!person.aegisUserId;
+    const run = async () => {
+        setBusy(true); setError('');
+        try { await onGrant(person); }
+        catch (err) { setError(err.message || 'No se pudo dar acceso.'); }
+        finally { setBusy(false); }
+    };
+    return (
+        <div className="ds-access">
+            <div className="ds-access-text">
+                <strong>Acceso en línea</strong>
+                <span>{hasAccess
+                    ? 'Puede iniciar sesión. Si olvidó su contraseña, genera una temporal nueva.'
+                    : 'Todavía no puede iniciar sesión. Dale acceso para generar su contraseña temporal.'}</span>
+                {error && <span className="ds-field-error" role="alert">{error}</span>}
+            </div>
+            <button type="button" className="ds-btn ds-btn--secondary" onClick={run} disabled={busy || !person.email}>
+                {busy ? 'Generando…' : hasAccess ? 'Restablecer contraseña' : 'Dar acceso'}
+            </button>
+        </div>
+    );
+};
+
 // ─── CLIENT FORM MODAL ────────────────────────────────────────────────────────
-export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) => {
+export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [], onGrantAccess }) => {
     // { ...defaults, ...initial } y no "initial || defaults": el FAB abre estos
     // modales con setXModal({}) para "nuevo registro", y {} es truthy en JS —
     // "initial || defaults" nunca aplicaba los valores por defecto, dejando
@@ -281,7 +312,7 @@ export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) 
                     <label>Correo electrónico</label>
                     <input type="email" placeholder="correo@ejemplo.com" value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })} required />
-                    {isEdit && <>
+                    {isEdit && !onGrantAccess && <>
                         <label>Restablecer contraseña</label>
                         <input type="password" placeholder="Vacío = no cambiar" value={form.password || ''}
                             onChange={e => setForm({ ...form, password: e.target.value })} />
@@ -295,6 +326,7 @@ export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) 
                         </React.Fragment>
                     ))}
                 </div>
+                {isEdit && <AccessSection person={initial} onGrant={onGrantAccess} />}
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
                     <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
@@ -935,7 +967,7 @@ export const UserCard = ({ user, onEdit, onDelete, currentUserId }) => (
 // ─── USER FORM MODAL ──────────────────────────────────────────────────────────
 // NOTA: el rol aquí solo puede ser empleado/administrador — para registrar
 // clientes se usa el flujo público de /acceso (signup).
-export const UserFormModal = ({ initial, onSave, onClose }) => {
+export const UserFormModal = ({ initial, onSave, onClose, onGrantAccess }) => {
     const [form, setForm] = useState({
         name: '', email: '', password: '', role: 'empleado', capacity: 1,
         ...initial,
@@ -960,12 +992,15 @@ export const UserFormModal = ({ initial, onSave, onClose }) => {
                     <label>Correo</label>
                     <input type="email" placeholder="correo@ejemplo.com" value={form.email}
                         onChange={e => setForm({ ...form, email: e.target.value })} required />
+                    {/* Negocio AEGIS: la contraseña la genera AEGIS (ver Acceso en línea). */}
+                    {!onGrantAccess && <>
                     <label>Contraseña</label>
                     <input type="password"
                         placeholder={isEdit ? 'Vacío = no cambiar' : 'Contraseña'}
                         value={form.password}
                         onChange={e => setForm({ ...form, password: e.target.value })}
                         required={!isEdit} />
+                    </>}
                     <label>Rol</label>
                     <select value={form.role}
                         onChange={e => setForm({ ...form, role: e.target.value })}>
@@ -978,6 +1013,7 @@ export const UserFormModal = ({ initial, onSave, onClose }) => {
                             onChange={e => setForm({ ...form, capacity: Number(e.target.value) })} />
                     </>}
                 </div>
+                {isEdit && <AccessSection person={initial} onGrant={onGrantAccess} />}
                 <div className="ds-form-actions">
                     <button type="button" className="ds-btn ds-btn--secondary" onClick={onClose}>Cancelar</button>
                     <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>

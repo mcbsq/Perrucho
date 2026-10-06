@@ -38,6 +38,10 @@ const ForgotPassword = () => {
         setError('');
         setLoading(true);
         try {
+            // Negocios AEGIS: las cuentas no tienen pregunta de seguridad —
+            // AEGIS manda un correo con un enlace para crear contraseña nueva.
+            const { mode } = await authApi.passwordResetRequest(email);
+            if (mode === 'email') { setStep('email'); return; }
             const { hasQuestion, question: q } = await authApi.securityQuestion(email);
             if (!hasQuestion) {
                 setError('No encontramos una pregunta de seguridad para este correo. Si tu cuenta es anterior a esta función, o no la configuraste, contacta a un administrador para restablecer tu contraseña.');
@@ -115,7 +119,7 @@ const ForgotPassword = () => {
 
                 {step === 1 && (
                     <>
-                        <p className="login-subtitle">Ingresa tu email para verificar tu identidad con tu pregunta de seguridad.</p>
+                        <p className="login-subtitle">Ingresa el correo con el que te registraste.</p>
                         <form onSubmit={handleEmailSubmit}>
                             {error && <div className="error-message">{error}</div>}
                             <div className="input-group">
@@ -132,6 +136,17 @@ const ForgotPassword = () => {
                                 {loading ? 'Buscando...' : 'Continuar'}
                             </button>
                         </form>
+                    </>
+                )}
+
+                {step === 'email' && (
+                    <>
+                        <p className="login-subtitle">
+                            Si <strong>{email}</strong> tiene una cuenta, te enviamos un correo con un enlace para crear una contraseña nueva.
+                            Revisa también tu carpeta de spam; el enlace es de un solo uso.
+                        </p>
+                        <p className="login-subtitle">¿No te llegó? Pide al negocio que te restablezca el acceso.</p>
+                        <Link to={accesoPath} className="login-button" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Volver a iniciar sesión</Link>
                     </>
                 )}
 

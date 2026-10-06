@@ -115,6 +115,48 @@ const signToken = (user) =>
     { expiresIn: '7d' }
   );
 
+// Motivo legible de un rechazo de AEGIS (422 de validación, detail, etc.).
+const aegisReason = (body) => {
+  const b = body || {};
+  return (Array.isArray(b.errors) && b.errors.map((e) => e.msg).filter(Boolean).join('. '))
+    || (typeof b.detail === 'string' && b.detail !== 'Request validation failed.' && b.detail)
+    || b.title || b.error || '';
+};
+
+const phoneDigits = (v) => String(v || '').replace(/\D/g, '').slice(-10);
+
+// Da (o restablece) el acceso en línea de un usuario de un negocio AEGIS y
+// regresa la contraseña temporal que hay que entregarle. Cubre los 3 casos:
+// ya ligado (restablece), sin identidad (la crea) y con identidad en AEGIS
+// que Emporio no tenía ligada (la liga y restablece).
+const grantAegisAccess = async (user) => {
+  const role = user.role === 'cliente' ? 'cliente' : user.role;
+  let aegisUserId = user.aegisUserId;
+  let tempPassword = null;
+  if (aegisUserId) {
+    const { data, error } = await aegisClient.adminResetPassword(aegisUserId);
+    if (error) return { error };
+    tempPassword = data.tempPassword;
+  } else {
+    const { data: created, error: createErr } = await aegisClient.adminCreateUser(user.email, role);
+    if (!createErr) {
+      aegisUserId = String(created.id);
+      tempPassword = created.tempPassword;
+    } else if (createErr.status === 409) {
+      const { data: found, error: findErr } = await aegisClient.adminFindUserByEmail(user.email);
+      if (findErr || !found) return { error: findErr || createErr };
+      aegisUserId = String(found.id);
+      const { data, error } = await aegisClient.adminResetPassword(aegisUserId);
+      if (error) return { error };
+      tempPassword = data.tempPassword;
+    } else {
+      return { error: createErr };
+    }
+    await prisma.user.update({ where: { id: user.id }, data: { aegisUserId } });
+  }
+  return { tempPassword, aegisUserId };
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AUTH
 // ─────────────────────────────────────────────────────────────────────────────
@@ -267,10 +309,45 @@ app.post('/api/signup', publicWriteLimiter, async (req, res) => {
     if (!name || !email)
       return res.status(400).json({ error: 'Nombre y email requeridos' });
 
-    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
-
     const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+
+    // Ficha que el personal dio de alta en el panel (cliente sin acceso en
+    // línea). Si esa persona ahora se registra, reclama SU ficha — conserva
+    // historial, mascotas y citas — en vez de toparse con "ya existe". Para
+    // que nadie se adueñe de la ficha de otro solo sabiendo su correo, el
+    // teléfono tiene que coincidir con el que dejó en el negocio.
+    if (existing && business?.authProvider === 'aegis' && existing.role === 'cliente' && !existing.aegisUserId) {
+      const onFile = phoneDigits(existing.phone);
+      if (!onFile || onFile !== phoneDigits(phone)) {
+        return res.status(409).json({ error: 'Este negocio ya tiene una ficha con tu correo, pero el teléfono no coincide con el registrado. Escribe el teléfono que dejaste en el negocio, o pídeles que te den acceso.' });
+      }
+      const { tempPassword: claimedTemp, error: grantErr } = await grantAegisAccess(existing);
+      if (grantErr) {
+        console.warn('Reclamar ficha (signup) falló:', grantErr.status, JSON.stringify(grantErr.body));
+        return res.status(502).json({ error: 'No se pudo activar tu cuenta. Intenta de nuevo.' });
+      }
+      let claimed = await prisma.user.findUnique({ where: { id: existing.id } });
+      if (pet && pet.petName) {
+        await prisma.pet.create({
+          data: {
+            petName: pet.petName, species: pet.species || 'perro', breed: pet.breed || null,
+            weight: pet.weight ? String(pet.weight) : null, notes: pet.notes || null,
+            ownerId: claimed.id, owners: { create: [{ userId: claimed.id }] },
+          },
+        });
+      }
+      return res.status(200).json({ token: signToken(claimed), user: safeUser(claimed), tempPassword: claimedTemp, claimed: true });
+    }
+    if (existing) {
+      return res.status(409).json({ error: existing.aegisUserId
+        ? 'Ya tienes una cuenta con este correo. Inicia sesión con tu contraseña (o usa "¿Olvidaste tu contraseña?").'
+        : 'El email ya está registrado' });
+    }
+    // User.email es único en toda la plataforma: el mismo correo en otro
+    // negocio no se puede duplicar (antes tronaba con "Error del servidor").
+    const elsewhere = await prismaRaw.user.findFirst({ where: { email: email.toLowerCase() }, select: { id: true } });
+    if (elsewhere) return res.status(409).json({ error: 'Este correo ya está registrado en otro negocio de Emporio. Usa otro correo para registrarte aquí.' });
     const petData = pet ? {
       create: {
         petName: pet.petName,
@@ -458,6 +535,71 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
 });
 
 // GET /api/me — datos del usuario autenticado
+// POST /api/auth/password-reset/request — "Olvidé mi contraseña" para
+// negocios AEGIS: las cuentas AEGIS no tienen pregunta de seguridad, así
+// que la recuperación es por correo (lo manda AEGIS con un enlace de un solo
+// uso). Siempre responde igual, exista o no el correo. Negocios locales
+// siguen con la pregunta de seguridad.
+app.post('/api/auth/password-reset/request', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    if (business?.authProvider !== 'aegis') return res.json({ mode: 'question' });
+    const { error } = await aegisClient.requestPasswordReset(email);
+    if (error && error.status >= 500) return res.status(503).json({ error: 'El servicio de correo no está disponible. Intenta en unos minutos.' });
+    res.json({ mode: 'email' });
+  } catch (err) {
+    console.error('POST /api/auth/password-reset/request', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/auth/password-reset/confirm — la página del enlace del correo.
+app.post('/api/auth/password-reset/confirm', authLimiter, async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ error: 'Faltan datos para restablecer la contraseña' });
+    if (newPassword.length < 12) return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 12 caracteres.' });
+    const { error } = await aegisClient.confirmPasswordReset(token, newPassword);
+    if (error) {
+      console.warn('AEGIS confirmPasswordReset falló:', error.status, JSON.stringify(error.body));
+      if (error.status >= 500) return res.status(503).json({ error: 'El servicio de autenticación no está disponible. Intenta en unos minutos.' });
+      const reason = aegisReason(error.body);
+      return res.status(400).json({ error: reason ? `No se pudo restablecer: ${reason}` : 'El enlace ya se usó o expiró. Pide uno nuevo.' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/auth/password-reset/confirm', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/users/:id/access — el administrador da (o restablece) el acceso
+// en línea de un empleado o cliente y recibe la contraseña temporal para
+// entregársela. Para cuentas sin identidad en AEGIS (ej. empleados viejos o
+// clientes dados de alta en el panel que ahora sí quieren entrar).
+app.post('/api/users/:id/access', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const business = await prismaRaw.business.findUnique({ where: { id: req.businessId } });
+    if (business?.authProvider !== 'aegis')
+      return res.status(400).json({ error: 'Este negocio usa contraseñas propias: cámbiala desde Editar.' });
+    const user = await prisma.user.findFirst({ where: { id: parseInt(req.params.id) } });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (!user.email) return res.status(400).json({ error: 'Agrega un correo antes de dar acceso.' });
+    const { tempPassword, error } = await grantAegisAccess(user);
+    if (error) {
+      console.warn('Dar acceso (AEGIS) falló:', error.status, JSON.stringify(error.body));
+      return res.status(502).json({ error: aegisReason(error.body) || 'No se pudo dar acceso. Intenta de nuevo.' });
+    }
+    const fresh = await prisma.user.findFirst({ where: { id: user.id } });
+    res.json({ tempPassword, user: safeUser(fresh) });
+  } catch (err) {
+    console.error('POST /api/users/:id/access', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 app.get('/api/me', verifyToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({

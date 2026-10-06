@@ -624,3 +624,13 @@ div.adp {
     overflow-y: auto;
     overscroll-behavior: contain;
 }
+
+/* Acceso en línea (negocios AEGIS) dentro de Editar cliente/usuario */
+.ds-access {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 18px; padding: 12px 14px;
+    border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;
+}
+.ds-access-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.ds-access-text strong { font: 700 0.86rem 'Montserrat', sans-serif; color: #1e293b; }
+.ds-access-text span { font-size: 0.78rem; color: #64748b; line-height: 1.4; }

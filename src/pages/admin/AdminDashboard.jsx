@@ -641,7 +641,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,expenses,settings,branches,saveBranch,deleteBranch,reloadBranches,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,paySale,remindSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
+    const {reloadClientsAndPets,services,products,pets,clients,sales,expenses,settings,branches,saveBranch,deleteBranch,reloadBranches,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,paySale,remindSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
     const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
@@ -849,6 +849,18 @@ const AdminDashboard = () => {
         // antes de poder copiarla.
         if(c.tempPassword){await notify({type:'info',icon:'🔑',accent:'blue',title:'Contraseña temporal generada',message:`Entrega esta contraseña a ${c.name}, deberá cambiarla en su primer inicio de sesión:\n\n${c.tempPassword}`,confirmLabel:'Entendido'});}
     }addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    // Negocios AEGIS: el admin da/restablece el acceso en línea y entrega la
+    // contraseña temporal (diálogo, no toast, para poder copiarla).
+    const aegisMode=settings?.authProvider==='aegis';
+    const handleGrantAccess=async(person)=>{
+        const {tempPassword,user:updated}=await usersApi.grantAccess(person.id);
+        if(updated){
+            if(updated.role==='cliente'){setClientModal(m=>m&&m.id===updated.id?{...m,...updated}:m);reloadClientsAndPets().catch(()=>{});}
+            else{setUsers(p=>p.map(u=>u.id===updated.id?{...u,...updated}:u));setUserModal(m=>m&&m.id===updated.id?{...m,...updated}:m);}
+        }
+        await notify({type:'info',icon:'🔑',accent:'blue',title:'Contraseña temporal generada',message:`Entrégale esta contraseña a ${person.name}. La cambiará en su primer inicio de sesión:\n\n${tempPassword}`,confirmLabel:'Entendido'});
+        addToast('Acceso actualizado','success');
+    };
     const handleSaveBranch=async(form)=>{try{const saved=await saveBranch(form);addToast(form.id?'Sucursal actualizada':'Sucursal agregada','success');return saved;}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleDeleteBranch=async(id)=>{try{await deleteBranch(id);addToast('Sucursal eliminada','info');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveSettings=async(form)=>{try{const {id,...data}=form;await updateSettings(data);addToast('Configuración guardada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
@@ -1088,7 +1100,7 @@ const AdminDashboard = () => {
                 onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}
                 onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}/>}
 
-            {clientModal!==null&&<div style={linkNewClientToPos?{position:'relative',zIndex:2000}:undefined}><ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>{setClientModal(null);setLinkNewClientToPos(false);}} extraFields={settings?.clientExtraFields||[]}/></div>}
+            {clientModal!==null&&<div style={linkNewClientToPos?{position:'relative',zIndex:2000}:undefined}><ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>{setClientModal(null);setLinkNewClientToPos(false);}} extraFields={settings?.clientExtraFields||[]} onGrantAccess={aegisMode?handleGrantAccess:undefined}/></div>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
             {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)} settings={settings}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
@@ -1096,7 +1108,7 @@ const AdminDashboard = () => {
             {clinicalNoteTarget&&<ClinicalNoteModal clientName={clinicalNoteTarget.clientName}
                 onSave={(note)=>clinicalNotesApi.add(clinicalNoteTarget.clientId,note,clinicalNoteTarget.appointmentId).then(()=>addToast('Nota guardada','success')).catch(err=>addToast(`Error: ${err.message}`,'error'))}
                 onClose={()=>setClinicalNoteTarget(null)}/>}
-            {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)}/>}
+            {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)} onGrantAccess={aegisMode?handleGrantAccess:undefined}/>}
 
             {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>
                 <div className="ds-price-table">
