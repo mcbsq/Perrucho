@@ -259,6 +259,16 @@ export const expensesApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// BRANCHES (sucursales) — la lista de activas es pública
+// ─────────────────────────────────────────────────────────────────────────────
+export const branchesApi = {
+  getAll:  ({ all = false } = {}) => api.get(all ? '/branches?all=1' : '/branches'),
+  create:  (data)     => api.post('/branches', data),
+  update:  (id, data) => api.put(`/branches/${encodeURIComponent(id)}`, data),
+  delete:  (id)       => api.delete(`/branches/${encodeURIComponent(id)}`),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SETTINGS
 // ─────────────────────────────────────────────────────────────────────────────
 export const settingsApi = {

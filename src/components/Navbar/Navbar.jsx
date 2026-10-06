@@ -44,7 +44,10 @@ const LogoutIcon = () => (
 
 const Navbar = () => {
     const { user, isLoggedIn, logout } = useAuth();
-    const { settings } = useData();
+    const { settings, products, loading } = useData();
+    // Sin productos no hay tienda que mostrar (mismo criterio que la sección
+    // de productos en Home: aparece a partir del primero).
+    const showShop = !loading && products.length > 0;
     const location  = useLocation();
     const navigate  = useNavigate();
     const [scrolled, setScrolled]               = useState(false);
@@ -90,7 +93,7 @@ const Navbar = () => {
                 <nav className="nav-links-desktop">
                     <NavLink to={homePath}                className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
                     <NavLink to={withSlug('/servicios')}      className={navClass} data-tour="nav-servicios">Servicios</NavLink>
-                    <NavLink to={withSlug('/tienda')}         className={navClass} data-tour="nav-tienda">Tienda</NavLink>
+                    {showShop && <NavLink to={withSlug('/tienda')}         className={navClass} data-tour="nav-tienda">Tienda</NavLink>}
                     <NavLink to={withSlug('/sobre-nosotros')} className={navClass}>Sobre nosotros</NavLink>
                 </nav>
 
@@ -118,7 +121,7 @@ const Navbar = () => {
             <nav className={`nav-links-mobile ${isMobileMenuOpen ? 'open' : ''}`}>
                 <NavLink to={homePath}                 className={navClass} onClick={handleHomeClick} end>Inicio</NavLink>
                 <NavLink to={withSlug('/servicios')}      className={navClass}>Servicios</NavLink>
-                <NavLink to={withSlug('/tienda')}         className={navClass}>Tienda</NavLink>
+                {showShop && <NavLink to={withSlug('/tienda')}         className={navClass}>Tienda</NavLink>}
                 <NavLink to={withSlug('/sobre-nosotros')} className={navClass}>Sobre nosotros</NavLink>
                 {isLoggedIn ? (
                     <>

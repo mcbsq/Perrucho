@@ -5,7 +5,7 @@
    ========================================================================== */
 .home-page-container {
     width: 100%;
-    background: var(--pub-bg, radial-gradient(circle at top right, #ffffff, #f0f4f8 40%, #eef2f7 100%));
+    background: var(--pub-bg, transparent); /* papel con textura: src/styles/texture.css */
     overflow-x: hidden;
 }
 
@@ -169,7 +169,8 @@
    ========================================================================== */
 .how-section {
     padding: var(--section-padding-y, 100px) var(--section-padding-x, 8%);
-    background: var(--pub-card-bg, white);
+    /* translúcido: deja ver el papel con textura (src/styles/texture.css) */
+    background: var(--pub-card-bg, rgba(255,255,255,0.55));
     position: relative;
     overflow: hidden;
 }
@@ -392,7 +393,7 @@
 .cta-primary:hover  { transform: scale(1.07) translateY(-4px); box-shadow: 0 22px 45px rgba(116,185,255,0.5); }
 .cta-secondary { background: rgba(255,255,255,0.1); color: white; border: 2px solid rgba(255,255,255,0.25); backdrop-filter: blur(8px); }
 .cta-secondary:hover { background: rgba(255,255,255,0.2); transform: scale(1.05) translateY(-4px); }
-.services-section { background: var(--color-bg-section, #f0f4f8); }
+.services-section { background: transparent; } /* papel con textura de fondo */
 .spacer-gradient { height: 120px; background: linear-gradient(to bottom, transparent, rgba(162,155,254,0.05)); }
 
 /* ==========================================================================

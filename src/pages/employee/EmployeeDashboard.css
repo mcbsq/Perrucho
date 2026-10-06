@@ -34,7 +34,7 @@
     grid-template-columns: var(--emp-sidebar-w) 1fr;
     grid-template-rows: var(--emp-topbar-h) 1fr;
     min-height: 100vh;
-    background: var(--emp-bg);
+    background: transparent; /* papel con textura: src/styles/texture.css */
     font-family: 'Quicksand', system-ui, sans-serif;
     color: var(--emp-text);
     -webkit-font-smoothing: antialiased;
@@ -221,7 +221,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    MAIN
    ========================================================================== */
 .emp-main {
-    grid-row: 2; padding: 32px 36px;
+    grid-row: 2; padding: 32px 36px; min-width: 0;
     overflow-y: auto; min-height: calc(100vh - var(--emp-topbar-h));
 }
 .emp-page-header {
@@ -1869,4 +1869,9 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .adp-del-btn:hover {
     background: var(--emp-red);
     color: white;
+}
+/* Teléfono: el contenido mínimo de la barra superior no debe ensanchar la
+   página (mismo arreglo que AdminDashboard.css). */
+@media (max-width: 850px) {
+    .emp-layout { grid-template-columns: minmax(0, 1fr); }
 }

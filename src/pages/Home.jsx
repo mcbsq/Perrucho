@@ -494,10 +494,17 @@ const Home = () => {
     // Settings — así que esto no le cambia nada.
     const heroFallbackImg = getGiroMarketing(settings?.giro).img;
 
+    // Una sección de catálogo vacía ("Cargando productos exclusivos..." para
+    // siempre) se veía como página rota en negocios que aún no cargan nada.
+    // Las secciones aparecen a partir del primer servicio/producto.
+    const homeServices = services.filter(s => s.showOnHome !== false);
+    const showServices = !loading && homeServices.length > 0;
+    const showProducts = !loading && products.length > 0;
+
     return (
         <div className="home-page-container">
 
-            {showOnboarding && isNewClient && <OnboardingTour steps={CLIENT_ONBOARDING_STEPS} onClose={dismissOnboarding} />}
+            {showOnboarding && isNewClient && <OnboardingTour steps={showProducts ? CLIENT_ONBOARDING_STEPS : CLIENT_ONBOARDING_STEPS.filter(st => st.target !== '[data-tour="nav-tienda"]')} onClose={dismissOnboarding} />}
 
             {/* ── HERO CON IMAGEN (la del admin, o si no la de su giro) ── */}
             <div className="capsule-banner">
@@ -545,50 +552,44 @@ const Home = () => {
             {/* ── FRANJA DE CONFIANZA ── */}
             <TrustStrip settings={settings} />
 
-            {/* ── SERVICIOS DESDE LA BD ── */}
-            <section className="content-section services-section">
-                <p className="section-eyebrow">Lo que ofrecemos</p>
-                <h3>Nuestros Servicios</h3>
-                <p className="section-sub">
-                    {settings?.heroTagline || 'Conoce lo que ofrecemos'}
-                </p>
-                <div className="svc-cards-grid">
-                    {loading ? (
-                        <p className="svc-empty-msg">Cargando servicios...</p>
-                    ) : services.filter(s => s.showOnHome !== false).length > 0 ? (
-                        services.filter(s => s.showOnHome !== false).slice(0, 3).map(s => (
+            {/* ── SERVICIOS DESDE LA BD (solo si hay al menos uno) ── */}
+            {showServices && (
+                <section className="content-section services-section">
+                    <p className="section-eyebrow">Lo que ofrecemos</p>
+                    <h3>Nuestros Servicios</h3>
+                    <p className="section-sub">
+                        {settings?.heroTagline || 'Conoce lo que ofrecemos'}
+                    </p>
+                    <div className="svc-cards-grid">
+                        {homeServices.slice(0, 3).map(s => (
                             <ServiceCard
                                 key={s.id}
                                 service={s}
                                 onReserve={() => authAction('/servicios')}
                                 isLoggedIn={isLoggedIn}
                             />
-                        ))
-                    ) : (
-                        <p className="svc-empty-msg">Cargando servicios profesionales...</p>
-                    )}
-                </div>
-            </section>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* ── ¿POR QUÉ NOSOTROS? ── */}
             <WhyUsSection settings={settings} />
 
-            {/* ── PRODUCTOS DESTACADOS ── */}
-            <section className="content-section">
-                <h3>Productos Destacados</h3>
-                <p className="section-sub">
-                    Descubre nuestros productos
-                </p>
-                <div className="service-cards-grid">
-                    {products.length > 0 ? (
-                        products.slice(0, 3).map(p => (
+            {/* ── PRODUCTOS DESTACADOS (solo si hay al menos uno) ── */}
+            {showProducts && (
+                <section className="content-section">
+                    <h3>Productos Destacados</h3>
+                    <p className="section-sub">
+                        Descubre nuestros productos
+                    </p>
+                    <div className="service-cards-grid">
+                        {products.slice(0, 3).map(p => (
                             <ProductCard key={p.id} item={p} />
-                        ))
-                    ) : (
-                        <p className="svc-empty-msg">Cargando productos exclusivos...</p>
-                    )}
-                </div>
-            </section>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* ── CTA FINAL ── */}
             <CTASection

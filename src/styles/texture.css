@@ -1,0 +1,51 @@
+/* src/styles/texture.css
+   Fondo con textura para toda la app (paneles, perfil, página del negocio).
+
+   La idea es "papel de agenda": Emporio es, ante todo, una agenda — el fondo
+   es una retícula de puntos fina como la de una libreta de planeación, con
+   grano de papel para que no se vea plano/plástico, y un lavado suave del
+   color principal DEL NEGOCIO (--brand-primary, ver src/utils/theme.js)
+   arriba a la derecha, así cada panel se siente de su propia marca.
+
+   Todo va en capas de background (sin elementos extra en el DOM) y fijo al
+   viewport: el contenido se desliza encima del papel. */
+
+:root {
+    --app-paper: #f3f5f9;
+    --app-dot: rgba(30, 39, 46, 0.085);
+    --app-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.15 0 0 0 0 0.19 0.11 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+    /* Respaldo sin color-mix (navegadores viejos): mismo papel, wash fijo. */
+    --app-texture:
+        var(--app-grain) 0 0 / 180px 180px fixed,
+        radial-gradient(1100px 560px at 100% -10%, rgba(116, 185, 255, 0.16), transparent 70%) fixed,
+        radial-gradient(900px 520px at -10% 110%, rgba(162, 155, 254, 0.12), transparent 70%) fixed,
+        radial-gradient(circle at 1px 1px, var(--app-dot) 1px, transparent 0) 0 0 / 22px 22px fixed,
+        var(--app-paper);
+}
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+    :root {
+        --app-texture:
+            var(--app-grain) 0 0 / 180px 180px fixed,
+            radial-gradient(1100px 560px at 100% -10%, color-mix(in srgb, var(--brand-primary, #74b9ff) 16%, transparent), transparent 70%) fixed,
+            radial-gradient(900px 520px at -10% 110%, color-mix(in srgb, var(--brand-secondary, #a29bfe) 13%, transparent), transparent 70%) fixed,
+            radial-gradient(circle at 1px 1px, var(--app-dot) 1px, transparent 0) 0 0 / 22px 22px fixed,
+            var(--app-paper);
+    }
+}
+
+/* El papel vive en el body; los contenedores de página lo dejan ver. */
+body { background: var(--app-texture); }
+
+/* En pantallas táctiles `fixed` se ignora o hace saltar el scroll en iOS —
+   ahí el papel se desplaza con la página (el efecto es casi idéntico). */
+@media (hover: none) {
+    :root {
+        --app-dot: rgba(30, 39, 46, 0.075);
+    }
+    body { background-attachment: scroll; }
+}
+
+@media print {
+    body { background: #fff !important; }
+}

@@ -13,6 +13,7 @@ import {
     expensesApi,
     appointmentsApi,
     settingsApi,
+    branchesApi,
 } from '../api/apiClient';
 
 const DataContext = createContext();
@@ -29,6 +30,7 @@ export const DataProvider = ({ children }) => {
     const [expenses,     setExpenses]     = useState([]);
     const [appointments, setAppointments] = useState([]);
     const [settings,     setSettings]     = useState(null);
+    const [branches,     setBranches]     = useState([]);
     const [loading,      setLoading]      = useState(true);
     const [error,        setError]        = useState(null);
 
@@ -48,6 +50,12 @@ export const DataProvider = ({ children }) => {
             setServices(s);
             setProducts(p);
             setSettings(st);
+            // Sucursales: no bloquea la carga si el endpoint falla (ej. un
+            // backend que todavía no tiene la migración de sucursales).
+            Promise.resolve()
+                .then(() => branchesApi.getAll())
+                .then(list => setBranches(Array.isArray(list) ? list : []))
+                .catch(() => setBranches([]));
 
             // Solo cargar datos privados si hay sesión activa
             if (hasToken()) {
@@ -140,6 +148,9 @@ export const DataProvider = ({ children }) => {
     const deleteClient = async (id) => {
         await clientsApi.delete(id);
         setClients(prev => prev.filter(c => c.id !== id));
+        // Sus mascotas exclusivas se borran con él y las compartidas pasan a
+        // otro dueño — la lista local de mascotas ya no es confiable.
+        petsApi.getAll().then(setPets).catch(() => {});
     };
 
     // ── PETS ──────────────────────────────────────────────────────────────────
@@ -258,10 +269,30 @@ export const DataProvider = ({ children }) => {
         setExpenses(prev => prev.filter(e => e.id !== id));
     };
 
+    // ── BRANCHES ──────────────────────────────────────────────────────────────
+    // El panel ve también las sucursales desactivadas; la página pública no.
+    const reloadBranches = useCallback(async ({ all = true } = {}) => {
+        const list = await branchesApi.getAll({ all });
+        setBranches(list);
+        return list;
+    }, []);
+    const saveBranch = async (data) => {
+        const { id, ...body } = data;
+        const saved = id ? await branchesApi.update(id, body) : await branchesApi.create(body);
+        await reloadBranches();
+        return saved;
+    };
+    const deleteBranch = async (id) => {
+        await branchesApi.delete(id);
+        await reloadBranches();
+    };
+
     // ── SETTINGS ──────────────────────────────────────────────────────────────
     const updateSettings = async (data) => {
         const saved = await settingsApi.update(data);
-        setSettings(saved);
+        // PUT regresa solo la fila de Settings — giro/slug/authProvider viven
+        // en Business y se perdían del estado hasta recargar la página.
+        setSettings(prev => ({ ...prev, ...saved }));
         return saved;
     };
 
@@ -298,8 +329,11 @@ export const DataProvider = ({ children }) => {
     return (
         <DataContext.Provider value={{
             // Estado
-            services, products, clients, pets, sales, expenses, appointments, settings,
+            services, products, clients, pets, sales, expenses, appointments, settings, branches,
             loading, error,
+
+            // Sucursales
+            saveBranch, deleteBranch, reloadBranches,
 
             // CRUD Services
             addService, updateService, deleteService,

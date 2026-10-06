@@ -5,7 +5,7 @@
    ========================================================================== */
 .shop-page-container {
     padding: 160px 5% 80px;
-    background: var(--pub-bg, #f8fafc);
+    background: var(--pub-bg, transparent); /* papel con textura: src/styles/texture.css */
     min-height: 100vh;
     display: flex;
     flex-direction: column;

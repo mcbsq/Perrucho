@@ -31,7 +31,7 @@
     grid-template-columns: var(--sidebar-w) 1fr;
     grid-template-rows: var(--topbar-h) 1fr;
     min-height: 100vh;
-    background: var(--bg-main);
+    background: transparent; /* papel con textura: src/styles/texture.css */
     font-family: 'Quicksand', system-ui, sans-serif;
     color: var(--text-main);
     -webkit-font-smoothing: antialiased;
@@ -241,7 +241,7 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
    MAIN PANEL
    ========================================================================== */
 .admin-main-panel {
-    grid-row: 2; padding: 36px 40px;
+    grid-row: 2; padding: 36px 40px; min-width: 0;
     overflow-y: auto; min-height: calc(100vh - var(--topbar-h));
 }
 .page-header { margin-bottom: 28px; }
@@ -2273,3 +2273,18 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
 .ie-bar--income { background: #00b894; }
 .ie-bar--expense { background: #e63946; }
 .ie-chart-day { font-size: 0.65rem; color: #94a3b8; margin-top: 4px; }
+
+/* ── Teléfono: nada debe ensanchar la página ─────────────────────────────
+   `1fr` en grid = minmax(auto, 1fr): el ancho mínimo del contenido (nombre
+   del negocio + 5 botones de la barra superior) empujaba TODO el panel a
+   ~510 px en un teléfono de 375 px y aparecía scroll horizontal. */
+@media (max-width: 850px) {
+    .admin-layout { grid-template-columns: minmax(0, 1fr); }
+    .topbar-left { min-width: 0; flex: 1; }
+    .admin-logo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 480px) {
+    .admin-logo { font-size: 1.1rem; letter-spacing: -0.5px; }
+    .topbar-right { gap: 6px; flex-shrink: 0; }
+    .user-pill { display: none; }
+}

@@ -22,9 +22,9 @@ import {
     FaFileExcel, FaCalendarAlt, FaClock, FaCashRegister,
     FaSearch, FaBoxOpen, FaCartPlus, FaReceipt, FaTrashAlt,
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
-    FaExclamationTriangle, FaDollarSign, FaSync,
+    FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaWhatsapp, FaEnvelope, FaShareAlt
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -35,17 +35,21 @@ import {
     UserCard, UserFormModal,
     MembershipPlanFormModal,
     ClinicalNoteModal,
-    PersonalizacionSection,
     SortSelect, sortList
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
+import { ViewToggle, useViewMode, ClientsList, PetsList } from '../../components/shared/RelationViews';
+import { getPetsOfClient, getOwnersOfPet } from '../../utils/petOwners';
 import '../../components/shared/DashboardShared.css';
 import '../../components/shared/NotifyDialog.css';
 import { STATUS_COLORS, STATUS_EMOJI, STATUS_TRANSITIONS, STATUS_ACTION_LABEL, validateSlot } from '../../utils/apptStatus';
-import { calcServicePrice } from '../../utils/pricingRules';
+
 import { ExtrasPanel } from '../../components/shared/ExtrasPanel';
 import '../../components/shared/ExtrasPanel.css';
 import AssignTimePicker from '../../components/shared/AssignTimePicker';
+import AppointmentFormModal from '../../components/shared/AppointmentFormModal';
+import { ReceiptModal } from '../../components/shared/Ticket';
+import SettingsHub from '../../components/shared/SettingsHub';
 import '../../components/shared/AssignTimePicker.css';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import PosServicePricePicker from '../../components/shared/PosServicePricePicker';
@@ -126,7 +130,7 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
     const [pos,setPos]=useState({top:0,left:0});
     const petId = getApptPetId(appt);
     const pet=pets.find(p=>String(p.id)===String(petId));
-    const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
+    const owner=clients.find(c=>String(c.id)===String(getApptClientId(appt)))||(pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null);
     const empName = getApptEmpName(appt) || users.find(u=>String(u.id)===String(appt.employeeId||appt.assignedTo))?.name;
     const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
     const transitions=STATUS_TRANSITIONS[role]||STATUS_TRANSITIONS.admin;
@@ -353,7 +357,7 @@ const AnalyticsSection = ({ sales, expenses, appointments, clients, services }) 
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,users,role,settings,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
+const CalendarModal = ({appointments,pets,clients,services,users,branches=[],role,settings,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
     // Giros sin mascotas (uñas, spa, clínica, gimnasio...) no tienen nada
     // que elegir en "pets" — el formulario de abajo debe elegir un CLIENTE
     // directo en vez de una mascota. Bug real: antes el selector "Paciente"
@@ -367,31 +371,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,settings,o
     const [selAppt,setSelAppt]=useState(null);
     const [anchor,setAnchor]=useState(null);
     const [showForm,setShowForm]=useState(false);
-    const [saving,setSaving]=useState(false);
-    const [slotError,setSlotError]=useState('');
     const empleados=users.filter(u=>u.role==='empleado');
-    const [newAppt,setNewAppt]=useState({petId:'',clientId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
-    // Horario del día para newAppt.date+serviceId — antes el campo de hora
-    // era un <input type="time"> libre, sin relación al horario real del
-    // negocio (el admin podía guardar una cita a las 3am). Ahora se calcula
-    // igual que en el resto de la app (ver GET /api/appointments/availability).
-    const [newApptSlots,setNewApptSlots]=useState([]);
-
-    useEffect(()=>{
-        if(newAppt.petId && newAppt.serviceId){
-            const pet = pets.find(p=>String(p.id)===String(newAppt.petId));
-            const svc = services.find(s=>String(s.id)===String(newAppt.serviceId));
-            if(pet && svc){ setNewAppt(f=>({...f, finalPrice: calcServicePrice(svc, pet.weight)})); }
-        }
-        setSlotError('');
-    },[newAppt.petId, newAppt.serviceId, newAppt.date, newAppt.time]);
-
-    useEffect(()=>{
-        if(!showForm || !newAppt.date){ setNewApptSlots([]); return; }
-        appointmentsApi.getAvailability(newAppt.date, newAppt.serviceId, newAppt.assignedTo)
-            .then(res=>setNewApptSlots(res.slots||[]))
-            .catch(()=>setNewApptSlots([]));
-    },[showForm, newAppt.date, newAppt.serviceId, newAppt.assignedTo]);
 
     const apptsByDate=useMemo(()=>{const m={};appointments.forEach(a=>{if(!m[a.date])m[a.date]=[];m[a.date].push(a);});return m;},[appointments]);
 
@@ -403,35 +383,6 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,settings,o
 
     const openPopup=(appt,e)=>{e.stopPropagation();setAnchor(e.currentTarget.getBoundingClientRect());setSelAppt(appt);};
     const closePopup=()=>{setSelAppt(null);setAnchor(null);};
-
-    const handleCreate=async(e)=>{
-        e.preventDefault();
-        const check=validateSlot(appointments,newAppt.date,newAppt.time,empleados);
-        if(!check.ok){setSlotError(check.message);return;}
-        setSaving(true);
-        try{
-            const svc=services.find(s=>String(s.id)===String(newAppt.serviceId));
-            const pet=pets.find(p=>String(p.id)===String(newAppt.petId));
-            // Bug real pre-existente: `assignedTo` no es una columna de
-            // Appointment (solo `employeeId` lo es, ver prisma/schema.prisma)
-            // — mandarlo tal cual hacía que prisma.appointment.create()
-            // tronara con "Error del servidor" cada vez que se creaba una
-            // cita desde este formulario. Mismo bug que ya se había
-            // encontrado y arreglado en ServiceModal.jsx, sin arreglar aquí.
-            const {assignedTo,petId,clientId,...newApptRest}=newAppt;
-            const client=clients.find(c=>String(c.id)===String(clientId));
-            await onAddAppointment({...newApptRest,
-                petId:petsEnabled?(petId?Number(petId):null):null,
-                employeeId:assignedTo?Number(assignedTo):null,
-                serviceName:svc?.title,
-                petName:pet?.petName,
-                clientId:petsEnabled?(pet?.ownerId||null):(client?.id||null),
-            });
-            setShowForm(false);
-            setNewAppt({petId:'',clientId:'',serviceId:'',assignedTo:'',date:todayISO(),time:'',status:'Pendiente',finalPrice:0});
-            setSlotError('');
-        }finally{setSaving(false);}
-    };
 
     const EventChip=({appt,style='chip'})=>{
         const sc=STATUS_COLORS[appt.status]||STATUS_COLORS['Pendiente'];
@@ -506,7 +457,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,settings,o
                                 const sc=STATUS_COLORS[a.status]||STATUS_COLORS['Pendiente'];
                                 const petId=getApptPetId(a);
                                 const pet=pets.find(p=>String(p.id)===String(petId));
-                                const owner=pet?clients.find(cl=>String(cl.id)===String(pet.ownerId)):null;
+                                const owner=clients.find(cl=>String(cl.id)===String(getApptClientId(a)))||(pet?clients.find(cl=>String(cl.id)===String(pet.ownerId)):null);
                                 const empName=getApptEmpName(a)||users.find(u=>String(u.id)===String(a.employeeId||a.assignedTo))?.name;
                                 return <div key={a.id} className="admin-cal-day-event" style={{background:sc.bg,borderLeft:`5px solid ${sc.border}`,color:sc.text}} onClick={ev=>openPopup(a,ev)}>
                                     <div className="admin-cal-day-event-top"><strong>{getApptTime(a)} — {getApptPetName(a)}</strong><StatusBadge status={a.status}/></div>
@@ -535,7 +486,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,settings,o
                 <div className="admin-cal-controls">
                     {['month','week','day'].map(v=><button key={v} className={`cal-view-btn ${calView===v?'active':''}`} onClick={()=>switchView(v)}>{v==='month'?'Mes':v==='week'?'Semana':'Día'}</button>)}
                     <button className="btn-icon-round" onClick={onRefresh} style={{background:'var(--accent-mint)',color:'#04342C'}}><FaSync/></button>
-                    <button className="btn-primary btn-sm" onClick={()=>setShowForm(v=>!v)}><FaPlus/> Nueva cita</button>
+                    <button className="btn-primary btn-sm" onClick={()=>setShowForm(true)}><FaPlus/> Nueva cita</button>
                 </div>
             </div>
             <div className="cal-legend">
@@ -546,47 +497,10 @@ const CalendarModal = ({appointments,pets,clients,services,users,role,settings,o
                     </span>
                 ))}
             </div>
-            {showForm&&<Modal title="📅 Nueva cita" onClose={()=>{setShowForm(false);setSlotError('');}}>
-                <form className="admin-cal-appt-form" onSubmit={handleCreate}>
-                    <div className="admin-cal-form-grid">
-                        {petsEnabled ? (
-                            <select value={newAppt.petId} onChange={e=>setNewAppt({...newAppt,petId:e.target.value})} required>
-                                <option value="">Paciente...</option>
-                                {pets.map(p=><option key={p.id} value={p.id}>{p.petName} {p.weight?`(~${p.weight}kg)`:''}</option>)}
-                            </select>
-                        ) : (
-                            <select value={newAppt.clientId} onChange={e=>setNewAppt({...newAppt,clientId:e.target.value})} required>
-                                <option value="">Cliente...</option>
-                                {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        )}
-                        <select value={newAppt.serviceId} onChange={e=>setNewAppt({...newAppt,serviceId:e.target.value,time:''})} required>
-                            <option value="">Servicio...</option>
-                            {services.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
-                        </select>
-                        <select value={newAppt.assignedTo} onChange={e=>setNewAppt({...newAppt,assignedTo:e.target.value})}>
-                            <option value="">¿Quién atiende?</option>
-                            {empleados.map(u=><option key={u.id} value={u.id}>{u.name} (cap.{u.capacity||1})</option>)}
-                        </select>
-                        <input type="date" value={newAppt.date} onChange={e=>setNewAppt({...newAppt,date:e.target.value,time:''})} required/>
-                        <select value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})} required disabled={!newApptSlots.length}>
-                            <option value="">{newApptSlots.length?'Horario...':'Sin horario disponible ese día'}</option>
-                            {newApptSlots.map(t=>{
-                                const check=validateSlot(appointments,newAppt.date,t,empleados);
-                                return <option key={t} value={t} disabled={!check.ok}>{t}{check.ok?'':' (lleno)'}</option>;
-                            })}
-                        </select>
-                        {newAppt.finalPrice>0&&<div className="appo-price-preview" style={{gridColumn:'span 2'}}>
-                            Estimado según catálogo: <strong>~${newAppt.finalPrice}</strong>
-                        </div>}
-                    </div>
-                    {slotError&&<div className="cal-slot-error"><FaExclamationTriangle/> {slotError}</div>}
-                    <div className="form-actions form-actions--end">
-                        <button type="button" className="btn-secondary" onClick={()=>{setShowForm(false);setSlotError('');}}>Cancelar</button>
-                        <button type="submit" className="btn-primary" disabled={saving}>{saving?'Guardando...':'Confirmar cita'}</button>
-                    </div>
-                </form>
-            </Modal>}
+            {showForm&&<AppointmentFormModal appointments={appointments} pets={pets} clients={clients} services={services}
+                employees={empleados} branches={branches} petsEnabled={petsEnabled}
+                initialDate={calView==='day'?toLocalISO(dayDate):undefined}
+                onSubmit={onAddAppointment} onClose={()=>setShowForm(false)}/>}
             <div className="admin-cal-view">
                 {calView==='month'&&<MonthView/>}
                 {calView==='week'&&<WeekView/>}
@@ -634,87 +548,9 @@ const SalesModal = ({sales,onClose,onShowReceipt,onCancelSale}) => {
     </Modal>;
 };
 
-// ─── NOTA DE VENTA (recibo digital) — punto 9 del feedback del cliente ────────
-// Se imprime/guarda como PDF con Ctrl+P (window.print), sin depender de
-// ninguna librería nueva. #receipt-print-area es lo único visible al imprimir
-// (ver regla @media print en AdminDashboard.css).
-// Punto 3 del feedback del cliente: las 3 opciones para enviar la nota
-// (WhatsApp/correo/imprimir) se veían apretadas dentro del mismo modal que
-// la nota — el texto se cortaba. Ahora viven en su propio pop-up, aparte,
-// bien posicionado y con espacio de sobra para leer cada opción completa.
-const ShareReceiptModal = ({onClose,onWhatsApp,onEmail,onPrint,hasPhone,hasEmail}) => (
-    <Modal title="Enviar nota de venta" onClose={onClose}>
-        <div className="share-receipt-options">
-            {hasPhone && <button type="button" className="share-receipt-option" onClick={()=>{onWhatsApp();onClose();}}>
-                <FaWhatsapp/> <span>Enviar por WhatsApp</span>
-            </button>}
-            {hasEmail && <button type="button" className="share-receipt-option" onClick={()=>{onEmail();onClose();}}>
-                <FaEnvelope/> <span>Enviar por correo</span>
-            </button>}
-            <button type="button" className="share-receipt-option" onClick={()=>{onPrint();onClose();}}>
-                <FaReceipt/> <span>Imprimir / Guardar PDF</span>
-            </button>
-        </div>
-    </Modal>
-);
-
-const ReceiptModal = ({sale,settings,client,onClose}) => {
-    const [showShare,setShowShare]=useState(false);
-    const items=sale.items?.length?sale.items:[{name:getSaleLabel(sale),quantity:1,price:getSaleAmount(sale)}];
-    const total=getSaleAmount(sale);
-    const dateObj=new Date(sale.date||sale.createdAt||Date.now());
-    const clientName=client?.name||sale.client?.name||'Cliente mostrador';
-    const clientPhone=client?.phone||sale.client?.phone;
-    const clientEmail=client?.email||sale.client?.email;
-
-    const handleWhatsApp=()=>{
-        const lines=items.map(i=>`• ${i.quantity}x ${i.name} — $${Number(i.price*i.quantity).toLocaleString()}`).join('\n');
-        const msg=`🧾 *Nota de venta — ${settings?.businessName||"Taylor's Pet Services"}*\n\n${lines}\n\n*Total: $${Number(total).toLocaleString()}*\nFecha: ${dateObj.toLocaleDateString('es-MX')}\nMétodo de pago: ${sale.paymentMethod||'efectivo'}\n\n¡Gracias por tu preferencia! 🐾`;
-        const phone=(clientPhone||'').replace(/\D/g,'');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
-    };
-
-    // mailto: — abre el cliente de correo que ya tenga configurado el
-    // empleado/admin en su equipo (el que use el sistema operativo), no un
-    // correo fijo del sistema. El propio empleado revisa y presiona enviar.
-    const handleEmail=()=>{
-        const lines=items.map(i=>`• ${i.quantity}x ${i.name} — $${Number(i.price*i.quantity).toLocaleString()}`).join('\n');
-        const subject=`Nota de venta — ${settings?.businessName||"Taylor's Pet Services"} #${sale.id}`;
-        const body=`Hola ${clientName},\n\nAquí tienes tu nota de venta:\n\n${lines}\n\nTotal: $${Number(total).toLocaleString()}\nFecha: ${dateObj.toLocaleDateString('es-MX')}\nMétodo de pago: ${sale.paymentMethod||'efectivo'}\n\n¡Gracias por tu preferencia! 🐾\n— ${settings?.businessName||"Taylor's Pet Services"}`;
-        window.location.href=`mailto:${encodeURIComponent(clientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    };
-
-    return <Modal title="🧾 Nota de venta" onClose={onClose}>
-        <div id="receipt-print-area" className="receipt-sheet">
-            <div className="receipt-header">
-                {settings?.logoUrl && <img src={settings.logoUrl} alt="" className="receipt-logo"/>}
-                <h3>{settings?.businessName||"Taylor's Pet Services"}</h3>
-                <p className="muted-text">{settings?.businessAddress}</p>
-                <p className="muted-text">{settings?.whatsappNumber}</p>
-            </div>
-            <div className="receipt-meta">
-                <span>Folio #{sale.id}</span>
-                <span>{dateObj.toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}</span>
-            </div>
-            <div className="receipt-meta">
-                <span>Cliente: {clientName}</span>
-                <span>Pago: {sale.paymentMethod||'efectivo'}</span>
-            </div>
-            <table className="modal-table receipt-items">
-                <thead><tr><th>Concepto</th><th>Cant.</th><th>Precio</th></tr></thead>
-                <tbody>{items.map((i,idx)=><tr key={idx}><td>{i.name||i.product?.name}</td><td>{i.quantity}</td><td className="td-amount">${Number(i.price*i.quantity).toLocaleString()}</td></tr>)}</tbody>
-            </table>
-            <div className="receipt-total-row"><span>TOTAL</span><strong>${Number(total).toLocaleString()}</strong></div>
-            <p className="receipt-footer">¡Gracias por confiar en nosotros! 🐾</p>
-        </div>
-        <div className="form-actions form-actions--end" style={{marginTop:16}}>
-            <button className="btn-primary" onClick={()=>setShowShare(true)}><FaShareAlt/> Enviar nota</button>
-        </div>
-        {showShare&&<ShareReceiptModal onClose={()=>setShowShare(false)}
-            onWhatsApp={handleWhatsApp} onEmail={handleEmail} onPrint={()=>window.print()}
-            hasPhone={!!clientPhone} hasEmail={!!clientEmail}/>}
-    </Modal>;
-};
+// ─── NOTA DE VENTA ─────────────────────────────────────────────────────────────
+// Vive en components/shared/Ticket.jsx (compartida con el panel de empleado):
+// vista previa + ticket PDF para impresora térmica con el formato del negocio.
 
 const ADMIN_ONBOARDING_STEPS=[
     {icon:'👋',title:'¡Bienvenido!',description:'Este es tu panel de administrador. Te mostramos rápido dónde está cada función.'},
@@ -803,7 +639,7 @@ const GlobalSearchPanel = ({query,clients,pets,services,products,onNavigate,onCl
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 const AdminDashboard = () => {
-    const {services,products,pets,clients,sales,expenses,settings,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
+    const {services,products,pets,clients,sales,expenses,settings,branches,saveBranch,deleteBranch,reloadBranches,addService,updateService,deleteService,addProduct,updateProduct,deleteProduct,addClient,updateClient,deleteClient,addPet,updatePet,deletePet,addSale,cancelSale,addExpense,deleteExpense,addAppointmentExtra,removeAppointmentExtra,updateSettings}=useData();
     const {logout,user}=useAuth();
     const [showChangePassword,setShowChangePassword]=useState(false);
     const {toasts,addToast,removeToast,log:notifLog,unseenCount,markSeen}=useToast();
@@ -823,7 +659,11 @@ const AdminDashboard = () => {
     const [serviceSort,setServiceSort]=useState('');
     const [productSort,setProductSort]=useState('');
     const [userSort,setUserSort]=useState('');
+    // Tarjetas o lista — por pantalla, recordado en este navegador.
+    const [clientView,setClientView]=useViewMode('admin_clients');
+    const [petView,setPetView]=useViewMode('admin_pets');
 
+    const petsEnabled=settings?.enablePets!==false;
     const [activeModal,setActiveModal]=useState(null);
     const [showCalendar,setShowCalendar]=useState(false);
     const [clientModal,setClientModal]=useState(null);
@@ -840,6 +680,9 @@ const AdminDashboard = () => {
     const [apptLoading,setApptLoading]=useState(false);
     const loadAppointments=useCallback(async()=>{setApptLoading(true);try{setAppointments(await appointmentsApi.getAll());}catch{addToast('Error al cargar citas','error');}finally{setApptLoading(false);}},[addToast]);
     useEffect(()=>{loadAppointments();},[loadAppointments]);
+
+    // El panel ve también las sucursales desactivadas (la carga pública no).
+    useEffect(()=>{reloadBranches().catch(()=>{});},[reloadBranches]);
 
     const [users,setUsers]=useState([]);
     useEffect(()=>{usersApi.getAll().then(setUsers).catch(()=>addToast('Error usuarios','error'));},[]);
@@ -860,6 +703,9 @@ const AdminDashboard = () => {
     const [linkNewClientToPos,setLinkNewClientToPos]=useState(false);
     const [posPaymentMethod,setPosPaymentMethod]=useState('efectivo');
     const [posSaleStatus,setPosSaleStatus]=useState('pagado');
+    const activeBranches=branches.filter(b=>b.isActive!==false);
+    const [posBranchId,setPosBranchId]=useState('');
+    const effectivePosBranchId=posBranchId||String((activeBranches.find(b=>b.isMain)||activeBranches[0])?.id||'');
     const [showCheckout,setShowCheckout]=useState(false);
     const [receiptSale,setReceiptSale]=useState(null);
 
@@ -971,6 +817,7 @@ const AdminDashboard = () => {
                 type:          allProducts?'product':allServices?'service':'mixed',
                 paymentMethod: posPaymentMethod,
                 status:        posSaleStatus,
+                branchId:      effectivePosBranchId?Number(effectivePosBranchId):null,
             });
             // El stock ya se descontó en el servidor, dentro de la misma
             // transacción que creó la venta (ver POST /api/sales) — addSale
@@ -994,6 +841,8 @@ const AdminDashboard = () => {
         // antes de poder copiarla.
         if(c.tempPassword){await notify({type:'info',icon:'🔑',accent:'blue',title:'Contraseña temporal generada',message:`Entrega esta contraseña a ${c.name}, deberá cambiarla en su primer inicio de sesión:\n\n${c.tempPassword}`,confirmLabel:'Entendido'});}
     }addToast(form.id?'Usuario actualizado':'Usuario creado','success');setUserModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleSaveBranch=async(form)=>{try{const saved=await saveBranch(form);addToast(form.id?'Sucursal actualizada':'Sucursal agregada','success');return saved;}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleDeleteBranch=async(id)=>{try{await deleteBranch(id);addToast('Sucursal eliminada','info');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSaveSettings=async(form)=>{try{const {id,...data}=form;await updateSettings(data);addToast('Configuración guardada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
 
     const handleSaveMembershipPlan=async(form)=>{
@@ -1065,7 +914,9 @@ const AdminDashboard = () => {
         const check=validateSlot(appointments,formData.date,formData.time,empleados);
         if(!check.ok){addToast(check.message,'error');throw new Error(check.message);}
         const pet=pets.find(p=>String(p.id)===String(formData.petId));
-        const dataWithClient={...formData,clientId:pet?.ownerId||formData.clientId||null};
+        // El cliente elegido en el formulario manda: una mascota puede tener
+        // varios dueños y la cita es de quien la trae, no siempre del principal.
+        const dataWithClient={...formData,clientId:formData.clientId||pet?.ownerId||null};
         try{
             const c=await appointmentsApi.create(dataWithClient);
             setAppointments(p=>[...p,c]);
@@ -1082,7 +933,7 @@ const AdminDashboard = () => {
         if(newStatus!=='Confirmada'&&newStatus!=='Completada'&&newStatus!=='Finalizada')return;
         const petId=getApptPetId(appt);
         const pet=pets.find(p=>String(p.id)===String(petId));
-        const owner=pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null;
+        const owner=clients.find(c=>String(c.id)===String(getApptClientId(appt)))||(pet?clients.find(c=>String(c.id)===String(pet.ownerId)):null);
         const clientPhone=owner?.phone||getApptClientPhone(appt);
         const clientEmail=owner?.email;
         if(!clientPhone&&!clientEmail){addToast('No se notificó: el cliente no tiene teléfono ni correo registrado','info');return;}
@@ -1119,7 +970,7 @@ const AdminDashboard = () => {
                 await addSale({
                     items:[{name:`Servicio: ${getApptServiceName(appt)} (${getApptPetName(appt)})`,price:Number(appt.finalPrice),quantity:1}],
                     total:Number(appt.finalPrice),
-                    clientId:pet?.ownerId||getApptClientId(appt)||null,
+                    clientId:getApptClientId(appt)||pet?.ownerId||null,
                     appointmentId:appt.id,
                     type:'service',
                     paymentMethod:'efectivo',
@@ -1155,7 +1006,7 @@ const AdminDashboard = () => {
             await addSale({
                 items:[{name:`Servicio: ${getApptServiceName(appo)} (${getApptPetName(appo)})`,price:Number(appo.finalPrice),quantity:1}],
                 total:Number(appo.finalPrice),
-                clientId:pet?.ownerId||getApptClientId(appo)||null,
+                clientId:getApptClientId(appo)||pet?.ownerId||null,
                 appointmentId:appo.id,
                 type:'service',
                 paymentMethod:'efectivo',
@@ -1167,7 +1018,7 @@ const AdminDashboard = () => {
             addToast('Servicio finalizado y cobrado','success');
             // Giro clínica: ofrece dejar la nota de esta consulta — opcional,
             // la cita ya se cobró antes de llegar aquí.
-            const clientId=pet?.ownerId||getApptClientId(appo);
+            const clientId=getApptClientId(appo)||pet?.ownerId;
             if(settings?.enableClientNotes&&clientId){
                 const cl=clients.find(c=>String(c.id)===String(clientId));
                 setClinicalNoteTarget({clientId,clientName:cl?.name||getApptClientName(appo)||'Cliente',appointmentId:appo.id});
@@ -1212,12 +1063,14 @@ const AdminDashboard = () => {
             {NotifyNode}
 
             {activeModal==='ventas'   &&<SalesModal sales={sales} onClose={()=>setActiveModal(null)} onShowReceipt={setReceiptSale} onCancelSale={handleCancelSale}/>}
-            {receiptSale &&<ReceiptModal sale={receiptSale} settings={settings} client={clients.find(c=>String(c.id)===String(receiptSale.clientId))} onClose={()=>setReceiptSale(null)}/>}
+            {receiptSale &&<ReceiptModal sale={receiptSale} settings={settings} client={clients.find(c=>String(c.id)===String(receiptSale.clientId))}
+                branch={receiptSale.branch||branches.find(b=>String(b.id)===String(receiptSale.branchId))}
+                cashierName={user?.name} onClose={()=>setReceiptSale(null)}/>}
             {activeModal==='egresos'  &&<ExpensesModal expenses={expenses} onClose={()=>setActiveModal(null)} onAdd={handleAddExpense} onDelete={handleDeleteExpense}/>}
             {activeModal==='clientes' &&<ClientsReportModal sales={sales} clients={clients} onClose={()=>setActiveModal(null)}/>}
             {activeModal==='stock'    &&<StockModal products={products} onClose={()=>setActiveModal(null)}/>}
 
-            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} role="admin" settings={settings}
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} users={users} branches={branches} role="admin" settings={settings}
                 onClose={()=>setShowCalendar(false)} onRefresh={loadAppointments}
                 onAddAppointment={handleAddAppointment} onStatusChange={handleStatusChange}
                 onAssignTime={handleAssignTime}
@@ -1262,6 +1115,9 @@ const AdminDashboard = () => {
                     {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                     <option value="__new__">➕ Registrar nuevo cliente…</option>
                 </select>
+                {activeBranches.length>1&&<select value={effectivePosBranchId} onChange={e=>setPosBranchId(e.target.value)} className="checkout-client-select" style={{marginTop:8}} aria-label="Sucursal">
+                    {activeBranches.map(b=><option key={b.id} value={b.id}>Sucursal: {b.name}</option>)}
+                </select>}
                 {/* Forma de pago */}
                 <div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'12px 0'}}>
                     {['efectivo','tarjeta','transferencia'].map(m=>(
@@ -1386,14 +1242,18 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='clientes'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div><div className="ds-page-header-actions"><SortSelect value={clientSort} onChange={setClientSort}/></div></div>
-                    <div className="ds-cards-grid">{filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} petsCount={pets.filter(p=>String(p.ownerId)===String(c.id)).length} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)}/>)}</div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div><div className="ds-page-header-actions"><ViewToggle value={clientView} onChange={setClientView}/><SortSelect value={clientSort} onChange={setClientSort}/></div></div>
+                    {clientView==='list'
+                        ?<ClientsList clients={filteredClients} pets={pets} showPets={petsEnabled} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)} onOpenPet={p=>setPetModal(p)} onAddPet={petsEnabled?(c=>setPetModal({ownerIds:[c.id]})):undefined}/>
+                        :<div className="ds-cards-grid">{filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} pets={petsEnabled?getPetsOfClient(pets,c.id):null} petsCount={getPetsOfClient(pets,c.id).length} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)} onOpenPet={p=>setPetModal(p)} onAddPet={petsEnabled?(cl=>setPetModal({ownerIds:[cl.id]})):undefined}/>)}</div>}
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
                 {tab==='pacientes'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><SortSelect value={petSort} onChange={setPetSort}/><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
-                    <div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owner={clients.find(c=>String(c.id)===String(p.ownerId))} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus}/>)}</div>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><ViewToggle value={petView} onChange={setPetView}/><SortSelect value={petSort} onChange={setPetSort}/><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
+                    {petView==='list'
+                        ?<PetsList pets={filteredPets} clients={clients} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)}/>
+                        :<div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owners={getOwnersOfPet(p,clients)} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)}/>)}</div>}
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 
@@ -1496,8 +1356,10 @@ const AdminDashboard = () => {
                 </div>}
 
                 {tab==='personalizacion'&&<div className="fade-in">
-                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Personalización del sitio</h2><p>Marca, contenido público y configuración del negocio</p></div></div>
-                    <PersonalizacionSection settings={settings} onSave={handleSaveSettings}/>
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Personalización</h2><p>Elige qué quieres cambiar — cada sección se edita y se guarda por separado.</p></div></div>
+                    <SettingsHub settings={settings} branches={branches} onSave={handleSaveSettings}
+                        onSaveBranch={handleSaveBranch} onDeleteBranch={handleDeleteBranch}
+                        onOpenBranches={()=>reloadBranches().catch(()=>{})}/>
                 </div>}
 
             </main>

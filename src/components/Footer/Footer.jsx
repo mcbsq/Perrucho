@@ -10,7 +10,10 @@ import './Footer.css';
 const isExternalLink = (url) => /^https?:\/\//i.test(url || '');
 
 const Footer = () => {
-    const { settings } = useData();
+    const { settings, products, loading, branches } = useData();
+    // Con sucursales registradas, el contacto lista cada una; sin ellas se
+    // usa la dirección única de Personalización, como siempre.
+    const publicBranches = (branches || []).filter(b => b.isActive !== false);
     const { withBusinessPath: withSlug } = useBusinessPath();
     const year = new Date().getFullYear();
 
@@ -67,7 +70,7 @@ const Footer = () => {
                     <h4>Navegación</h4>
                     <Link to={withSlug('')}>Inicio</Link>
                     <Link to={withSlug('/servicios')}>Servicios</Link>
-                    <Link to={withSlug('/tienda')}>Tienda</Link>
+                    {!loading && products.length > 0 && <Link to={withSlug('/tienda')}>Tienda</Link>}
                     <Link to={withSlug('/sobre-nosotros')}>Sobre nosotros</Link>
                 </div>
 
@@ -84,7 +87,7 @@ const Footer = () => {
                 )}
 
                 {/* ── Contacto ── */}
-                {(hasWhatsapp || settings?.businessAddress) && (
+                {(hasWhatsapp || settings?.businessAddress || publicBranches.length > 0) && (
                     <div className="footer-contact">
                         <h4>Contáctanos</h4>
                         {hasWhatsapp && (
@@ -92,7 +95,11 @@ const Footer = () => {
                                 <FaWhatsapp /> <span>{settings.whatsappNumber}</span>
                             </a>
                         )}
-                        {settings?.businessAddress && (
+                        {publicBranches.length > 0 ? publicBranches.map(b => (
+                            <a key={b.id} href={b.mapsUrl || '#'} target={b.mapsUrl ? '_blank' : undefined} rel="noopener noreferrer" className="footer-contact-item">
+                                <FaMapMarkerAlt /> <span>{publicBranches.length > 1 ? <><strong>{b.name}</strong> · </> : null}{b.address || b.name}</span>
+                            </a>
+                        )) : settings?.businessAddress && (
                             <a href={settings?.businessMapsUrl || '#'} target="_blank" rel="noopener noreferrer" className="footer-contact-item">
                                 <FaMapMarkerAlt /> <span>{settings.businessAddress}</span>
                             </a>

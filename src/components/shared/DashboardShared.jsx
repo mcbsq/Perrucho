@@ -20,6 +20,8 @@ import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
 import { WEIGHT_RANGES, PRICE_FIELD } from '../../utils/pricingRules';
 import { readImageAsResizedDataUrl } from '../../utils/imageUpload';
 import { STOCK_IMAGE_CATEGORIES } from '../../data/stockImages';
+import { OwnerPicker, PetChipsInline, OwnerChipsInline } from './RelationViews';
+import { getPetOwnerIds } from '../../utils/petOwners';
 
 // Índice = Date.getDay() (0=domingo...6=sábado) — mismo orden que
 // Settings.businessHours en el backend.
@@ -213,7 +215,10 @@ export const StatusSelector = ({ current, transitions, onSelect }) => {
 };
 
 // ─── CLIENT CARD ──────────────────────────────────────────────────────────────
-export const ClientCard = ({ client, petsCount = 0, onEdit, onDelete }) => (
+// `pets` (opcional): las mascotas ligadas a este cliente, propias o
+// compartidas — se muestran por nombre para ver de un vistazo de quién es
+// cada paciente. Sin `pets` cae al contador de siempre.
+export const ClientCard = ({ client, petsCount = 0, pets, onEdit, onDelete, onOpenPet, onAddPet }) => (
     <div className="ds-card ds-client-card">
         <div className="ds-card-avatar" style={{ background: `hsl(${hueFromId(client.id)},55%,62%)` }}>
             {client.name?.[0]?.toUpperCase()}
@@ -224,13 +229,21 @@ export const ClientCard = ({ client, petsCount = 0, onEdit, onDelete }) => (
                 {client.phone && <span><FaPhone/> {client.phone}</span>}
                 {client.email && <span><FaEnvelope/> {client.email}</span>}
             </div>
-            <div className="ds-card-tags">
-                <span className="ds-tag ds-tag--blue"><FaPaw/> {petsCount} mascota{petsCount !== 1 ? 's' : ''}</span>
-            </div>
+            {pets ? (
+                <div className="rv-card-rel">
+                    <span className="rv-card-rel-label">Mascotas</span>
+                    <PetChipsInline pets={pets} onOpenPet={onOpenPet} />
+                </div>
+            ) : pets === null ? null : (
+                <div className="ds-card-tags">
+                    <span className="ds-tag ds-tag--blue"><FaPaw/> {petsCount} mascota{petsCount !== 1 ? 's' : ''}</span>
+                </div>
+            )}
         </div>
         <div className="ds-card-actions">
-            <button className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(client)}><FaEdit /></button>
-            <button className="ds-btn-icon ds-btn-icon--del"  onClick={() => onDelete(client.id, client.name)}><FaTrash /></button>
+            <button className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(client)} aria-label={`Editar a ${client.name}`}><FaEdit /></button>
+            {onAddPet && <button className="ds-btn-icon ds-btn-icon--add" onClick={() => onAddPet(client)} aria-label={`Registrar mascota de ${client.name}`} title="Registrar mascota"><FaPaw /></button>}
+            {onDelete && <button className="ds-btn-icon ds-btn-icon--del"  onClick={() => onDelete(client.id, client.name)} aria-label={`Eliminar a ${client.name}`}><FaTrash /></button>}
         </div>
     </div>
 );
@@ -295,7 +308,9 @@ export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [] }) 
 
 // ─── PET CARD ─────────────────────────────────────────────────────────────────
 // CAMBIO v3: muestra y permite alternar status (activo/inactivo)
-export const PetCard = ({ pet, owner, onEdit, onDelete, onToggleStatus }) => {
+// `owners` (opcional): todos los dueños de la mascota, principal primero.
+// Sin `owners` cae al dueño único de siempre (`owner`).
+export const PetCard = ({ pet, owner, owners, onEdit, onDelete, onToggleStatus, onOpenClient }) => {
     const h = hueFromId(pet.id);
     const emoji = speciesEmoji(pet.species);
     const isActive = (pet.status || 'activo') === 'activo';
@@ -315,7 +330,12 @@ export const PetCard = ({ pet, owner, onEdit, onDelete, onToggleStatus }) => {
                     {pet.breed  && <span className="ds-tag ds-tag--gray">{pet.breed}</span>}
                     {pet.weight && <span className="ds-tag ds-tag--gray"><FaWeight/> ~{pet.weight} kg</span>}
                 </div>
-                {owner && <div className="ds-card-owner">👤 {owner.name}</div>}
+                {owners ? (
+                    <div className="rv-card-rel">
+                        <span className="rv-card-rel-label">{owners.length > 1 ? 'Dueños' : 'Dueño'}</span>
+                        <OwnerChipsInline owners={owners} onOpenClient={onOpenClient} />
+                    </div>
+                ) : owner && <div className="ds-card-owner">👤 {owner.name}</div>}
                 {pet.notes && <div className="ds-card-notes">📌 {pet.notes}</div>}
             </div>
             <div className="ds-card-actions">
@@ -337,17 +357,33 @@ export const PetCard = ({ pet, owner, onEdit, onDelete, onToggleStatus }) => {
 // ─── PET FORM MODAL ───────────────────────────────────────────────────────────
 // CAMBIO v3: incluye selector de status
 export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
-    const [form, setForm] = useState({
-        petName: '', species: 'perro', breed: '', weight: '', ownerId: '', notes: '', history: [], status: 'activo',
-        ...initial,
+    const [form, setForm] = useState(() => {
+        const base = {
+            petName: '', species: 'perro', breed: '', weight: '', notes: '', history: [], status: 'activo',
+            ...initial,
+        };
+        // Columnas opcionales llegan como null desde el API; un <input> con
+        // value={null} se vuelve no controlado (aviso de React).
+        ['breed', 'weight', 'notes'].forEach(k => { if (base[k] == null) base[k] = ''; });
+        // Una mascota siempre está ligada al menos a un cliente; puede tener
+        // varios (ver PetOwner). El primero de ownerIds es el principal.
+        return { ...base, ownerIds: getPetOwnerIds(base) };
     });
     const [saving, setSaving] = useState(false);
+    const [ownerError, setOwnerError] = useState('');
     const isEdit = !!initial?.id;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!form.ownerIds.length) {
+            setOwnerError('Liga la mascota al menos a un cliente.');
+            return;
+        }
         setSaving(true);
-        try { await onSave(form); }
+        try {
+            const ownerIds = form.ownerIds.map(Number);
+            await onSave({ ...form, ownerIds, ownerId: ownerIds[0] });
+        }
         finally { setSaving(false); }
     };
 
@@ -373,12 +409,14 @@ export const PetFormModal = ({ initial, clients, onSave, onClose }) => {
                     <label>Peso aprox. (kg)</label>
                     <input type="number" placeholder="Ej: 5" value={form.weight}
                         onChange={e => setForm({ ...form, weight: e.target.value })} required />
-                    <label>Dueño</label>
-                    <select value={form.ownerId}
-                        onChange={e => setForm({ ...form, ownerId: e.target.value })} required>
-                        <option value="">Seleccionar dueño...</option>
-                        {[...clients].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es')).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <label className="ds-form-label-top">Dueños</label>
+                    <div className="ds-form-field">
+                        <OwnerPicker clients={clients} value={form.ownerIds} invalid={!!ownerError}
+                            onChange={ids => { setForm({ ...form, ownerIds: ids }); if (ids.length) setOwnerError(''); }} />
+                        {ownerError
+                            ? <p className="ds-field-error" role="alert">{ownerError}</p>
+                            : <p className="ds-field-hint">Obligatorio. Puedes ligarla a varios clientes (ej. una familia); la estrella marca al principal.</p>}
+                    </div>
                     <label>Notas / alergias</label>
                     <input placeholder="Condiciones especiales, medicamentos..." value={form.notes}
                         onChange={e => setForm({ ...form, notes: e.target.value })}
@@ -951,327 +989,6 @@ export const UserFormModal = ({ initial, onSave, onClose }) => {
     );
 };
 
-// ─── PERSONALIZACIÓN DEL SITIO (branding, cómo funciona, footer, giro) ────────
-export const PersonalizacionSection = ({ settings, onSave }) => {
-    const [form, setForm] = useState(settings || {});
-    const [saving, setSaving] = useState(false);
-    const [logoError, setLogoError] = useState('');
-    const [stepImageErrors, setStepImageErrors] = useState({});
-
-    useEffect(() => { if (settings) setForm(settings); }, [settings]);
-
-    const steps = form.howItWorksSteps || [];
-    const stats = form.stats || [];
-    const whyUsFeatures = form.whyUsFeatures || [];
-    const footerLinks = form.footerLinks || [];
-    const extraFields = form.clientExtraFields || [];
-    const businessHours = form.businessHours && form.businessHours.length === 7
-        ? form.businessHours
-        : DAY_LABELS.map((_, day) => ({ day, open: true, start: '10:15', end: '17:00' }));
-
-    const set = (patch) => setForm(prev => ({ ...prev, ...patch }));
-
-    const updateDayHours = (day, patch) => {
-        set({ businessHours: businessHours.map(d => d.day === day ? { ...d, ...patch } : d) });
-    };
-
-    const updateStep = (i, field, value) => {
-        set({ howItWorksSteps: steps.map((s, idx) => idx === i ? { ...s, [field]: value } : s) });
-    };
-    const addStep = () => set({ howItWorksSteps: [...steps, { icon: '🐾', imageUrl: null, title: '', description: '' }] });
-    const removeStep = (i) => set({ howItWorksSteps: steps.filter((_, idx) => idx !== i) });
-
-    const handleStepImageFile = async (i, e) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
-        if (!file) return;
-        setStepImageErrors(prev => ({ ...prev, [i]: '' }));
-        try {
-            const dataUrl = await readImageAsResizedDataUrl(file, { maxDim: 360 });
-            updateStep(i, 'imageUrl', dataUrl);
-        } catch (err) {
-            setStepImageErrors(prev => ({ ...prev, [i]: err.message }));
-        }
-    };
-
-    const updateStat = (i, field, value) => {
-        set({ stats: stats.map((s, idx) => idx === i ? { ...s, [field]: value } : s) });
-    };
-    const addStat = () => set({ stats: [...stats, { icon: '⭐', value: '', label: '' }] });
-    const removeStat = (i) => set({ stats: stats.filter((_, idx) => idx !== i) });
-
-    const updateWhyUsFeature = (i, field, value) => {
-        set({ whyUsFeatures: whyUsFeatures.map((f, idx) => idx === i ? { ...f, [field]: value } : f) });
-    };
-    const addWhyUsFeature = () => set({ whyUsFeatures: [...whyUsFeatures, { icon: '🐾', title: '', desc: '' }] });
-    const removeWhyUsFeature = (i) => set({ whyUsFeatures: whyUsFeatures.filter((_, idx) => idx !== i) });
-
-    const updateFooterLink = (i, field, value) => {
-        set({ footerLinks: footerLinks.map((l, idx) => idx === i ? { ...l, [field]: value } : l) });
-    };
-    const addFooterLink = () => set({ footerLinks: [...footerLinks, { label: '', url: '' }] });
-    const removeFooterLink = (i) => set({ footerLinks: footerLinks.filter((_, idx) => idx !== i) });
-
-    const updateExtraField = (i, field, value) => {
-        set({ clientExtraFields: extraFields.map((f, idx) => idx === i ? { ...f, [field]: value } : f) });
-    };
-    const addExtraField = () => set({ clientExtraFields: [...extraFields, { key: '', label: '', required: false }] });
-    const removeExtraField = (i) => set({ clientExtraFields: extraFields.filter((_, idx) => idx !== i) });
-
-    // ── Logo: se sube como archivo (no URL) y se guarda embebido como
-    // data URL en Settings.logoUrl. Se reescala en el navegador antes de
-    // codificar para no inflar la base de datos con imágenes gigantes.
-    const handleLogoFile = async (e) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
-        if (!file) return;
-        setLogoError('');
-        try {
-            const dataUrl = await readImageAsResizedDataUrl(file, { maxDim: 480 });
-            set({ logoUrl: dataUrl });
-        } catch (err) {
-            setLogoError(err.message);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        try { await onSave(form); }
-        finally { setSaving(false); }
-    };
-
-    if (!settings) return <p className="empty-td">Cargando configuración...</p>;
-
-    return (
-        <form onSubmit={handleSubmit} className="ds-form ds-personalizacion">
-            <section className="ds-settings-block">
-                <h3>🎨 Marca</h3>
-                <div className="ds-form-grid">
-                    <label>Nombre del negocio</label>
-                    <input value={form.businessName || ''} onChange={e => set({ businessName: e.target.value })} />
-                    <label>Slogan</label>
-                    <input value={form.slogan || ''} onChange={e => set({ slogan: e.target.value })} />
-                    <label>Frase corta (sobre el título)</label>
-                    <input placeholder="Ej. Grooming · Tienda · Guardería · Paseos" value={form.heroTagline || ''} onChange={e => set({ heroTagline: e.target.value })} />
-                    <label>Subtítulo (bajo el título)</label>
-                    <input placeholder="Ej. Baño, corte, arreglo de uñas y más." value={form.heroSubtitle || ''} onChange={e => set({ heroSubtitle: e.target.value })} />
-                    <label>Logo</label>
-                    <div className="ds-logo-upload">
-                        {form.logoUrl && <img src={form.logoUrl} alt="Logo" className="ds-logo-preview" />}
-                        <div className="ds-logo-upload-actions">
-                            <label className="ds-btn ds-btn--secondary ds-file-btn">
-                                {form.logoUrl ? 'Cambiar imagen' : 'Subir imagen'}
-                                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} hidden />
-                            </label>
-                            {form.logoUrl && (
-                                <button type="button" className="ds-btn ds-btn--secondary" onClick={() => set({ logoUrl: null })}>
-                                    Quitar
-                                </button>
-                            )}
-                        </div>
-                        {logoError && <p className="ds-logo-error">{logoError}</p>}
-                    </div>
-                    <label>Color principal</label>
-                    <input type="color" value={form.primaryColor || '#4f46e5'} onChange={e => set({ primaryColor: e.target.value })} style={{ width: 60, padding: 2 }} />
-                    <label>Color secundario</label>
-                    <input type="color" value={form.secondaryColor || '#a29bfe'} onChange={e => set({ secondaryColor: e.target.value })} style={{ width: 60, padding: 2 }} />
-                    <label>Tipografía</label>
-                    <select value={form.fontFamily || 'system'} onChange={e => set({ fontFamily: e.target.value })}>
-                        <option value="system">Predeterminada (sistema)</option>
-                        <option value="rounded">Redondeada</option>
-                        <option value="serif">Serif (clásica)</option>
-                        <option value="mono">Monoespaciada</option>
-                    </select>
-                </div>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>🖼️ Imágenes del sitio</h3>
-                <div className="ds-form-grid">
-                    <label>Portada de inicio</label>
-                    <div>
-                        <ImagePicker value={form.heroImageUrl} onChange={url => set({ heroImageUrl: url })} maxDim={1600} />
-                        <p className="ds-gallery-hint" style={{ marginTop: 6 }}>Si no eliges una imagen, se sigue mostrando el video por defecto.</p>
-                    </div>
-                    <label>Fondo de inicio de sesión</label>
-                    <ImagePicker value={form.loginBackgroundUrl} onChange={url => set({ loginBackgroundUrl: url })} maxDim={1600} />
-                </div>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>📱 Contacto y redes</h3>
-                <div className="ds-form-grid">
-                    <label>WhatsApp</label>
-                    <input value={form.whatsappNumber || ''} onChange={e => set({ whatsappNumber: e.target.value })} />
-                    <label>Dirección</label>
-                    <input value={form.businessAddress || ''} onChange={e => set({ businessAddress: e.target.value })} />
-                    <label>Instagram</label>
-                    <input value={form.instagramUrl || ''} onChange={e => set({ instagramUrl: e.target.value })} />
-                    <label>Facebook</label>
-                    <input value={form.facebookUrl || ''} onChange={e => set({ facebookUrl: e.target.value })} />
-                    <label>TikTok</label>
-                    <input value={form.tiktokUrl || ''} onChange={e => set({ tiktokUrl: e.target.value })} />
-                </div>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>✨ ¿Cómo funciona?</h3>
-                <div className="ds-price-table">
-                    {steps.map((s, i) => (
-                        <div key={i} className="ds-step-row ds-step-row--wrap">
-                            <div className="ds-step-image-upload">
-                                {s.imageUrl
-                                    ? <img src={s.imageUrl} alt="" className="ds-step-image-preview" />
-                                    : <input placeholder="Emoji" value={s.icon || ''} onChange={e => updateStep(i, 'icon', e.target.value)} className="ds-step-emoji-input" />
-                                }
-                                <label className="ds-btn ds-btn--secondary ds-file-btn ds-file-btn--sm">
-                                    {s.imageUrl ? 'Cambiar' : 'Imagen'}
-                                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => handleStepImageFile(i, e)} hidden />
-                                </label>
-                                {s.imageUrl && (
-                                    <button type="button" className="ds-btn ds-btn--secondary ds-file-btn ds-file-btn--sm" onClick={() => updateStep(i, 'imageUrl', null)}>
-                                        Quitar
-                                    </button>
-                                )}
-                            </div>
-                            <div className="ds-step-text-inputs">
-                                <input placeholder="Título del paso" value={s.title} onChange={e => updateStep(i, 'title', e.target.value)} />
-                                <input placeholder="Descripción" value={s.description} onChange={e => updateStep(i, 'description', e.target.value)} />
-                                {stepImageErrors[i] && <p className="ds-logo-error">{stepImageErrors[i]}</p>}
-                            </div>
-                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeStep(i)}><FaTimes /></button>
-                        </div>
-                    ))}
-                </div>
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={addStep}>+ Agregar paso</button>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>⭐ ¿Por qué elegirnos?</h3>
-                <div className="ds-form-grid">
-                    <label>Título</label>
-                    <input value={form.whyUsTitle || ''} onChange={e => set({ whyUsTitle: e.target.value })} />
-                    <label>Subtítulo</label>
-                    <input value={form.whyUsSubtitle || ''} onChange={e => set({ whyUsSubtitle: e.target.value })}
-                        style={{ gridColumn: '1 / -1' }} />
-                </div>
-                <div className="ds-price-table" style={{ marginTop: 12 }}>
-                    {whyUsFeatures.map((f, i) => (
-                        <div key={i} className="ds-step-row">
-                            <input placeholder="Emoji" value={f.icon || ''} onChange={e => updateWhyUsFeature(i, 'icon', e.target.value)} style={{ width: 56 }} />
-                            <input placeholder="Título" value={f.title || ''} onChange={e => updateWhyUsFeature(i, 'title', e.target.value)} />
-                            <input placeholder="Descripción" value={f.desc || ''} onChange={e => updateWhyUsFeature(i, 'desc', e.target.value)} style={{ flex: 2 }} />
-                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeWhyUsFeature(i)}><FaTimes /></button>
-                        </div>
-                    ))}
-                    {whyUsFeatures.length === 0 && <p className="empty-td">Sin características — agrega las que quieras destacar.</p>}
-                </div>
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={addWhyUsFeature}>+ Agregar característica</button>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>🏆 Logros</h3>
-                <div className="ds-price-table">
-                    {stats.map((s, i) => (
-                        <div key={i} className="ds-step-row">
-                            <input placeholder="Emoji" value={s.icon || ''} onChange={e => updateStat(i, 'icon', e.target.value)} style={{ width: 56 }} />
-                            <input placeholder="Valor (ej. 4000+)" value={s.value || ''} onChange={e => updateStat(i, 'value', e.target.value)} />
-                            <input placeholder="Etiqueta (ej. CLIENTES FELICES)" value={s.label || ''} onChange={e => updateStat(i, 'label', e.target.value)} style={{ flex: 2 }} />
-                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeStat(i)}><FaTimes /></button>
-                        </div>
-                    ))}
-                    {stats.length === 0 && <p className="empty-td">Sin logros — agrega los que quieras destacar.</p>}
-                </div>
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={addStat}>+ Agregar logro</button>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>🔗 Pie de página</h3>
-                <div className="ds-price-table">
-                    {footerLinks.map((l, i) => (
-                        <div key={i} className="ds-step-row">
-                            <input placeholder="Etiqueta" value={l.label} onChange={e => updateFooterLink(i, 'label', e.target.value)} />
-                            <input placeholder="https://... o /ruta" value={l.url} onChange={e => updateFooterLink(i, 'url', e.target.value)} style={{ flex: 2 }} />
-                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeFooterLink(i)}><FaTimes /></button>
-                        </div>
-                    ))}
-                </div>
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={addFooterLink}>+ Agregar link</button>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>🏷️ Giro de negocio</h3>
-                <label className="ds-toggle-inline">
-                    <input type="checkbox" checked={form.enablePets !== false} onChange={e => set({ enablePets: e.target.checked })} />
-                    <span>Este negocio maneja mascotas (muestra la sección "Pacientes")</span>
-                </label>
-                <label className="ds-toggle-inline">
-                    <input type="checkbox" checked={!!form.enableStaffSelection} onChange={e => set({ enableStaffSelection: e.target.checked })} />
-                    <span>El cliente puede elegir quién le atiende al reservar</span>
-                </label>
-                <label className="ds-toggle-inline">
-                    <input type="checkbox" checked={!!form.enableMemberships} onChange={e => set({ enableMemberships: e.target.checked })} />
-                    <span>Este negocio maneja membresías (mensualidades con vigencia)</span>
-                </label>
-                <label className="ds-toggle-inline">
-                    <input type="checkbox" checked={!!form.enableClientNotes} onChange={e => set({ enableClientNotes: e.target.checked })} />
-                    <span>Llevar expediente por cliente (notas por consulta)</span>
-                </label>
-                <label className="ds-toggle-inline">
-                    <input type="checkbox" checked={!!form.enableTableReservations} onChange={e => set({ enableTableReservations: e.target.checked })} />
-                    <span>Este negocio reserva mesa (en vez de solo mostrador)</span>
-                </label>
-
-                <div className="ds-price-table-label" style={{ marginTop: 12 }}>Campos extra al registrar un cliente</div>
-                <div className="ds-price-table">
-                    {extraFields.map((f, i) => (
-                        <div key={i} className="ds-step-row">
-                            <input placeholder="clave (sin espacios)" value={f.key} onChange={e => updateExtraField(i, 'key', e.target.value)} />
-                            <input placeholder="Etiqueta visible" value={f.label} onChange={e => updateExtraField(i, 'label', e.target.value)} />
-                            <label className="ds-toggle-inline" style={{ whiteSpace: 'nowrap' }}>
-                                <input type="checkbox" checked={!!f.required} onChange={e => updateExtraField(i, 'required', e.target.checked)} />
-                                <span>Requerido</span>
-                            </label>
-                            <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => removeExtraField(i)}><FaTimes /></button>
-                        </div>
-                    ))}
-                </div>
-                <button type="button" className="ds-btn ds-btn--secondary" onClick={addExtraField}>+ Agregar campo</button>
-            </section>
-
-            <section className="ds-settings-block">
-                <h3>🕐 Horarios de atención</h3>
-                <p className="ds-gallery-hint">
-                    Define en qué días atiendes y de qué hora a qué hora — el sistema arma los horarios
-                    disponibles para agendar automáticamente, según la duración de cada servicio.
-                </p>
-                <div className="ds-hours-table">
-                    {businessHours.map(d => (
-                        <div key={d.day} className="ds-hours-row">
-                            <label className="ds-toggle-inline ds-hours-day">
-                                <input type="checkbox" checked={d.open} onChange={e => updateDayHours(d.day, { open: e.target.checked })} />
-                                <span>{DAY_LABELS[d.day]}</span>
-                            </label>
-                            {d.open ? (
-                                <div className="ds-hours-range">
-                                    <input type="time" value={d.start} onChange={e => updateDayHours(d.day, { start: e.target.value })} />
-                                    <span>a</span>
-                                    <input type="time" value={d.end} onChange={e => updateDayHours(d.day, { end: e.target.value })} />
-                                </div>
-                            ) : (
-                                <span className="ds-hours-closed">Cerrado</span>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            <div className="ds-form-actions">
-                <button type="submit" className="ds-btn ds-btn--primary" disabled={saving}>
-                    {saving ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-            </div>
-        </form>
-    );
-};
+// ─── PERSONALIZACIÓN DEL SITIO ────────────────────────────────────────────────
+// Vive en SettingsHub.jsx: tarjetas por módulo (Identidad, Colores, Sucursales,
+// Ticket…) que abren su propio pop-up con Cancelar / Guardar.

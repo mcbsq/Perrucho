@@ -1,0 +1,210 @@
+/* src/components/shared/RelationViews.css
+   Vista tarjetas/lista de Clientes y Pacientes + selector de dueños. */
+
+/* ── Control segmentado Tarjetas | Lista ─────────────────────────────── */
+.rv-toggle {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 12px;
+    background: rgba(30, 39, 46, 0.06);
+    border: 1px solid rgba(30, 39, 46, 0.06);
+}
+.rv-toggle-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: none; border-radius: 9px;
+    background: transparent;
+    color: var(--ds-muted, #636e72);
+    font: 700 0.8rem 'Quicksand', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.rv-toggle-btn svg { font-size: 0.78rem; }
+.rv-toggle-btn:hover { color: var(--ds-text, #1e272e); }
+.rv-toggle-btn.is-active {
+    background: var(--ds-card-bg, #fff);
+    color: var(--ds-text, #1e272e);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+.rv-toggle-btn:focus-visible { outline: 2px solid #185FA5; outline-offset: 1px; }
+
+/* ── Tabla (lista) ─────────────────────────────────────────────────────── */
+.rv-table {
+    background: var(--ds-card-bg, #fff);
+    border: 1px solid rgba(30, 39, 46, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+    margin-bottom: 88px;
+}
+.rv-row {
+    display: grid;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 18px;
+    border-top: 1px solid rgba(30, 39, 46, 0.06);
+    transition: background 0.15s;
+}
+.rv-table--clients .rv-row { grid-template-columns: minmax(200px, 1.3fr) minmax(160px, 1fr) minmax(210px, 1.5fr) auto; }
+.rv-table--clients.rv-table--no-rel .rv-row { grid-template-columns: minmax(180px, 1.2fr) minmax(170px, 1.4fr) auto; }
+.rv-table--pets .rv-row { grid-template-columns: minmax(170px, 1fr) minmax(150px, 1fr) minmax(220px, 1.6fr) auto; }
+.rv-row:not(.rv-row--head):hover { background: #f7faff; }
+.rv-row--head {
+    border-top: none;
+    padding-top: 11px; padding-bottom: 11px;
+    background: #f8fafc;
+    font: 800 0.7rem 'Montserrat', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.rv-row.is-inactive .rv-cell--main,
+.rv-row.is-inactive .rv-cell--contact { opacity: 0.6; }
+
+.rv-cell { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.rv-cell--main { flex-wrap: nowrap; gap: 12px; }
+.rv-cell--contact { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 0.82rem; color: #475569; }
+.rv-cell--contact svg { font-size: 0.7rem; color: #94a3b8; margin-right: 2px; }
+.rv-cell-label { display: none; }
+.rv-col-actions { justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
+.rv-name {
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+    font: 700 0.92rem 'Montserrat', sans-serif;
+    color: var(--ds-text, #1e272e);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rv-ellipsis { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-muted { color: #64748b; }
+.rv-small { font-size: 0.78rem; }
+.rv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rv-avatar {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font: 800 0.9rem 'Montserrat', sans-serif; color: #fff;
+}
+.rv-status-off {
+    font: 800 0.6rem 'Quicksand', sans-serif; text-transform: uppercase; letter-spacing: 0.04em;
+    color: #b45309; background: #fef3c7; padding: 2px 7px; border-radius: 999px;
+}
+.rv-warn { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 700; color: #b45309; }
+.rv-empty {
+    padding: 48px 20px; text-align: center; color: #64748b; font-weight: 600;
+    background: var(--ds-card-bg, #fff); border: 1px dashed #dbe2ea; border-radius: 16px;
+}
+
+/* ── Chips de relación ─────────────────────────────────────────────────── */
+.rv-chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.rv-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    min-height: 26px; max-width: 100%;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font: 700 0.75rem 'Quicksand', sans-serif;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.rv-chip span { overflow: hidden; text-overflow: ellipsis; }
+.rv-chip svg { font-size: 0.68rem; flex-shrink: 0; }
+.rv-chip:focus-visible { outline: 2px solid #185FA5; outline-offset: 1px; }
+.rv-chip--pet { background: #f0eeff; color: #5b4bd6; }
+.rv-chip--pet:hover { border-color: #a29bfe; }
+.rv-chip--owner { background: #eef4fb; color: #185FA5; }
+.rv-chip--owner:hover { border-color: #74b9ff; }
+.rv-chip--owner.is-primary { background: #185FA5; color: #fff; }
+.rv-chip--owner.is-primary svg { color: #fde68a; }
+.rv-chip--add { background: transparent; border: 1px dashed #b8c4d2; color: #64748b; }
+.rv-chip--add:hover { border-color: #185FA5; color: #185FA5; }
+.rv-chip--more { background: #f1f5f9; color: #475569; cursor: default; }
+.rv-chip-flag {
+    font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 1px 5px; border-radius: 999px; background: rgba(91, 75, 214, 0.12);
+}
+
+/* Bloque "Mascotas / Dueños" dentro de las tarjetas */
+.rv-card-rel { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+.rv-card-rel-label {
+    font: 800 0.64rem 'Montserrat', sans-serif; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8;
+}
+
+/* ── Selector de dueños ────────────────────────────────────────────────── */
+.rv-owner-picker { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rv-owner-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
+.rv-owner-list li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 6px 6px 8px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.rv-owner-list li.is-primary { background: #eef4fb; border-color: #bcd6f2; }
+.rv-owner-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.88rem; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-owner-name small {
+    font: 800 0.6rem 'Quicksand', sans-serif; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #185FA5; background: #fff; border: 1px solid #bcd6f2; padding: 1px 6px; border-radius: 999px;
+}
+.rv-owner-star, .rv-owner-remove {
+    width: 30px; height: 30px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: none; border-radius: 8px; background: transparent; cursor: pointer;
+    color: #94a3b8; transition: background 0.15s, color 0.15s;
+}
+.rv-owner-star:hover:not(:disabled) { background: #fff; color: #d97706; }
+.rv-owner-star:disabled { cursor: default; color: #d97706; }
+.rv-owner-remove:hover { background: #fee2e2; color: #b91c1c; }
+.rv-owner-star:focus-visible, .rv-owner-remove:focus-visible { outline: 2px solid #185FA5; outline-offset: 1px; }
+.rv-owner-search {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1.5px solid #e0e4ea;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rv-owner-search svg { color: #94a3b8; font-size: 0.8rem; flex-shrink: 0; }
+.rv-owner-search input { flex: 1; min-width: 0; border: none !important; outline: none; background: transparent; padding: 10px 0 !important; box-shadow: none !important; font: 600 0.88rem 'Quicksand', sans-serif; color: #1e293b; }
+.rv-owner-search:focus-within { border-color: #74b9ff; box-shadow: 0 0 0 3px rgba(116, 185, 255, 0.15); }
+.rv-owner-picker.is-invalid .rv-owner-search { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12); }
+.rv-owner-options {
+    position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 4px;
+    list-style: none; padding: 4px;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+    max-height: 240px; overflow-y: auto;
+}
+.rv-owner-options li {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 0.86rem;
+}
+.rv-owner-options li.is-highlight { background: #eef4fb; }
+.rv-owner-opt-name { font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-owner-empty { color: #64748b; cursor: default !important; }
+
+/* ── Responsive: la lista se apila en filas-tarjeta ────────────────────── */
+@media (max-width: 860px) {
+    .rv-row--head { display: none; }
+    .rv-table--clients .rv-row,
+    .rv-table--clients.rv-table--no-rel .rv-row,
+    .rv-table--pets .rv-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "main actions" "contact contact" "rel rel";
+        gap: 8px 12px;
+        padding: 14px 14px;
+    }
+    .rv-row:first-of-type { border-top: none; }
+    .rv-cell--main { grid-area: main; }
+    .rv-cell--contact { grid-area: contact; flex-direction: row; flex-wrap: wrap; gap: 4px 12px; padding-left: 48px; }
+    .rv-cell--rel { grid-area: rel; padding-left: 48px; }
+    .rv-col-actions { grid-area: actions; }
+    .rv-cell-label { display: inline; width: 100%; font: 800 0.62rem 'Montserrat', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+}
+@media (max-width: 520px) {
+    .rv-toggle-btn span { display: none; }
+    .rv-toggle-btn { padding: 0 11px; }
+    .rv-cell--contact, .rv-cell--rel { padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .rv-toggle-btn, .rv-chip, .rv-row { transition: none; }
+}

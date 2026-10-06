@@ -90,6 +90,7 @@ model Business {
   // no 1:1, para que Prisma no exija unicidad prematura.
   settings        Settings[]
   membershipPlans MembershipPlan[]
+  branches        Branch[]
 }
 
 // ─────────────────────────────────────────────
@@ -144,6 +145,8 @@ model User {
   // Relaciones
   business             Business?     @relation(fields: [businessId], references: [id])
   pets                 Pet[]
+  // Mascotas compartidas: una mascota puede tener varios dueños (ver PetOwner).
+  petLinks             PetOwner[]
   appointments         Appointment[] // citas donde este user es el cliente
   assignedAppointments Appointment[] @relation("AssignedEmployee")
   sales                Sale[]
@@ -170,6 +173,48 @@ model Pet {
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   business     Business?     @relation(fields: [businessId], references: [id])
   appointments Appointment[]
+  // Todos los dueños de la mascota, incluido el principal (ownerId). Una
+  // mascota siempre tiene al menos un dueño — ownerId sigue siendo NOT NULL
+  // y es quien se usa por default al cobrar o agendar.
+  owners       PetOwner[]
+}
+
+// ─────────────────────────────────────────────
+// PET OWNER (mascota ↔ clientes, muchos a muchos)
+// ─────────────────────────────────────────────
+
+model PetOwner {
+  petId     Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  pet  Pet  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([petId, userId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// BRANCH (sucursales de un negocio)
+// ─────────────────────────────────────────────
+
+model Branch {
+  id         Int      @id @default(autoincrement())
+  name       String
+  address    String   @default("")
+  phone      String   @default("")
+  mapsUrl    String   @default("")
+  // La sucursal principal es la que se usa por default en citas y ventas
+  // cuando el negocio no elige otra explícitamente.
+  isMain     Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  businessId Int?
+  createdAt  DateTime @default(now())
+
+  business     Business?     @relation(fields: [businessId], references: [id])
+  appointments Appointment[]
+  sales        Sale[]
 }
 
 // ─────────────────────────────────────────────
@@ -283,6 +328,7 @@ model Appointment {
   notes      String?
   guestName  String? // booking express sin cuenta — nombre del dueño
   guestPhone String? // booking express sin cuenta — WhatsApp para confirmar
+  branchId   Int?
   businessId Int? // multi-tenant — ver nota en User.businessId
   createdAt  DateTime          @default(now())
 
@@ -296,6 +342,7 @@ model Appointment {
   pet      Pet?      @relation(fields: [petId], references: [id], onDelete: SetNull)
   service  Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   employee User?     @relation("AssignedEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  branch   Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
   business Business? @relation(fields: [businessId], references: [id])
 
   extras AppointmentExtra[] // servicios adicionales (punto 3 del cliente)
@@ -349,9 +396,11 @@ model Sale {
   type          SaleType      @default(service)
   notes         String?
   date          DateTime      @default(now())
+  branchId      Int?
   businessId    Int? // multi-tenant — ver nota en User.businessId
 
   client      User?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  branch      Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
   business    Business?    @relation(fields: [businessId], references: [id])
   items       SaleItem[]
@@ -467,4 +516,10 @@ model Settings {
   enableMemberships       Boolean @default(false) // giro gimnasio
   enableClientNotes       Boolean @default(false) // giro clínica — expediente
   enableTableReservations Boolean @default(false) // giro alimentos — reservar mesa vs. solo mostrador
+
+  // ── Ticket de venta (PDF para impresora térmica) ────────────────────────
+  // Formato personalizable por negocio: ancho de papel (58/80 mm), qué datos
+  // mostrar, encabezado/pie libres, datos fiscales. Vacío = valores por
+  // default definidos en el frontend (src/utils/ticketPdf.js).
+  ticketConfig Json @default("{}")
 }

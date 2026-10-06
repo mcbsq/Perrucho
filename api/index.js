@@ -48,6 +48,15 @@ const withLabelStatus = (appt) => appt && appt.status in STATUS_ENUM_TO_LABEL
 
 const app = express();
 
+// Vercel (y el proxy del contenedor Docker) ponen la IP real del visitante
+// en X-Forwarded-For. Sin esto, express-rate-limit veía la IP interna del
+// proxy — la MISMA para todos los visitantes — y authLimiter (15 intentos
+// por 15 min) terminaba bloqueando el login de TODO el negocio a la vez:
+// "no me deja entrar" aunque el servidor estuviera arriba. 1 = confiar
+// solo en el primer salto (el proxy de la plataforma), no en lo que mande
+// el navegador.
+app.set('trust proxy', 1);
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: [
@@ -127,7 +136,11 @@ app.post('/api/login', authLimiter, async (req, res) => {
       const { data: tokens, error: loginErr } = await aegisClient.passwordLogin(email, password);
       if (loginErr) {
         const { body, status } = loginErr;
-        if (status === 401 || status === 403) return res.status(401).json({ error: 'Credenciales incorrectas' });
+        // 422 = AEGIS rechazó el formato antes de validar (ej. contraseña de
+        // menos de 8 caracteres). Para quien intenta entrar es lo mismo que
+        // una contraseña incorrecta — antes caía al 502 de abajo y se veía
+        // como "No se pudo iniciar sesión", igual que una caída del servidor.
+        if (status === 401 || status === 403 || status === 422) return res.status(401).json({ error: 'Credenciales incorrectas' });
         if (status === 503) return res.status(503).json(body);
         console.warn('AEGIS login HTTP', status, body);
         return res.status(502).json({ error: 'No se pudo iniciar sesión' });
@@ -786,14 +799,35 @@ app.delete('/api/users/:id', verifyToken, requireRole('administrador'), async (r
 // CLIENTS (alias de users con role=cliente — compatibilidad con frontend)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Una mascota puede tener varios dueños (tabla PetOwner) y siempre al menos
+// uno. Pet.ownerId sigue siendo el dueño principal (el primero de la lista)
+// — es el que se usa por default al cobrar o agendar — y ownerIds viaja en
+// cada respuesta con TODOS los dueños para que el frontend pueda mostrar
+// "de quién es" sin otra consulta.
+const petInclude = { owners: { select: { userId: true }, orderBy: { createdAt: 'asc' } } };
+const serializePet = (pet) => {
+  if (!pet) return pet;
+  const { owners, ...rest } = pet;
+  const others = (owners || []).map((o) => o.userId).filter((id) => id !== rest.ownerId);
+  return { ...rest, ownerIds: [rest.ownerId, ...others] };
+};
+
+// `pets` de un cliente = TODAS las mascotas ligadas a él (propias y
+// compartidas con otros clientes), no solo donde es el dueño principal.
+const clientInclude = { petLinks: { include: { pet: { include: petInclude } } } };
+const serializeClient = (client) => {
+  const { petLinks, ...rest } = client;
+  return safeUser({ ...rest, pets: (petLinks || []).map((l) => serializePet(l.pet)) });
+};
+
 app.get('/api/clients', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
     const clients = await prisma.user.findMany({
       where: { role: 'cliente' },
-      include: { pets: true },
+      include: clientInclude,
       orderBy: { createdAt: 'desc' },
     });
-    res.json(clients.map(safeUser));
+    res.json(clients.map(serializeClient));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -804,10 +838,10 @@ app.get('/api/clients/:id', verifyToken, async (req, res) => {
   try {
     const client = await prisma.user.findFirst({
       where: { id: parseInt(req.params.id), role: 'cliente' },
-      include: { pets: true },
+      include: clientInclude,
     });
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json(safeUser(client));
+    res.json(serializeClient(client));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -843,7 +877,7 @@ app.put('/api/clients/:id', verifyToken, requireOwnerOrRole('administrador', 'em
     // Mismo problema ya se había resuelto para el autoservicio del cliente
     // en Perfil.jsx armando el payload a mano — aquí se cierra para
     // cualquier llamador filtrando las relaciones antes de pasarlas a Prisma.
-    const { password, confirmPassword, role, pets, business, appointments, assignedAppointments, sales, expenses, membershipPlan, ...data } = req.body;
+    const { password, confirmPassword, role, pets, petLinks, business, appointments, assignedAppointments, sales, expenses, membershipPlan, ...data } = req.body;
     // Solo admin/empleado pueden fijar la contraseña de un cliente aquí — es
     // el respaldo para clientes que aún no configuraron su pregunta de
     // seguridad y por lo tanto no pueden usar "Olvidé mi contraseña" solos.
@@ -863,7 +897,21 @@ app.put('/api/clients/:id', verifyToken, requireOwnerOrRole('administrador', 'em
 
 app.delete('/api/clients/:id', verifyToken, requireRole('administrador'), async (req, res) => {
   try {
-    await prisma.user.delete({ where: { id: parseInt(req.params.id) } });
+    const id = parseInt(req.params.id);
+    // Pet.ownerId borra en cascada: antes de eliminar al cliente, las
+    // mascotas que comparte con alguien más pasan a ese otro dueño en vez
+    // de desaparecer. Las que solo eran suyas se borran con él, como siempre.
+    const shared = await prisma.pet.findMany({
+      where: { ownerId: id, owners: { some: { userId: { not: id } } } },
+      include: petInclude,
+    });
+    await prisma.$transaction(async (tx) => {
+      for (const pet of shared) {
+        const next = pet.owners.map((o) => o.userId).find((u) => u !== id);
+        await tx.pet.update({ where: { id: pet.id }, data: { ownerId: next } });
+      }
+      await tx.user.delete({ where: { id } });
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -875,16 +923,38 @@ app.delete('/api/clients/:id', verifyToken, requireRole('administrador'), async 
 // PETS
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Acepta ownerIds (arreglo) o el ownerId suelto de siempre (booking express,
+// registro, formularios viejos). Devuelve ids numéricos únicos, en orden,
+// filtrados a clientes que existen EN ESTE negocio — PetOwner no tiene
+// businessId propio, así que esta es la barrera contra ligar una mascota a
+// un usuario de otro negocio.
+const resolvePetOwnerIds = async (body) => {
+  const raw = Array.isArray(body.ownerIds) && body.ownerIds.length
+    ? body.ownerIds
+    : (body.ownerId !== undefined && body.ownerId !== '' && body.ownerId !== null ? [body.ownerId] : []);
+  const ids = [...new Set(raw.map((v) => parseInt(v)).filter((n) => Number.isInteger(n)))];
+  if (!ids.length) return [];
+  const found = await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true } });
+  const valid = new Set(found.map((u) => u.id));
+  return ids.filter((id) => valid.has(id));
+};
+
+// Campos que el frontend reenvía tal cual los recibió (relaciones, ids
+// derivados) y que no son columnas editables de Pet.
+const stripPetRelations = ({ ownerId, ownerIds, owners, owner, business, appointments, id, businessId, createdAt, ...rest }) => rest;
+
+const petOwnerWhere = (userId) => ({ OR: [{ ownerId: userId }, { owners: { some: { userId } } }] });
+
 app.get('/api/pets', verifyToken, async (req, res) => {
   try {
-    // IDOR fix: para un cliente, ownerId ya no es un filtro opcional — se
+    // IDOR fix: para un cliente, el filtro por dueño ya no es opcional — se
     // fuerza siempre a su propio id (antes podía omitirse y listar las
-    // mascotas de todo el negocio).
+    // mascotas de todo el negocio). Incluye las mascotas que comparte.
     const where = req.user.role === 'cliente'
-      ? { ownerId: req.user.id }
-      : (req.query.ownerId ? { ownerId: parseInt(req.query.ownerId) } : {});
-    const pets = await prisma.pet.findMany({ where, orderBy: { createdAt: 'desc' } });
-    res.json(pets);
+      ? petOwnerWhere(req.user.id)
+      : (req.query.ownerId ? petOwnerWhere(parseInt(req.query.ownerId)) : {});
+    const pets = await prisma.pet.findMany({ where, include: petInclude, orderBy: { createdAt: 'desc' } });
+    res.json(pets.map(serializePet));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -893,9 +963,9 @@ app.get('/api/pets', verifyToken, async (req, res) => {
 
 app.get('/api/pets/:id', verifyToken, async (req, res) => {
   try {
-    const pet = await prisma.pet.findUnique({ where: { id: parseInt(req.params.id) } });
+    const pet = serializePet(await prisma.pet.findUnique({ where: { id: parseInt(req.params.id) }, include: petInclude }));
     if (!pet) return res.status(404).json({ error: 'Mascota no encontrada' });
-    if (req.user.role === 'cliente' && pet.ownerId !== req.user.id)
+    if (req.user.role === 'cliente' && !pet.ownerIds.includes(req.user.id))
       return res.status(403).json({ error: 'No tienes permiso para ver esta mascota' });
     res.json(pet);
   } catch (err) {
@@ -907,14 +977,21 @@ app.get('/api/pets/:id', verifyToken, async (req, res) => {
 app.post('/api/pets', publicWriteLimiter, async (req, res) => {
   // Pública para booking express
   try {
-    // ownerId llega como string desde el <select> del formulario — el schema
-    // lo define como Int, así que Prisma rechaza el string con un error de
-    // validación (500 genérico) si no se convierte aquí.
-    const { ownerId, ...rest } = req.body;
-    if (!rest.petName || !ownerId)
-      return res.status(400).json({ error: 'Nombre de mascota y dueño requeridos' });
-    const pet = await prisma.pet.create({ data: { ...rest, ownerId: parseInt(ownerId) } });
-    res.status(201).json(pet);
+    const rest = stripPetRelations(req.body);
+    const ownerIds = await resolvePetOwnerIds(req.body);
+    if (!rest.petName)
+      return res.status(400).json({ error: 'El nombre de la mascota es requerido' });
+    if (!ownerIds.length)
+      return res.status(400).json({ error: 'Toda mascota debe estar ligada al menos a un cliente' });
+    const pet = await prisma.pet.create({
+      data: {
+        ...rest,
+        ownerId: ownerIds[0],
+        owners: { create: ownerIds.map((userId) => ({ userId })) },
+      },
+      include: petInclude,
+    });
+    res.status(201).json(serializePet(pet));
   } catch (err) {
     console.error('Error creando mascota:', err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -922,44 +999,49 @@ app.post('/api/pets', publicWriteLimiter, async (req, res) => {
 });
 
 // IDOR fix: análogo a assertAppointmentOwnership — un cliente solo puede
-// editar/borrar mascotas de las que es dueño.
+// editar/borrar mascotas de las que es dueño (principal o compartido).
 const assertPetOwnership = async (req, res) => {
   if (req.user.role !== 'cliente') return true;
-  const existing = await prisma.pet.findUnique({ where: { id: parseInt(req.params.id) }, select: { ownerId: true } });
+  const existing = serializePet(await prisma.pet.findUnique({ where: { id: parseInt(req.params.id) }, include: petInclude }));
   if (!existing) { res.status(404).json({ error: 'Mascota no encontrada' }); return false; }
-  if (existing.ownerId !== req.user.id) { res.status(403).json({ error: 'No tienes permiso sobre esta mascota' }); return false; }
+  if (!existing.ownerIds.includes(req.user.id)) { res.status(403).json({ error: 'No tienes permiso sobre esta mascota' }); return false; }
   return true;
 };
 
-app.put('/api/pets/:id', verifyToken, async (req, res) => {
+const updatePet = async (req, res) => {
   try {
     if (!(await assertPetOwnership(req, res))) return;
-    const { ownerId, ...rest } = req.body;
-    const pet = await prisma.pet.update({
-      where: { id: parseInt(req.params.id) },
-      data: { ...rest, ...(ownerId !== undefined && { ownerId: parseInt(ownerId) }) },
+    const id = parseInt(req.params.id);
+    const rest = stripPetRelations(req.body);
+    const ownersTouched = req.body.ownerIds !== undefined || req.body.ownerId !== undefined;
+    // Un cliente no reparte su mascota a otros desde aquí — solo el personal
+    // del negocio puede cambiar quién es dueño de qué.
+    const canEditOwners = ownersTouched && req.user.role !== 'cliente';
+    let ownerIds = null;
+    if (canEditOwners) {
+      ownerIds = await resolvePetOwnerIds(req.body);
+      if (!ownerIds.length)
+        return res.status(400).json({ error: 'Toda mascota debe estar ligada al menos a un cliente' });
+    }
+    const pet = await prisma.$transaction(async (tx) => {
+      if (ownerIds) {
+        await tx.petOwner.deleteMany({ where: { petId: id, userId: { notIn: ownerIds } } });
+        await tx.petOwner.createMany({ data: ownerIds.map((userId) => ({ petId: id, userId })), skipDuplicates: true });
+      }
+      return tx.pet.update({
+        where: { id },
+        data: { ...rest, ...(ownerIds && { ownerId: ownerIds[0] }) },
+        include: petInclude,
+      });
     });
-    res.json(pet);
+    res.json(serializePet(pet));
   } catch (err) {
     console.error('Error actualizando mascota:', err);
     res.status(500).json({ error: 'Error del servidor' });
   }
-});
-
-app.patch('/api/pets/:id', verifyToken, async (req, res) => {
-  try {
-    if (!(await assertPetOwnership(req, res))) return;
-    const { ownerId, ...rest } = req.body;
-    const pet = await prisma.pet.update({
-      where: { id: parseInt(req.params.id) },
-      data: { ...rest, ...(ownerId !== undefined && { ownerId: parseInt(ownerId) }) },
-    });
-    res.json(pet);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
-  }
-});
+};
+app.put('/api/pets/:id', verifyToken, updatePet);
+app.patch('/api/pets/:id', verifyToken, updatePet);
 
 app.delete('/api/pets/:id', verifyToken, async (req, res) => {
   try {
@@ -1260,6 +1342,7 @@ app.delete('/api/products/:id', verifyToken, requireRole('administrador'), async
 // ─────────────────────────────────────────────────────────────────────────────
 
 const appointmentInclude = {
+  branch: { select: { id: true, name: true } },
   // membershipPlanId/membershipExpiresAt: para que el popup de detalle de
   // una cita de clase (Service.isClass) pueda mostrar vigente/vencida sin
   // una consulta aparte (giro gimnasio, ver Settings.enableMemberships).
@@ -1429,7 +1512,7 @@ async function validateAppointmentTime(date, time, serviceId, excludeApptId = nu
 // funcionó con un servicio elegido (mismo problema que ya se había
 // resuelto para otros formularios — ownerId en pets, price/stock en
 // products — sin arreglar aquí).
-const ID_FIELDS = ['petId', 'serviceId', 'clientId', 'employeeId'];
+const ID_FIELDS = ['petId', 'serviceId', 'clientId', 'employeeId', 'branchId'];
 // Whitelist explícito de columnas reales de Appointment (ver
 // prisma/schema.prisma) — varios formularios del frontend arman su payload
 // agregando campos "de más" (serviceName/petName para preview, assignedTo
@@ -1438,7 +1521,7 @@ const ID_FIELDS = ['petId', 'serviceId', 'clientId', 'employeeId'];
 // raíz; filtrar aquí lo cierra para cualquier llamador, presente o futuro.
 const APPOINTMENT_FIELDS = new Set([
   'clientId', 'petId', 'serviceId', 'employeeId', 'date', 'time',
-  'status', 'finalPrice', 'notes', 'guestName', 'guestPhone',
+  'status', 'finalPrice', 'notes', 'guestName', 'guestPhone', 'branchId',
 ]);
 const normalizeAppointmentIds = (data) => {
   const out = {};
@@ -1462,6 +1545,7 @@ app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
     const data = normalizeAppointmentIds(rawData);
     if (!data.date)
       return res.status(400).json({ error: 'Fecha requerida' });
+    if (data.branchId !== undefined) data.branchId = await resolveBranchId(data.branchId);
     // Revalidar disponibilidad en el servidor (evita que dos personas
     // reserven el mismo horario a la vez, o que llegue una hora fuera del
     // horario del negocio — el frontend ya filtra esto, pero esto cierra
@@ -1524,6 +1608,7 @@ app.put('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
     if (!(await assertAppointmentOwnership(req, res))) return;
     const { data } = normalizeAppointmentBody(req.body);
+    if (data.branchId !== undefined) data.branchId = await resolveBranchId(data.branchId);
     const timeError = await validateTimeOnUpdate(parseInt(req.params.id), data);
     if (timeError) return res.status(409).json({ error: timeError });
     const appt = await prisma.appointment.update({
@@ -1542,6 +1627,7 @@ app.patch('/api/appointments/:id', verifyToken, async (req, res) => {
   try {
     if (!(await assertAppointmentOwnership(req, res))) return;
     const { data } = normalizeAppointmentBody(req.body);
+    if (data.branchId !== undefined) data.branchId = await resolveBranchId(data.branchId);
     const timeError = await validateTimeOnUpdate(parseInt(req.params.id), data);
     if (timeError) return res.status(409).json({ error: timeError });
     const appt = await prisma.appointment.update({
@@ -1601,7 +1687,8 @@ app.delete('/api/appointments/:id/extras/:extraId', verifyToken, requireRole('ad
 // ─────────────────────────────────────────────────────────────────────────────
 
 const saleInclude = {
-  client: { select: { id: true, name: true, email: true } },
+  branch: true,
+  client: { select: { id: true, name: true, email: true, phone: true } },
   items: { include: { product: true } },
   appointment: { select: { id: true, date: true, time: true } },
 };
@@ -1655,7 +1742,8 @@ app.get('/api/sales/:id', verifyToken, requireRole('administrador'), async (req,
 // la venta completa se revierte (409) en vez de quedar a medias.
 app.post('/api/sales', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
   try {
-    const { items, ...data } = req.body;
+    const { items, branch, client, appointment, ...data } = req.body;
+    if (data.branchId !== undefined) data.branchId = await resolveBranchId(data.branchId);
     // variantName viaja en el payload solo para la lógica de descuento de
     // stock de abajo — NO es una columna real de SaleItem (ver schema.prisma)
     // así que hay que quitarlo antes de pasar los items a `create`, igual que
@@ -1837,6 +1925,104 @@ app.delete('/api/expenses/:id', verifyToken, requireRole('administrador'), async
 // ─────────────────────────────────────────────────────────────────────────────
 
 // GET /api/settings — pública (el frontend necesita saber si booking express está activo)
+// ─────────────────────────────────────────────────────────────────────────────
+// BRANCHES (sucursales)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BRANCH_FIELDS = ['name', 'address', 'phone', 'mapsUrl', 'isMain', 'isActive'];
+const pickBranch = (body) => {
+  const out = {};
+  for (const f of BRANCH_FIELDS) if (body[f] !== undefined) out[f] = body[f];
+  if (out.name !== undefined) out.name = String(out.name).trim();
+  return out;
+};
+
+// Pública: la página de contacto y la reserva en línea listan las sucursales
+// activas. El panel (admin) pide ?all=1 para ver también las desactivadas.
+app.get('/api/branches', async (req, res) => {
+  try {
+    const showAll = req.query.all === '1' && req.user && req.user.role === 'administrador';
+    const branches = await prisma.branch.findMany({
+      where: showAll ? {} : { isActive: true },
+      orderBy: [{ isMain: 'desc' }, { createdAt: 'asc' }],
+    });
+    res.json(branches);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Solo puede haber una sucursal principal: al marcar una, las demás se
+// desmarcan dentro de la misma transacción. La primera sucursal de un
+// negocio nace como principal aunque no se pida.
+app.post('/api/branches', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const data = pickBranch(req.body);
+    if (!data.name) return res.status(400).json({ error: 'El nombre de la sucursal es requerido' });
+    const branch = await prisma.$transaction(async (tx) => {
+      const count = await tx.branch.count();
+      if (count === 0) data.isMain = true;
+      if (data.isMain) await tx.branch.updateMany({ where: { isMain: true }, data: { isMain: false } });
+      return tx.branch.create({ data });
+    });
+    res.status(201).json(branch);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.put('/api/branches/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const data = pickBranch(req.body);
+    if (data.name !== undefined && !data.name) return res.status(400).json({ error: 'El nombre de la sucursal es requerido' });
+    const branch = await prisma.$transaction(async (tx) => {
+      const existing = await tx.branch.findFirst({ where: { id } });
+      if (!existing) return null;
+      if (data.isMain) await tx.branch.updateMany({ where: { isMain: true, id: { not: id } }, data: { isMain: false } });
+      // La principal no se puede apagar sin antes elegir otra principal.
+      if (existing.isMain && data.isActive === false) data.isActive = true;
+      return tx.branch.update({ where: { id }, data });
+    });
+    if (!branch) return res.status(404).json({ error: 'Sucursal no encontrada' });
+    res.json(branch);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/branches/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.branch.findFirst({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Sucursal no encontrada' });
+    if (existing.isMain) {
+      const others = await prisma.branch.count({ where: { id: { not: id } } });
+      if (others > 0) return res.status(409).json({ error: 'Elige otra sucursal principal antes de eliminar esta.' });
+    }
+    // Citas y ventas de esta sucursal sobreviven (branchId → null).
+    await prisma.branch.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// branchId que llega del navegador: solo se acepta si la sucursal es de
+// este negocio (Branch no está ligada por FK al businessId de la cita/venta).
+const resolveBranchId = async (raw) => {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  const id = parseInt(raw);
+  if (!Number.isInteger(id)) return null;
+  const branch = await prisma.branch.findFirst({ where: { id }, select: { id: true } });
+  return branch ? branch.id : null;
+};
+
 // Multi-tenant: Settings ya no es un singleton fijo a id=1 (ver Fase 1) — se
 // busca por businessId (inyectado automáticamente por tenantClient vía
 // findFirst), no por un id fijo, para que funcione igual para Taylor's que

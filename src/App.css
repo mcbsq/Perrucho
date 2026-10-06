@@ -16,8 +16,10 @@
    (ParticlesBackground) que ya no se usa en ninguna página — dejaba
    pasar el fondo negro del navegador en cualquier vista sin su propio
    background explícito (bug reportado: "el perfil tiene fondo negro"). */
+/* El fondo (papel con textura) lo pinta body desde src/styles/texture.css;
+   #root y .app-container lo dejan ver en vez de taparlo de blanco. */
 body, #root, .app-container {
-    background-color: #ffffff;
+    background-color: transparent;
     min-height: 100vh;
     font-family: var(--brand-font, 'Roboto', sans-serif);
 }

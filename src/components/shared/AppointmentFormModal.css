@@ -1,0 +1,123 @@
+/* src/components/shared/AppointmentFormModal.css
+   Pop-up "Nueva cita": cabecera y pie fijos, cuerpo con scroll propio —
+   ningún campo queda cortado sin importar el alto de la pantalla. */
+
+.afm-overlay {
+    position: fixed; inset: 0;
+    z-index: 4000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(3px);
+    animation: afmFade 0.18s ease-out;
+}
+.afm-sheet {
+    width: 100%; max-width: 580px;
+    max-height: calc(100dvh - 32px);
+    display: flex; flex-direction: column;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24), 0 2px 6px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    animation: afmIn 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    font-family: 'Quicksand', system-ui, sans-serif;
+    color: #1e293b;
+}
+.afm-header {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid #eef1f5;
+}
+.afm-header h3 { margin: 0 0 2px; font: 800 1.1rem 'Montserrat', sans-serif; letter-spacing: -0.01em; color: #1e272e; }
+.afm-header p { margin: 0; font-size: 0.82rem; color: #64748b; }
+.afm-close {
+    width: 34px; height: 34px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: none; border-radius: 10px; background: #f1f5f9; color: #64748b; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.afm-close:hover { background: #fee2e2; color: #b91c1c; }
+
+.afm-body {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 22px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 14px;
+    align-content: start;
+}
+.afm-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.afm-span { grid-column: 1 / -1; }
+.afm-field label {
+    font: 700 0.78rem 'Montserrat', sans-serif;
+    color: #334155;
+    display: flex; align-items: baseline; gap: 6px;
+}
+.afm-optional { font: 600 0.7rem 'Quicksand', sans-serif; color: #94a3b8; }
+.afm-field select,
+.afm-field input,
+.afm-field textarea {
+    width: 100%; min-width: 0;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    font: 600 0.9rem 'Quicksand', sans-serif;
+    color: #1e293b;
+    text-overflow: ellipsis;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.afm-field textarea { resize: vertical; min-height: 64px; line-height: 1.4; }
+.afm-field select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+.afm-field select:focus,
+.afm-field input:focus,
+.afm-field textarea:focus { outline: none; border-color: #74b9ff; box-shadow: 0 0 0 3px rgba(116, 185, 255, 0.18); }
+
+.afm-estimate {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 12px;
+    background: #f0fdf7; border: 1px solid #c7f0de; color: #065f46;
+    font-size: 0.86rem; font-weight: 600;
+}
+.afm-estimate strong { font: 800 1.05rem 'Montserrat', sans-serif; font-variant-numeric: tabular-nums; }
+
+.afm-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 14px 22px 18px;
+    border-top: 1px solid #eef1f5;
+    background: #fbfcfe;
+}
+.afm-error { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; color: #b91c1c; flex: 1 1 220px; }
+.afm-actions { display: flex; gap: 8px; margin-left: auto; }
+.afm-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px; padding: 0 18px;
+    border: none; border-radius: 12px; cursor: pointer;
+    font: 700 0.88rem 'Montserrat', sans-serif;
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.afm-btn--ghost { background: #f1f5f9; color: #475569; }
+.afm-btn--ghost:hover { background: #e2e8f0; }
+.afm-btn--primary { background: #185FA5; color: #fff; box-shadow: 0 4px 12px rgba(24, 95, 165, 0.25); }
+.afm-btn--primary:hover:not(:disabled) { background: #134d87; transform: translateY(-1px); }
+.afm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.afm-btn:focus-visible, .afm-close:focus-visible { outline: 2px solid #185FA5; outline-offset: 2px; }
+
+@keyframes afmFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes afmIn { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Teléfono: hoja inferior a todo lo ancho, un campo por fila */
+@media (max-width: 560px) {
+    .afm-overlay { align-items: flex-end; padding: 0; }
+    .afm-sheet { max-width: none; max-height: calc(100dvh - 24px); border-radius: 20px 20px 0 0; }
+    .afm-body { grid-template-columns: 1fr; padding: 16px; }
+    .afm-header, .afm-footer { padding-left: 16px; padding-right: 16px; }
+    .afm-actions { width: 100%; }
+    .afm-actions .afm-btn { flex: 1; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .afm-overlay, .afm-sheet { animation: none; }
+}

@@ -596,3 +596,31 @@
     .ds-price-input-wrap { width: 100%; }
     .ds-step-row { flex-direction: column; align-items: stretch; }
 }
+/* ══ RELACIONES (dueños de mascota, alta de mascota desde cliente) ═══════ */
+.ds-btn-icon--add { background: #f0eeff; color: #6c5ce7; }
+.ds-btn-icon--add:hover { background: #6c5ce7; color: white; }
+.ds-form-label-top { align-self: start; padding-top: 10px; }
+.ds-form-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ds-field-hint { margin: 0; font-size: 0.74rem; color: #64748b; line-height: 1.4; }
+.ds-field-error { margin: 0; font-size: 0.76rem; font-weight: 700; color: #b91c1c; }
+@media (max-width: 520px) {
+    .ds-form-label-top { padding-top: 0; }
+}
+
+/* Cabecera de catálogo en teléfono: la vista (tarjetas/lista), el orden y
+   los botones extra bajan a su propia fila en vez de ensanchar la página. */
+@media (max-width: 640px) {
+    .ds-page-header { flex-direction: column; align-items: stretch; }
+    .ds-page-header-actions { flex-wrap: wrap; }
+    .ds-page-header-actions .ds-sort-select { flex: 1 1 150px; min-width: 0; }
+}
+
+/* Pop-up de detalle de cita (admin y empleado): con hora por asignar +
+   servicios extra podía medir más que la pantalla y quedar cortado arriba o
+   abajo. Nunca más alto ni más ancho que el viewport; si no cabe, hace scroll. */
+div.adp {
+    max-height: calc(100dvh - 24px);
+    max-width: calc(100vw - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}

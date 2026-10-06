@@ -11,6 +11,7 @@ jest.mock('../api/apiClient', () => ({
     servicesApi: { getAll: jest.fn(), create: jest.fn() },
     productsApi: { getAll: jest.fn() },
     settingsApi: { get: jest.fn(), update: jest.fn() },
+    branchesApi: { getAll: jest.fn(() => Promise.resolve([])) },
     clientsApi: { getAll: jest.fn(), create: jest.fn() },
     petsApi: { getAll: jest.fn() },
     salesApi: { getAll: jest.fn() },

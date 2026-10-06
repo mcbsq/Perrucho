@@ -108,3 +108,39 @@ straight, no irony or smuggled quirk, per the standing-exit protocol.
 - `SobreNosotros.jsx` (Taylor's "about us" page) and the register-form
   subtitle/back-link styling were not touched — out of scope for "las
   landing pages de registro."
+
+## App shell — paper texture (2026-10-05)
+
+- **App-wide background** (`src/styles/texture.css`, painted on `body`):
+  "agenda paper" — a 22px dot grid (the planner-notebook material of a
+  booking product) + fine SVG grain + a soft wash of the *business's own*
+  `--brand-primary` / `--brand-secondary` (set by `src/utils/theme.js`), so
+  each tenant's panel tints toward its brand. Layout containers
+  (`.admin-layout`, `.emp-layout`, `.home-page-container`, Shop, Services)
+  are transparent so the paper shows through; cards stay solid white.
+- `background-attachment: fixed` on pointer devices, `scroll` on touch.
+
+## Settings hub (Personalización)
+
+- `SettingsHub.jsx` replaces the single long form: modules grouped under
+  *Tu marca / Tu página / Operación*, each a card whose bottom strip shows
+  the module's **live state** (logo + name, color swatches, hours summary,
+  paper width…) — the card earns its chrome by carrying real content.
+- Every module opens its own sheet (portal to `body`): Cancel + Save,
+  Save disabled until dirty, Esc closes, bottom sheet under 560px.
+  Following HIG `sheets.md › Best practices` (Cancel paired with Done,
+  one sheet at a time).
+
+## Relation views (Clientes / Pacientes)
+
+- Segmented control *Tarjetas | Lista* (remembered per screen in
+  localStorage). List = ledger table whose third column is the
+  relationship: pets as lavender chips (flag "compartida"), owners as blue
+  chips with the primary owner filled + star. Chips are buttons that open
+  the related record. Under 860px rows stack into labeled blocks.
+
+## Ticket (POS)
+
+- `src/utils/ticketPdf.js` (jsPDF): PDF exactly 58/80 mm wide, height
+  fitted to content, grayscale logo. The HTML preview (`Ticket.jsx`) uses
+  Helvetica on purpose — it is the PDF's face, so screen == paper.

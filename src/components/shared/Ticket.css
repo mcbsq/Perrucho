@@ -1,0 +1,65 @@
+/* src/components/shared/Ticket.css — vista previa del ticket térmico */
+
+.tk-paper {
+    --tk-pt: 12.5px;
+    margin: 0 auto;
+    padding: 14px 12px 18px;
+    background: #fff;
+    color: #111;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: var(--tk-pt);
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 10px 28px rgba(15, 23, 42, 0.10);
+    position: relative;
+    /* borde inferior dentado, como el corte del rollo */
+    -webkit-mask: radial-gradient(5px at 50% 100%, #0000 98%, #000) 50% / 10px 100%;
+            mask: radial-gradient(5px at 50% 100%, #0000 98%, #000) 50% / 10px 100%;
+    padding-bottom: 22px;
+}
+.tk-paper--80 { width: 300px; }
+.tk-paper--58 { width: 220px; --tk-pt: 11.5px; }
+.tk-font--compacta { --tk-pt: 11px; }
+.tk-paper--58.tk-font--compacta { --tk-pt: 10px; }
+.tk-font--grande { --tk-pt: 14px; }
+.tk-paper--58.tk-font--grande { --tk-pt: 12.5px; }
+.tk-paper hr { border: none; border-top: 1px dashed #555; margin: 6px 0; }
+.tk-logo { display: block; margin: 0 auto 4px; max-width: 50%; max-height: 64px; object-fit: contain; filter: grayscale(1); }
+.tk-title { text-align: center; font-weight: 700; font-size: calc(var(--tk-pt) * 1.35); line-height: 1.2; margin-bottom: 2px; overflow-wrap: anywhere; }
+.tk-center { text-align: center; overflow-wrap: anywhere; }
+.tk-small { font-size: calc(var(--tk-pt) * 0.94); }
+.tk-legal { font-size: calc(var(--tk-pt) * 0.82); color: #333; }
+.tk-bold { font-weight: 700; overflow-wrap: anywhere; }
+.tk-pair { display: flex; justify-content: space-between; gap: 8px; }
+.tk-pair span:first-child { overflow-wrap: anywhere; }
+.tk-pair span:last-child { white-space: nowrap; }
+.tk-item + .tk-item { margin-top: 3px; }
+.tk-total { font-weight: 800; font-size: calc(var(--tk-pt) * 1.35); margin: 4px 0 2px; }
+
+/* ── Nota de venta (modal) ── */
+.tk-receipt { display: flex; flex-direction: column; gap: 16px; }
+.tk-receipt-paper {
+    display: flex; justify-content: center;
+    padding: 20px 12px;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 1px 1px, rgba(30, 39, 46, 0.10) 1px, transparent 0) 0 0 / 14px 14px,
+        #f3f5f8;
+    max-height: 52vh; overflow-y: auto;
+}
+.tk-receipt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tk-action {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 0 14px;
+    border-radius: 12px; border: 1.5px solid #e2e8f0;
+    background: #fff; color: #334155;
+    font: 700 0.86rem 'Montserrat', sans-serif;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    flex: 1 1 130px;
+}
+.tk-action:hover:not(:disabled) { border-color: #74b9ff; background: #f7faff; }
+.tk-action--primary { flex-basis: 100%; background: #185FA5; border-color: #185FA5; color: #fff; }
+.tk-action--primary:hover:not(:disabled) { background: #134d87; border-color: #134d87; }
+.tk-action:disabled { opacity: 0.6; cursor: progress; }
+.tk-action:focus-visible { outline: 2px solid #185FA5; outline-offset: 2px; }
+.tk-receipt-hint { margin: 0; font-size: 0.76rem; color: #64748b; text-align: center; line-height: 1.45; }
