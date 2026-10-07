@@ -2292,44 +2292,72 @@ app.delete('/api/records/:id', verifyToken, requireRole('administrador'), async 
 // autoriza la subida. Sin BLOB_READ_WRITE_TOKEN (Blob no activado en el
 // proyecto) las fotos se guardan comprimidas en línea y los videos se
 // desactivan — el frontend lo pregunta en /api/uploads/status.
+// Dos formas de autenticar con Vercel Blob:
+//  - "presigned": almacenamiento conectado con OIDC (lo que Vercel crea hoy;
+//    solo inyecta BLOB_STORE_ID). El servidor pide un token firmado y el
+//    navegador sube a una URL prefirmada de un solo uso.
+//  - "token": almacenamiento clásico con BLOB_READ_WRITE_TOKEN.
+const blobMode = () => (process.env.BLOB_READ_WRITE_TOKEN ? 'token' : process.env.BLOB_STORE_ID ? 'presigned' : null);
+
 app.get('/api/uploads/status', (req, res) => {
-  res.json({ blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+  const mode = blobMode();
+  res.json({ blob: Boolean(mode), mode });
 });
 
 app.post('/api/uploads/media', publicWriteLimiter, async (req, res) => {
   try {
-    const { handleUpload } = require('@vercel/blob/client');
-    if (!process.env.BLOB_READ_WRITE_TOKEN)
-      return res.status(503).json({ error: 'El almacenamiento de fotos y videos no está activado' });
+    const mode = blobMode();
+    if (!mode) return res.status(503).json({ error: 'El almacenamiento de fotos y videos no está activado' });
     const isStaff = Boolean(req.user && ['administrador', 'empleado'].includes(req.user.role));
+    // Personal: fotos y videos del expediente. Público: solo fotos de
+    // reseñas (clientPayload "review"), más chicas y sin video.
+    const rulesFor = (clientPayload) => {
+      if (isStaff) {
+        return {
+          allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'video/mp4', 'video/quicktime', 'video/webm'],
+          maximumSizeInBytes: 150 * 1024 * 1024,
+        };
+      }
+      if (clientPayload !== 'review') throw Object.assign(new Error('Sesión requerida'), { status: 401 });
+      return { allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'], maximumSizeInBytes: 10 * 1024 * 1024 };
+    };
+
+    if (mode === 'presigned') {
+      const { handleUploadPresigned } = require('@vercel/blob/client');
+      const { issueSignedToken } = require('@vercel/blob');
+      // Vercel manda el token OIDC en cada petición; se pasa explícito por si
+      // el contexto de la función no lo expone a la librería.
+      const oidcToken = req.headers['x-vercel-oidc-token'] || process.env.VERCEL_OIDC_TOKEN || undefined;
+      const result = await handleUploadPresigned({
+        request: req,
+        body: req.body,
+        getSignedToken: async (pathname, clientPayload) => {
+          const rules = rulesFor(clientPayload);
+          const token = await issueSignedToken({
+            pathname, operations: ['put'], ...rules,
+            ...(oidcToken ? { oidcToken } : {}),
+            validUntil: Date.now() + 15 * 60 * 1000,
+          });
+          return { token, urlOptions: { ...rules, addRandomSuffix: true } };
+        },
+      });
+      return res.json(result);
+    }
+
+    const { handleUpload } = require('@vercel/blob/client');
     const result = await handleUpload({
       request: req,
       body: req.body,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
-        // Personal: fotos y videos del expediente. Público: solo fotos de
-        // reseñas (clientPayload "review"), más chicas y sin video.
-        if (isStaff) {
-          return {
-            allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'video/mp4', 'video/quicktime', 'video/webm'],
-            maximumSizeInBytes: 150 * 1024 * 1024,
-            addRandomSuffix: true,
-            tokenPayload: JSON.stringify({ businessId: req.businessId, userId: req.user.id }),
-          };
-        }
-        if (clientPayload !== 'review') throw new Error('Sesión requerida');
-        return {
-          allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
-          maximumSizeInBytes: 10 * 1024 * 1024,
-          addRandomSuffix: true,
-          tokenPayload: JSON.stringify({ businessId: req.businessId, review: true }),
-        };
-      },
-      onUploadCompleted: async () => {},
+      onBeforeGenerateToken: async (_pathname, clientPayload) => ({
+        ...rulesFor(clientPayload),
+        addRandomSuffix: true,
+        tokenPayload: JSON.stringify({ businessId: req.businessId, userId: req.user?.id || null }),
+      }),
     });
     res.json(result);
   } catch (err) {
     console.error('POST /api/uploads/media', err);
-    res.status(400).json({ error: err.message || 'No se pudo autorizar la subida' });
+    res.status(err.status || 400).json({ error: err.message || 'No se pudo autorizar la subida' });
   }
 });
 

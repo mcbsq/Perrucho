@@ -8,12 +8,31 @@
 import { uploadsApi } from '../api/apiClient';
 import { readImageAsResizedDataUrl, resizeImageToBlob } from './imageUpload';
 
+// { blob: bool, mode: 'presigned' | 'token' | null } — se pregunta una vez.
 let blobStatus = null;
-export const isBlobEnabled = async () => {
+const getBlobStatus = () => {
     if (blobStatus === null) {
-        blobStatus = uploadsApi.status().then(r => !!r.blob).catch(() => false);
+        blobStatus = uploadsApi.status().catch(() => ({ blob: false, mode: null }));
     }
     return blobStatus;
+};
+export const isBlobEnabled = async () => !!(await getBlobStatus()).blob;
+
+// Sube un archivo directo del navegador a Vercel Blob. Con almacenamiento
+// conectado por OIDC (lo que Vercel crea hoy) se usa URL prefirmada; con el
+// token clásico, el flujo de siempre. payload: 'review' (público, solo
+// fotos) o 'record' (expediente, requiere sesión del personal).
+export const uploadToBlob = async (pathname, body, { payload = 'record', contentType } = {}) => {
+    const { mode } = await getBlobStatus();
+    const client = await import('@vercel/blob/client');
+    const send = mode === 'presigned' ? client.uploadPresigned : client.upload;
+    return send(pathname, body, {
+        access: 'public',
+        handleUploadUrl: uploadsApi.handleUploadUrl(),
+        headers: uploadsApi.headers(),
+        clientPayload: payload,
+        ...(contentType ? { contentType } : {}),
+    });
 };
 
 const naturalSize = (src) => new Promise((resolve) => {
@@ -31,14 +50,7 @@ export const uploadPhoto = async (file, { payload = 'review', maxDim = 1920, inl
         const local = URL.createObjectURL(blob);
         const size = await naturalSize(local);
         URL.revokeObjectURL(local);
-        const { upload } = await import('@vercel/blob/client');
-        const res = await upload(`resenas/${Date.now()}.jpg`, blob, {
-            access: 'public',
-            handleUploadUrl: uploadsApi.handleUploadUrl(),
-            headers: uploadsApi.headers(),
-            clientPayload: payload,
-            contentType: 'image/jpeg',
-        });
+        const res = await uploadToBlob(`resenas/${Date.now()}.jpg`, blob, { payload, contentType: 'image/jpeg' });
         return { url: res.url, ...size };
     }
     const url = await readImageAsResizedDataUrl(file, { maxDim: inlineMaxDim, type: 'image/jpeg', quality: 0.78, maxSizeBytes: 25 * 1024 * 1024 });

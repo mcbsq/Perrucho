@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fa';
 import { recordsApi, uploadsApi } from '../../api/apiClient';
 import { readImageAsResizedDataUrl, resizeImageToBlob } from '../../utils/imageUpload';
+import { uploadToBlob } from '../../utils/photoUpload';
 import './Expediente.css';
 
 // ─── Tipo de expediente ──────────────────────────────────────────────────────
@@ -161,13 +162,8 @@ const MediaUploader = ({ media, onChange, blobEnabled }) => {
                 } else {
                     const body = isVideo ? file : await resizeImageToBlob(file, { maxDim: 1920, quality: 0.85 });
                     const ext = isVideo ? (file.name.split('.').pop() || 'mp4') : 'jpg';
-                    // Se carga solo al subir: no pesa en la carga del panel.
-                    const { upload } = await import('@vercel/blob/client');
-                    const res = await upload(`expediente/${Date.now()}.${ext}`, body, {
-                        access: 'public',
-                        handleUploadUrl: uploadsApi.handleUploadUrl(),
-                        headers: uploadsApi.headers(),
-                        contentType: isVideo ? file.type : 'image/jpeg',
+                    const res = await uploadToBlob(`expediente/${Date.now()}.${ext}`, body, {
+                        payload: 'record', contentType: isVideo ? file.type : 'image/jpeg',
                     });
                     item = { url: res.url, type: isVideo ? 'video' : 'image' };
                 }
