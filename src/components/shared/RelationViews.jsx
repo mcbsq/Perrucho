@@ -6,7 +6,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
     FaThLarge, FaList, FaEdit, FaTrash, FaPaw, FaUser, FaPhone, FaEnvelope,
-    FaStar, FaRegStar, FaTimes, FaSearch, FaPlus, FaCheckCircle, FaExclamationTriangle,
+    FaStar, FaRegStar, FaTimes, FaSearch, FaPlus, FaCheckCircle, FaExclamationTriangle, FaFolderOpen,
 } from 'react-icons/fa';
 import { getOwnersOfPet, getPetsOfClient, getPetOwnerIds } from '../../utils/petOwners';
 import './RelationViews.css';
@@ -69,7 +69,7 @@ const OwnerChip = ({ client, primary, onClick }) => (
 const EmptyRow = ({ children }) => <div className="rv-empty">{children}</div>;
 
 // ─── Lista de clientes ───────────────────────────────────────────────────────
-export const ClientsList = ({ clients, pets, onEdit, onDelete, onOpenPet, onAddPet, showPets = true }) => {
+export const ClientsList = ({ clients, pets, onEdit, onDelete, onOpenPet, onAddPet, onOpenRecord, showPets = true }) => {
     if (!clients.length) return <EmptyRow>Sin resultados</EmptyRow>;
     return (
         <div className={`rv-table rv-table--clients ${showPets ? '' : 'rv-table--no-rel'}`} role="table" aria-label="Clientes">
@@ -104,6 +104,7 @@ export const ClientsList = ({ clients, pets, onEdit, onDelete, onOpenPet, onAddP
                             )}
                         </span>}
                         <span className="rv-cell rv-col-actions" role="cell">
+                            {onOpenRecord && <button type="button" className="ds-btn-icon ds-btn-icon--record" onClick={() => onOpenRecord(c)} aria-label={`Expediente de ${c.name}`} title="Expediente"><FaFolderOpen /></button>}
                             <button type="button" className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(c)} aria-label={`Editar a ${c.name}`}><FaEdit /></button>
                             {onDelete && <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => onDelete(c.id, c.name)} aria-label={`Eliminar a ${c.name}`}><FaTrash /></button>}
                         </span>
@@ -115,7 +116,7 @@ export const ClientsList = ({ clients, pets, onEdit, onDelete, onOpenPet, onAddP
 };
 
 // ─── Lista de pacientes ──────────────────────────────────────────────────────
-export const PetsList = ({ pets, clients, onEdit, onDelete, onToggleStatus, onOpenClient }) => {
+export const PetsList = ({ pets, clients, onEdit, onDelete, onToggleStatus, onOpenClient, onOpenRecord }) => {
     if (!pets.length) return <EmptyRow>Sin resultados</EmptyRow>;
     return (
         <div className="rv-table rv-table--pets" role="table" aria-label="Pacientes">
@@ -155,6 +156,7 @@ export const PetsList = ({ pets, clients, onEdit, onDelete, onToggleStatus, onOp
                                     {isActive ? <FaCheckCircle /> : <FaExclamationTriangle />}
                                 </button>
                             )}
+                            {onOpenRecord && <button type="button" className="ds-btn-icon ds-btn-icon--record" onClick={() => onOpenRecord(p)} aria-label={`Expediente de ${p.petName}`} title="Expediente"><FaFolderOpen /></button>}
                             <button type="button" className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(p)} aria-label={`Editar a ${p.petName}`}><FaEdit /></button>
                             {onDelete && <button type="button" className="ds-btn-icon ds-btn-icon--del" onClick={() => onDelete(p.id, p.petName)} aria-label={`Eliminar a ${p.petName}`}><FaTrash /></button>}
                         </span>

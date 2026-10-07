@@ -11,7 +11,7 @@ import {
     FaTimes, FaEdit, FaTrash, FaUser, FaPaw, FaCut, FaBoxOpen,
     FaUserCog, FaPhone, FaEnvelope, FaWeight, FaDog, FaCat,
     FaFeather, FaPlus, FaExclamationTriangle, FaCheckCircle,
-    FaClock, FaTag, FaLayerGroup
+    FaClock, FaTag, FaLayerGroup, FaFolderOpen
 } from 'react-icons/fa';
 import { getServiceIcon } from '../../utils/serviceIcons';
 import { formatMexPhone } from '../../utils/formatPhone';
@@ -218,7 +218,7 @@ export const StatusSelector = ({ current, transitions, onSelect }) => {
 // `pets` (opcional): las mascotas ligadas a este cliente, propias o
 // compartidas — se muestran por nombre para ver de un vistazo de quién es
 // cada paciente. Sin `pets` cae al contador de siempre.
-export const ClientCard = ({ client, petsCount = 0, pets, onEdit, onDelete, onOpenPet, onAddPet }) => (
+export const ClientCard = ({ client, petsCount = 0, pets, onEdit, onDelete, onOpenPet, onAddPet, onOpenRecord }) => (
     <div className="ds-card ds-client-card">
         <div className="ds-card-avatar" style={{ background: `hsl(${hueFromId(client.id)},55%,62%)` }}>
             {client.name?.[0]?.toUpperCase()}
@@ -241,6 +241,7 @@ export const ClientCard = ({ client, petsCount = 0, pets, onEdit, onDelete, onOp
             )}
         </div>
         <div className="ds-card-actions">
+            {onOpenRecord && <button className="ds-btn-icon ds-btn-icon--record" onClick={() => onOpenRecord(client)} aria-label={`Expediente de ${client.name}`} title="Expediente"><FaFolderOpen /></button>}
             <button className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(client)} aria-label={`Editar a ${client.name}`}><FaEdit /></button>
             {onAddPet && <button className="ds-btn-icon ds-btn-icon--add" onClick={() => onAddPet(client)} aria-label={`Registrar mascota de ${client.name}`} title="Registrar mascota"><FaPaw /></button>}
             {onDelete && <button className="ds-btn-icon ds-btn-icon--del"  onClick={() => onDelete(client.id, client.name)} aria-label={`Eliminar a ${client.name}`}><FaTrash /></button>}
@@ -342,7 +343,7 @@ export const ClientFormModal = ({ initial, onSave, onClose, extraFields = [], on
 // CAMBIO v3: muestra y permite alternar status (activo/inactivo)
 // `owners` (opcional): todos los dueños de la mascota, principal primero.
 // Sin `owners` cae al dueño único de siempre (`owner`).
-export const PetCard = ({ pet, owner, owners, onEdit, onDelete, onToggleStatus, onOpenClient }) => {
+export const PetCard = ({ pet, owner, owners, onEdit, onDelete, onToggleStatus, onOpenClient, onOpenRecord }) => {
     const h = hueFromId(pet.id);
     const emoji = speciesEmoji(pet.species);
     const isActive = (pet.status || 'activo') === 'activo';
@@ -379,7 +380,8 @@ export const PetCard = ({ pet, owner, owners, onEdit, onDelete, onToggleStatus, 
                         {isActive ? <FaCheckCircle /> : <FaExclamationTriangle />}
                     </button>
                 )}
-                <button className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(pet)}><FaEdit /></button>
+                {onOpenRecord && <button className="ds-btn-icon ds-btn-icon--record" onClick={() => onOpenRecord(pet)} aria-label={`Expediente de ${pet.petName}`} title="Expediente"><FaFolderOpen /></button>}
+                <button className="ds-btn-icon ds-btn-icon--edit" onClick={() => onEdit(pet)} aria-label={`Editar a ${pet.petName}`}><FaEdit /></button>
                 <button className="ds-btn-icon ds-btn-icon--del"  onClick={() => onDelete(pet.id, pet.petName)}><FaTrash /></button>
             </div>
         </div>

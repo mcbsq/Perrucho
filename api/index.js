@@ -1066,7 +1066,7 @@ app.put('/api/clients/:id', verifyToken, requireOwnerOrRole('administrador', 'em
     // Mismo problema ya se había resuelto para el autoservicio del cliente
     // en Perfil.jsx armando el payload a mano — aquí se cierra para
     // cualquier llamador filtrando las relaciones antes de pasarlas a Prisma.
-    const { password, confirmPassword, role, pets, petLinks, business, appointments, assignedAppointments, sales, expenses, membershipPlan, ...data } = req.body;
+    const { password, confirmPassword, role, pets, petLinks, records, authoredRecords, business, appointments, assignedAppointments, sales, expenses, membershipPlan, ...data } = req.body;
     // Solo admin/empleado pueden fijar la contraseña de un cliente aquí — es
     // el respaldo para clientes que aún no configuraron su pregunta de
     // seguridad y por lo tanto no pueden usar "Olvidé mi contraseña" solos.
@@ -1130,7 +1130,7 @@ const resolvePetOwnerIds = async (body) => {
 
 // Campos que el frontend reenvía tal cual los recibió (relaciones, ids
 // derivados) y que no son columnas editables de Pet.
-const stripPetRelations = ({ ownerId, ownerIds, owners, owner, business, appointments, id, businessId, createdAt, ...rest }) => rest;
+const stripPetRelations = ({ ownerId, ownerIds, owners, owner, business, appointments, records, id, businessId, createdAt, ...rest }) => rest;
 
 const petOwnerWhere = (userId) => ({ OR: [{ ownerId: userId }, { owners: { some: { userId } } }] });
 
@@ -2165,6 +2165,165 @@ app.delete('/api/expenses/:id', verifyToken, requireRole('administrador'), async
 // ─────────────────────────────────────────────────────────────────────────────
 
 // GET /api/settings — pública (el frontend necesita saber si booking express está activo)
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPEDIENTE (RecordEntry) — una entrada por visita/consulta
+// ─────────────────────────────────────────────────────────────────────────────
+// De una mascota (petId) o, en negocios sin mascotas, de un cliente
+// (clientId). El personal lee y escribe; un cliente solo LEE el de sus
+// propias mascotas (o el suyo), p. ej. para ver las fotos de su visita.
+
+const RECORD_KINDS = new Set(['servicio', 'medico']);
+const MAX_MEDIA = 12;
+
+// Solo URLs de nuestro almacenamiento (Vercel Blob) o imágenes comprimidas
+// en línea — nunca enlaces arbitrarios que el navegador vaya a cargar.
+const cleanMedia = (media) => (Array.isArray(media) ? media : [])
+  .filter((m) => m && typeof m.url === 'string' && (
+    /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(m.url)
+    || /^data:image\/(jpeg|png|webp);base64,/i.test(m.url)
+  ))
+  .slice(0, MAX_MEDIA)
+  .map((m) => ({ url: m.url, type: m.type === 'video' ? 'video' : 'image', caption: String(m.caption || '').slice(0, 200) }));
+
+const pickRecord = (body) => {
+  const out = {};
+  if (body.kind !== undefined) out.kind = RECORD_KINDS.has(body.kind) ? body.kind : 'servicio';
+  if (body.date) { const d = new Date(body.date); if (!isNaN(d)) out.date = d; }
+  for (const f of ['petId', 'clientId', 'appointmentId', 'serviceId']) {
+    if (body[f] === null || body[f] === '') out[f] = null;
+    else if (body[f] !== undefined) { const n = parseInt(body[f]); if (Number.isInteger(n)) out[f] = n; }
+  }
+  if (body.serviceName !== undefined) out.serviceName = body.serviceName ? String(body.serviceName).slice(0, 200) : null;
+  if (body.summary !== undefined) out.summary = String(body.summary || '').slice(0, 10000);
+  if (body.details !== undefined && body.details && typeof body.details === 'object') out.details = body.details;
+  if (body.media !== undefined) out.media = cleanMedia(body.media);
+  return out;
+};
+
+// La mascota/cliente de la entrada tiene que ser de este negocio.
+const assertRecordSubject = async (data) => {
+  if (data.petId) {
+    const pet = await prisma.pet.findFirst({ where: { id: data.petId }, select: { id: true } });
+    if (!pet) return 'La mascota no existe en este negocio';
+  }
+  if (data.clientId) {
+    const c = await prisma.user.findFirst({ where: { id: data.clientId }, select: { id: true } });
+    if (!c) return 'El cliente no existe en este negocio';
+  }
+  return null;
+};
+
+app.get('/api/records', verifyToken, async (req, res) => {
+  try {
+    const petId = req.query.petId ? parseInt(req.query.petId) : null;
+    const clientId = req.query.clientId ? parseInt(req.query.clientId) : null;
+    if (!petId && !clientId) return res.status(400).json({ error: 'Indica la mascota o el cliente' });
+    if (req.user.role === 'cliente') {
+      if (clientId && clientId !== req.user.id) return res.status(403).json({ error: 'Sin permiso' });
+      if (petId) {
+        const pet = await prisma.pet.findFirst({ where: { id: petId, ...petOwnerWhere(req.user.id) }, select: { id: true } });
+        if (!pet) return res.status(403).json({ error: 'Sin permiso' });
+      }
+    }
+    const records = await prisma.recordEntry.findMany({
+      where: petId ? { petId } : { clientId },
+      orderBy: { date: 'desc' },
+      take: 200,
+    });
+    res.json(records);
+  } catch (err) {
+    console.error('GET /api/records', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.post('/api/records', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const data = pickRecord(req.body);
+    if (!data.petId && !data.clientId) return res.status(400).json({ error: 'Indica la mascota o el cliente' });
+    if (!data.summary && !(data.media || []).length && !Object.keys(data.details || {}).length)
+      return res.status(400).json({ error: 'Escribe qué se hizo o agrega una foto' });
+    const subjectError = await assertRecordSubject(data);
+    if (subjectError) return res.status(400).json({ error: subjectError });
+    const author = await prisma.user.findFirst({ where: { id: req.user.id }, select: { id: true, name: true } });
+    const record = await prisma.recordEntry.create({
+      data: { ...data, authorId: author?.id || null, authorName: author?.name || null },
+    });
+    res.status(201).json(record);
+  } catch (err) {
+    console.error('POST /api/records', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.put('/api/records/:id', verifyToken, requireRole('administrador', 'empleado'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.recordEntry.findFirst({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Entrada no encontrada' });
+    // Un empleado corrige sus propias notas; el administrador, cualquiera.
+    if (req.user.role !== 'administrador' && existing.authorId !== req.user.id)
+      return res.status(403).json({ error: 'Solo quien la escribió o un administrador puede editarla' });
+    const { petId, clientId, ...data } = pickRecord(req.body);
+    const record = await prisma.recordEntry.update({ where: { id }, data });
+    res.json(record);
+  } catch (err) {
+    console.error('PUT /api/records/:id', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/records/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.recordEntry.findFirst({ where: { id }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: 'Entrada no encontrada' });
+    await prisma.recordEntry.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /api/records/:id', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ── Fotos y videos del expediente (Vercel Blob) ───────────────────────────────
+// El navegador sube el archivo DIRECTO a Vercel Blob (Vercel limita el cuerpo
+// de una petición a ~4.5 MB; un video no pasaría por el API). Aquí solo se
+// autoriza la subida. Sin BLOB_READ_WRITE_TOKEN (Blob no activado en el
+// proyecto) las fotos se guardan comprimidas en línea y los videos se
+// desactivan — el frontend lo pregunta en /api/uploads/status.
+app.get('/api/uploads/status', (req, res) => {
+  res.json({ blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+});
+
+app.post('/api/uploads/media', async (req, res) => {
+  try {
+    const { handleUpload } = require('@vercel/blob/client');
+    // La llamada de "subida terminada" viene de Vercel (sin sesión); la de
+    // pedir permiso viene del panel y exige personal autenticado.
+    const isCompletion = req.body?.type === 'blob.upload-completed';
+    if (!isCompletion && !(req.user && ['administrador', 'empleado'].includes(req.user.role)))
+      return res.status(401).json({ error: 'Sesión requerida' });
+    if (!process.env.BLOB_READ_WRITE_TOKEN)
+      return res.status(503).json({ error: 'El almacenamiento de fotos y videos no está activado' });
+    const result = await handleUpload({
+      request: req,
+      body: req.body,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'video/mp4', 'video/quicktime', 'video/webm'],
+        maximumSizeInBytes: 150 * 1024 * 1024,
+        addRandomSuffix: true,
+        tokenPayload: JSON.stringify({ businessId: req.businessId, userId: req.user?.id }),
+      }),
+      onUploadCompleted: async () => {},
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('POST /api/uploads/media', err);
+    res.status(400).json({ error: err.message || 'No se pudo autorizar la subida' });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BRANCHES (sucursales)
 // ─────────────────────────────────────────────────────────────────────────────

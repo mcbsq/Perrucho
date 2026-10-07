@@ -321,3 +321,5 @@
     .sh-overlay, .sh-sheet { animation: none; }
     .sh-card, .sh-card-chevron, .sh-toggle-track span { transition: none; }
 }
+.sh-segment--3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 560px) { .sh-segment--3 { grid-template-columns: 1fr; } }

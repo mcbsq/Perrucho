@@ -91,6 +91,7 @@ model Business {
   settings        Settings[]
   membershipPlans MembershipPlan[]
   branches        Branch[]
+  records         RecordEntry[]
 }
 
 // ─────────────────────────────────────────────
@@ -147,6 +148,11 @@ model User {
   pets                 Pet[]
   // Mascotas compartidas: una mascota puede tener varios dueños (ver PetOwner).
   petLinks             PetOwner[]
+  // Antecedentes para el expediente médico (alergias, padecimientos,
+  // medicamentos, cirugías, antecedentes familiares, tipo de sangre…).
+  medicalProfile       Json          @default("{}")
+  records              RecordEntry[] @relation("RecordClient")
+  authoredRecords      RecordEntry[] @relation("RecordAuthor")
   appointments         Appointment[] // citas donde este user es el cliente
   assignedAppointments Appointment[] @relation("AssignedEmployee")
   sales                Sale[]
@@ -177,6 +183,44 @@ model Pet {
   // mascota siempre tiene al menos un dueño — ownerId sigue siendo NOT NULL
   // y es quien se usa por default al cobrar o agendar.
   owners       PetOwner[]
+  // Antecedentes (vacunas, alergias, esterilización, padecimientos…).
+  medicalProfile Json          @default("{}")
+  records        RecordEntry[]
+}
+
+// ─────────────────────────────────────────────
+// RECORD ENTRY (expediente: una entrada por visita/consulta)
+// ─────────────────────────────────────────────
+// Es de una mascota (petId) o, en negocios sin mascotas, de un cliente
+// (clientId). kind = "servicio" (qué se le hizo, para "lo mismo de la vez
+// pasada") o "medico" (nota médica tradicional). Los campos propios de cada
+// tipo viven en details (JSON) para no llenar la tabla de columnas vacías.
+model RecordEntry {
+  id            Int      @id @default(autoincrement())
+  kind          String   @default("servicio") // "servicio" | "medico"
+  date          DateTime @default(now())
+  petId         Int?
+  clientId      Int?
+  appointmentId Int?
+  serviceId     Int?
+  serviceName   String?
+  summary       String   @default("") @db.Text
+  details       Json     @default("{}")
+  // [{ url, type: "image" | "video", caption? }]
+  media         Json     @default("[]")
+  authorId      Int?
+  authorName    String?
+  businessId    Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  pet      Pet?      @relation(fields: [petId], references: [id], onDelete: SetNull)
+  client   User?     @relation("RecordClient", fields: [clientId], references: [id], onDelete: SetNull)
+  author   User?     @relation("RecordAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  business Business? @relation(fields: [businessId], references: [id])
+
+  @@index([petId, date])
+  @@index([clientId, date])
 }
 
 // ─────────────────────────────────────────────
@@ -522,6 +566,10 @@ model Settings {
   enableMemberships       Boolean @default(false) // giro gimnasio
   enableClientNotes       Boolean @default(false) // giro clínica — expediente
   enableTableReservations Boolean @default(false) // giro alimentos — reservar mesa vs. solo mostrador
+
+  // Tipo de expediente: "auto" (médico para el giro clínica, de servicio
+  // para el resto), "servicio" o "medico" (nota médica tradicional).
+  recordMode String @default("auto")
 
   // ── Ticket de venta (PDF para impresora térmica) ────────────────────────
   // Formato personalizable por negocio: ancho de papel (58/80 mm), qué datos

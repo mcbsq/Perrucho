@@ -26,12 +26,16 @@ const todayISO = () => {
 
 const AppointmentFormModal = ({
     appointments, pets, clients, services, employees = [], branches = [],
-    petsEnabled = true, showEmployeePicker = true, initialDate, onSubmit, onClose,
+    petsEnabled = true, showEmployeePicker = true, initialDate, initial, onSubmit, onClose,
 }) => {
     const activeBranches = branches.filter(b => b.isActive !== false);
     const mainBranch = activeBranches.find(b => b.isMain) || activeBranches[0];
     const [form, setForm] = useState({
-        clientId: '', petId: '', serviceId: '', employeeId: '',
+        // initial: "Repetir servicio" / "Agendar seguimiento" desde el expediente (cliente, paciente y servicio ya elegidos).
+        clientId: initial?.clientId ? String(initial.clientId) : '',
+        petId: initial?.petId ? String(initial.petId) : '',
+        serviceId: initial?.serviceId ? String(initial.serviceId) : '',
+        employeeId: '',
         branchId: mainBranch ? String(mainBranch.id) : '',
         date: initialDate || todayISO(), time: '', notes: '',
     });
@@ -126,8 +130,8 @@ const AppointmentFormModal = ({
             <form className="afm-sheet" onSubmit={handleSubmit} role="dialog" aria-modal="true" aria-labelledby="afm-title" noValidate>
                 <header className="afm-header">
                     <div>
-                        <h3 id="afm-title">Nueva cita</h3>
-                        <p>Agenda directo en el calendario del negocio.</p>
+                        <h3 id="afm-title">{initial ? 'Programar cita' : 'Nueva cita'}</h3>
+                        <p>{initial ? 'Con los datos de la última visita; elige fecha y hora.' : 'Agenda directo en el calendario del negocio.'}</p>
                     </div>
                     <button type="button" className="afm-close" onClick={onClose} aria-label="Cerrar"><FaTimes /></button>
                 </header>

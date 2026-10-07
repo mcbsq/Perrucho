@@ -634,3 +634,7 @@ div.adp {
 .ds-access-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
 .ds-access-text strong { font: 700 0.86rem 'Montserrat', sans-serif; color: #1e293b; }
 .ds-access-text span { font-size: 0.78rem; color: #64748b; line-height: 1.4; }
+
+/* Botón Expediente en tarjetas y listas */
+.ds-btn-icon--record { background: #e2f6ef; color: #0f7a5f; }
+.ds-btn-icon--record:hover { background: #0f7a5f; color: white; }

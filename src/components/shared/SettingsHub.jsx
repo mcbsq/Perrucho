@@ -534,7 +534,13 @@ const TicketSheet = ({ settings, branches, onSave, onClose, meta }) => {
 };
 
 const FeaturesSheet = ({ settings, onSave, onClose, meta }) => {
-    const { draft, set, dirty } = useDraft(settings, ['enablePets', 'enableStaffSelection', 'enableMemberships', 'enableClientNotes', 'enableTableReservations', 'allowGuestBooking', 'clientExtraFields']);
+    const { draft, set, dirty } = useDraft(settings, ['enablePets', 'enableStaffSelection', 'enableMemberships', 'enableClientNotes', 'enableTableReservations', 'allowGuestBooking', 'clientExtraFields', 'recordMode']);
+    const autoMode = settings?.giro === 'clinica' ? 'médico' : 'de servicio';
+    const RECORD_MODES = [
+        { value: 'auto', label: 'Automático', hint: `Según tu giro: ${autoMode}` },
+        { value: 'servicio', label: 'De servicio', hint: 'Qué se hizo, estilo, productos y fotos' },
+        { value: 'medico', label: 'Médico', hint: 'Signos vitales, diagnóstico, receta' },
+    ];
     const { saving, save } = useSaver(onSave, onClose);
     return (
         <Sheet {...meta} onClose={onClose} onSave={() => save(draft)} saving={saving} dirty={dirty}>
@@ -543,8 +549,17 @@ const FeaturesSheet = ({ settings, onSave, onClose, meta }) => {
                 <Toggle checked={draft.allowGuestBooking !== false} onChange={v => set({ allowGuestBooking: v })} label="Reserva rápida sin cuenta" hint="Tus clientes pueden pedir cita solo con nombre y WhatsApp." />
                 <Toggle checked={!!draft.enableStaffSelection} onChange={v => set({ enableStaffSelection: v })} label="Elegir quién atiende al reservar" />
                 <Toggle checked={!!draft.enableMemberships} onChange={v => set({ enableMemberships: v })} label="Membresías" hint="Mensualidades con vigencia (gimnasios, estudios)." />
-                <Toggle checked={!!draft.enableClientNotes} onChange={v => set({ enableClientNotes: v })} label="Expediente por cliente" hint="Notas por consulta (clínicas)." />
                 <Toggle checked={!!draft.enableTableReservations} onChange={v => set({ enableTableReservations: v })} label="Reservar mesa" hint="En vez de solo servicio en mostrador." />
+            </div>
+            <SubHeading>Expediente</SubHeading>
+            <div className="sh-segment sh-segment--3" role="radiogroup" aria-label="Tipo de expediente">
+                {RECORD_MODES.map(m => (
+                    <button type="button" key={m.value} role="radio" aria-checked={(draft.recordMode || 'auto') === m.value}
+                        className={`sh-segment-btn ${(draft.recordMode || 'auto') === m.value ? 'is-active' : ''}`}
+                        onClick={() => set({ recordMode: m.value })}>
+                        <strong>{m.label}</strong><small>{m.hint}</small>
+                    </button>
+                ))}
             </div>
             <SubHeading>Campos extra al registrar un cliente</SubHeading>
             <RowList items={draft.clientExtraFields || []} onChange={v => set({ clientExtraFields: v })}
@@ -666,9 +681,9 @@ const CardPreview = ({ id, settings, branches }) => {
         case 'footer':
             return <span className="sh-pv-text"><strong>{(settings.footerLinks || []).length} link(s)</strong></span>;
         case 'features': {
-            const on = ['enablePets', 'enableStaffSelection', 'enableMemberships', 'enableClientNotes', 'enableTableReservations']
+            const on = ['enablePets', 'enableStaffSelection', 'enableMemberships', 'enableTableReservations']
                 .filter(k => (k === 'enablePets' ? settings[k] !== false : !!settings[k])).length;
-            return <span className="sh-pv-text"><strong>{on} función(es) activa(s)</strong><small>Giro: {settings.giro || '—'}</small></span>;
+            return <span className="sh-pv-text"><strong>{on} función(es) activa(s)</strong><small>Giro: {settings.giro || '—'} · expediente {({ medico: 'médico', servicio: 'de servicio' })[settings.recordMode] || (settings.giro === 'clinica' ? 'médico' : 'de servicio')}</small></span>;
         }
         default: return null;
     }

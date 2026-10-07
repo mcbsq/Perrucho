@@ -13,8 +13,8 @@ import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../compo
 import NotificationBell from '../../components/shared/NotificationBell';
 import {
     FaPaw, FaSignOutAlt, FaUserTie, FaUsers, FaCalendarAlt, FaKey,
-    FaNotesMedical, FaClock, FaTimes, FaSave,
-    FaHistory, FaBoxOpen, FaExclamationTriangle, FaClipboardList,
+    FaNotesMedical, FaClock, FaTimes,
+    FaBoxOpen, FaExclamationTriangle, FaClipboardList,
     FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp,
     FaCashRegister, FaCartPlus, FaReceipt, FaTrashAlt, FaSearch, FaCut, FaFileInvoiceDollar
 } from 'react-icons/fa';
@@ -29,6 +29,8 @@ import '../../components/shared/DashboardShared.css';
 import { ViewToggle, useViewMode, ClientsList, PetsList } from '../../components/shared/RelationViews';
 import AppointmentFormModal from '../../components/shared/AppointmentFormModal';
 import { ReceiptModal } from '../../components/shared/Ticket';
+import { PatientRecord, LastVisitPeek } from '../../components/shared/Expediente';
+import '../../components/shared/Expediente.css';
 import { PendingSalesPanel, pendingSalesOf } from '../../components/shared/PendingSales';
 import '../../components/shared/PendingSales.css';
 import { getPetsOfClient, getOwnersOfPet } from '../../utils/petOwners';
@@ -164,7 +166,7 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,on
                     onClick={()=>{onStatusChange(appt,transitions[appt.status]?.[0]);onClose();}}>
                     {actionDef.icon} {isUpdating ? 'Guardando...' : actionDef.label}
                 </button>}
-                {pet&&onOpenExp&&<button className="adp-gcal-btn" onClick={()=>{onOpenExp(pet);onClose();}}>
+                {onOpenExp&&(pet||getApptClientId(appt))&&<button className="adp-gcal-btn" onClick={()=>{onOpenExp(appt);onClose();}}>
                     <FaEdit/> Ver expediente
                 </button>}
                 {onDelete&&<button className="adp-del-btn" onClick={()=>{onDelete(appt.id);onClose();}}><FaTimes/></button>}
@@ -174,54 +176,8 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,services=[],onStatusChange,on
 };
 
 // ─── Medical Modal ────────────────────────────────────────────────────────────
-const MedicalModal = ({pet,clients,onSave,onClose}) => {
-    const [notes,setNotes]=useState(pet.notes||'');
-    const [sessionNote,setSessionNote]=useState('');
-    const [history,setHistory]=useState(Array.isArray(pet.history)?pet.history:[]);
-    const [saving,setSaving]=useState(false);
-    const [hasUnsaved,setHasUnsaved]=useState(false);
-    const owner=clients.find(c=>String(c.id)===String(pet.ownerId));
-
-    const addEntry=()=>{if(!sessionNote.trim())return;setHistory(p=>[...p,{date:new Date().toLocaleDateString('es-MX'),detail:sessionNote.trim(),author:'Empleado'}]);setSessionNote('');setHasUnsaved(true);};
-    const handleSave=async()=>{setSaving(true);try{await onSave({...pet,notes,history});setHasUnsaved(false);}catch(err){console.error(err);}finally{setSaving(false);}};
-    const lastVisit = history.length > 0 ? history[history.length - 1] : null;
-
-    return <Modal title={`Expediente — ${pet.petName}`} onClose={onClose} wide>
-        <div className="exp-patient-header">
-            <div className="exp-avatar" style={{background:`hsl(${hueFromId(pet.id)},65%,60%)`}}>{pet.petName?.[0]?.toUpperCase()}</div>
-            <div>
-                <h4>{pet.petName}</h4>
-                <span>{pet.breed||'—'} · {pet.weight ? `~${pet.weight} kg (${weightRangeLabel(pet.weight)})` : 'peso por verificar'}</span>
-                <span className="exp-owner">Dueño: {owner?.name||'Sin asignar'} {owner?.phone?`· ${owner.phone}`:''}</span>
-            </div>
-        </div>
-        {hasUnsaved&&<div className="emp-unsaved-warning"><FaExclamationTriangle/> Cambios sin guardar</div>}
-        {lastVisit && (
-            <div className="exp-last-visit-highlight">
-                <span className="exp-last-visit-label">📋 Última visita</span>
-                <span className="exp-last-visit-date">{lastVisit.date}{lastVisit.author?` · ${lastVisit.author}`:''}</span>
-                <p>{lastVisit.detail}</p>
-            </div>
-        )}
-        <div className="exp-section">
-            <label className="exp-label"><FaNotesMedical/> Notas generales / alergias</label>
-            <textarea className="exp-textarea" rows={3} value={notes} onChange={e=>{setNotes(e.target.value);setHasUnsaved(true);}} placeholder="Alergias, condiciones crónicas..."/>
-        </div>
-        <div className="exp-section">
-            <label className="exp-label"><FaPlus/> Registrar nota de sesión</label>
-            <div className="exp-session-row">
-                <textarea className="exp-textarea sm" rows={2} value={sessionNote} onChange={e=>setSessionNote(e.target.value)} placeholder="Servicio aplicado, condiciones en que llegó la mascota, observaciones..."/>
-                <button className="btn-add-entry" onClick={addEntry} disabled={!sessionNote.trim()}>Agregar</button>
-            </div>
-            <small className="exp-session-hint">💡 Anota cómo llegó la mascota y en qué condiciones se va.</small>
-        </div>
-        {history.length>0&&<div className="exp-section">
-            <label className="exp-label"><FaHistory/> Historial completo</label>
-            <div className="exp-history">{[...history].reverse().map((h,i)=><div key={i} className="exp-history-entry"><div className="exp-history-meta"><span className="exp-history-date">{h.date}</span>{h.author&&<span className="exp-history-author">{h.author}</span>}</div><p className="exp-history-detail">{h.detail}</p></div>)}</div>
-        </div>}
-        <button className="btn-save-exp" onClick={handleSave} disabled={saving}><FaSave/> {saving?'Guardando...':'Guardar expediente'}</button>
-    </Modal>;
-};
+// El expediente vive en components/shared/Expediente.jsx (compartido con el
+// panel de admin): visitas con fotos/videos, historias y nota médica.
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
 const CalendarModal = ({appointments,pets,clients,services,settings,branches=[],onAddAppt,onStatusChange,onAssignTime,onDeleteAppt,onOpenExp,onClose,currentUser,allUsers,updatingIds,onAddExtra,onRemoveExtra}) => {
@@ -370,7 +326,7 @@ const CalendarModal = ({appointments,pets,clients,services,settings,branches=[],
             appt={selAppt} anchor={anchor} pets={pets} clients={clients} services={services}
             isUpdating={updatingIds.has(String(selAppt.id))}
             onStatusChange={(a,s)=>{onStatusChange(a,s);closePopup();}}
-            onOpenExp={(pet)=>{onOpenExp(pet);closePopup();}}
+            onOpenExp={(appt)=>{onOpenExp(appt);closePopup();}}
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
             onAddExtra={onAddExtra} onRemoveExtra={onRemoveExtra}
             allAppointments={appointments} employees={empleados} onAssignTime={onAssignTime}
@@ -404,7 +360,15 @@ const EmployeeDashboard = () => {
     const [clientView,setClientView]=useViewMode('employee_clients');
     const [petView,setPetView]=useViewMode('employee_pets');
     const [showCalendar,setShowCalendar]=useState(false);
-    const [medicalPet,setMedicalPet]=useState(null);
+    // Expediente abierto: {type:'pet'|'client', id, autoNew?}
+    const [recordTarget,setRecordTarget]=useState(null);
+    const [repeatAppt,setRepeatAppt]=useState(null);
+    const openRecordForAppt=(appt,autoNew)=>{
+        const petId=getApptPetId(appt), clientId=getApptClientId(appt);
+        const prefill=autoNew?{serviceId:appt.serviceId||appt.service?.id||'',serviceName:getApptServiceName(appt),appointmentId:appt.id}:undefined;
+        if(petId)setRecordTarget({type:'pet',id:petId,autoNew:prefill});
+        else if(clientId)setRecordTarget({type:'client',id:clientId,autoNew:prefill});
+    };
     const [clientModal,setClientModal]=useState(null);
     const [petModal,setPetModal]=useState(null);
     const [appointments,setAppointments]=useState([]);
@@ -641,11 +605,8 @@ const EmployeeDashboard = () => {
                     });
                 }catch(e){console.error(e);addToast('Cita finalizada pero falló registrar la venta','warning');}
 
-                if(pet){
-                    try{
-                        await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:new Date().toLocaleDateString('es-MX'),detail:`${getApptServiceName(appt)} finalizado — $${appt.finalPrice}`,author:user?.name||'Empleado'}]});
-                    }catch(e){console.error(e);}
-                }
+                // Al terminar: llenar el expediente con lo que se hizo y fotos.
+                openRecordForAppt(appt,true);
             }
             addToast(`Estado → ${newStatus}`,'success');
             notifyClientByWhatsApp(appt, newStatus);
@@ -710,7 +671,7 @@ const EmployeeDashboard = () => {
     const handleSaveClient=async(form)=>{try{const saved=form.id?await updateClient(form.id,form):await addClient(form);addToast(form.id?'Actualizado':'Guardado','success');setClientModal(null);if(!form.id&&linkNewClientToPos){setPosClientId(String(saved.id));setLinkNewClientToPos(false);}}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleSavePet=async(form)=>{try{form.id?await updatePet(form.id,form):await addPet(form);addToast(form.id?'Actualizado':'Guardado','success');setPetModal(null);}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
     const handleTogglePetStatus=async(pet,newStatus)=>{try{await updatePet(pet.id,{...pet,status:newStatus});addToast(newStatus==='activo'?'Paciente marcado como activo':'Paciente marcado como inactivo','info');}catch(err){addToast(`Error: ${err.message}`,'error');}};
-    const saveMedicalFile=async(updatedPet)=>{try{await updatePet(updatedPet.id,updatedPet);setMedicalPet(null);addToast('Expediente guardado','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+
 
     // Empleado no puede eliminar — avisa que lo hace el admin
     const confirmDeleteClient=async(id,name)=>{addToast('Solo el administrador puede eliminar clientes','warning');};
@@ -723,7 +684,7 @@ const EmployeeDashboard = () => {
 
     const selectedPet=selAppt?pets.find(p=>String(p.id)===String(getApptPetId(selAppt))):null;
     const selectedOwner=selectedPet?clients.find(c=>String(c.id)===String(selectedPet.ownerId)):null;
-    const lastVisitForSelected=useMemo(()=>{if(!selectedPet?.history?.length)return null;const h=Array.isArray(selectedPet.history)?selectedPet.history:[];return h[h.length-1];},[selectedPet]);
+
 
     const NAV=[
         {id:'agenda',icon:<FaCalendarAlt/>,label:'Agenda'},
@@ -739,8 +700,26 @@ const EmployeeDashboard = () => {
             <div className="emp-toast-container">{toasts.map(t=><Toast key={t.id} message={t.message} type={t.type} onClose={()=>removeToast(t.id)}/>)}</div>
             {NotifyNode}
 
-            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} settings={settings} branches={branches} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={p=>setMedicalPet(p)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
-            {medicalPet&&<MedicalModal pet={medicalPet} clients={clients} onSave={saveMedicalFile} onClose={()=>setMedicalPet(null)}/>}
+            {showCalendar&&<CalendarModal appointments={appointments} pets={pets} clients={clients} services={services} settings={settings} branches={branches} currentUser={user} allUsers={allUsers} updatingIds={updatingIds} onAddAppt={handleAddAppt} onStatusChange={handleStatusChange} onAssignTime={handleAssignTime} onDeleteAppt={handleDeleteAppt} onOpenExp={a=>openRecordForAppt(a,false)} onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra} onClose={()=>setShowCalendar(false)}/>}
+            {recordTarget&&(()=>{
+                const isPet=recordTarget.type==='pet';
+                const pet=isPet?pets.find(p=>String(p.id)===String(recordTarget.id)):null;
+                const cl=!isPet?clients.find(c=>String(c.id)===String(recordTarget.id)):null;
+                if(!pet&&!cl)return null;
+                const owners=pet?getOwnersOfPet(pet,clients):[];
+                const subject=pet
+                    ?{type:'pet',id:pet.id,name:pet.petName,profile:pet.medicalProfile||{},owners,
+                      meta:[pet.species&&pet.species[0].toUpperCase()+pet.species.slice(1),pet.breed,pet.weight&&`~${pet.weight} kg`].filter(Boolean).join(' · ')}
+                    :{type:'client',id:cl.id,name:cl.name,profile:cl.medicalProfile||{},meta:[cl.phone,cl.email].filter(Boolean).join(' · ')};
+                return <PatientRecord key={`${recordTarget.type}-${recordTarget.id}`} subject={subject} settings={settings} services={services}
+                    currentUser={user} autoNew={recordTarget.autoNew}
+                    onClose={()=>setRecordTarget(null)}
+                    onSaveProfile={async(profile)=>{ if(pet)await updatePet(pet.id,{...pet,medicalProfile:profile}); else await updateClient(cl.id,{...cl,medicalProfile:profile}); addToast('Antecedentes guardados','success'); }}
+                    onRepeat={(entry)=>setRepeatAppt({petId:pet?.id,clientId:pet?(owners[0]?.id):cl.id,serviceId:entry.serviceId})}/>;
+            })()}
+            {repeatAppt&&<AppointmentFormModal appointments={appointments} pets={pets} clients={clients} services={services}
+                employees={allUsers.filter(u=>u.role==='empleado')} branches={branches} petsEnabled={empPetsEnabled} initial={repeatAppt}
+                onSubmit={handleAddAppt} onClose={()=>setRepeatAppt(null)}/>}
             {clientModal!==null&&<div style={linkNewClientToPos?{position:'relative',zIndex:2000}:undefined}><ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>{setClientModal(null);setLinkNewClientToPos(false);}} extraFields={settings?.clientExtraFields||[]}/></div>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
 
@@ -885,10 +864,9 @@ const EmployeeDashboard = () => {
                                             </div>
                                         </div>
                                         {selectedPet.notes&&<div className="emp-notes-preview"><span className="emp-notes-label">Notas</span><p>{selectedPet.notes}</p></div>}
-                                        {lastVisitForSelected&&<div className="emp-last-visit"><span className="emp-notes-label">Última visita</span><p className="emp-last-visit-date">{lastVisitForSelected.date}</p><p>{lastVisitForSelected.detail}</p></div>}
-                                        {!lastVisitForSelected&&<div className="emp-no-history"><p>📋 Primera visita registrada</p></div>}
+                                        <LastVisitPeek type="pet" id={selectedPet.id}/>
                                         <div className="emp-exp-actions">
-                                            <button className="emp-btn-secondary" onClick={()=>setMedicalPet(selectedPet)}><FaEdit/> Expediente completo</button>
+                                            <button className="emp-btn-secondary" onClick={()=>setRecordTarget({type:'pet',id:selectedPet.id})}><FaEdit/> Expediente completo</button>
                                             {STATUS_ACTION_LABEL.empleado[selAppt.status]&&<button
                                                 className={`ds-btn ds-btn--${STATUS_ACTION_LABEL.empleado[selAppt.status].style}`}
                                                 style={{width:'100%',justifyContent:'center'}}
@@ -915,7 +893,7 @@ const EmployeeDashboard = () => {
                         appt={selAppt} anchor={agendaAnchor} pets={pets} clients={clients} services={services}
                         isUpdating={updatingIds.has(String(selAppt.id))}
                         onStatusChange={async(a,s)=>{await handleStatusChange(a,s);}}
-                        onOpenExp={p=>{setMedicalPet(p);setSelAppt(null);setAgendaAnchor(null);}}
+                        onOpenExp={a=>{openRecordForAppt(a,false);setSelAppt(null);setAgendaAnchor(null);}}
                         onDelete={(id)=>{handleDeleteAppt(id);setSelAppt(null);setAgendaAnchor(null);}}
                         onAddExtra={addAppointmentExtra}
                         onRemoveExtra={removeAppointmentExtra}
@@ -978,16 +956,16 @@ const EmployeeDashboard = () => {
                 {tab==='clientes'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div><div className="ds-page-header-actions"><ViewToggle value={clientView} onChange={setClientView}/><SortSelect value={clientSort} onChange={setClientSort}/></div></div>
                     {clientView==='list'
-                        ?<ClientsList clients={filteredClients} pets={pets} showPets={empPetsEnabled} onEdit={cl=>setClientModal(cl)} onDelete={confirmDeleteClient} onOpenPet={p=>setPetModal(p)} onAddPet={empPetsEnabled?(c=>setPetModal({ownerIds:[c.id]})):undefined}/>
-                        :<div className="ds-cards-grid">{filteredClients.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} pets={empPetsEnabled?getPetsOfClient(pets,c.id):null} onEdit={cl=>setClientModal(cl)} onDelete={confirmDeleteClient} onOpenPet={p=>setPetModal(p)} onAddPet={empPetsEnabled?(cl=>setPetModal({ownerIds:[cl.id]})):undefined}/>)}</div>}
+                        ?<ClientsList clients={filteredClients} pets={pets} showPets={empPetsEnabled} onOpenRecord={!empPetsEnabled?(c=>setRecordTarget({type:'client',id:c.id})):undefined} onEdit={cl=>setClientModal(cl)} onDelete={confirmDeleteClient} onOpenPet={p=>setPetModal(p)} onAddPet={empPetsEnabled?(c=>setPetModal({ownerIds:[c.id]})):undefined}/>
+                        :<div className="ds-cards-grid">{filteredClients.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} pets={empPetsEnabled?getPetsOfClient(pets,c.id):null} onEdit={cl=>setClientModal(cl)} onDelete={confirmDeleteClient} onOpenPet={p=>setPetModal(p)} onAddPet={empPetsEnabled?(cl=>setPetModal({ownerIds:[cl.id]})):undefined} onOpenRecord={!empPetsEnabled?(cl=>setRecordTarget({type:'client',id:cl.id})):undefined}/>)}</div>}
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
                 {tab==='pacientes'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><ViewToggle value={petView} onChange={setPetView}/><SortSelect value={petSort} onChange={setPetSort}/></div></div>
                     {petView==='list'
-                        ?<PetsList pets={filteredPets} clients={clients} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)}/>
-                        :<div className="ds-cards-grid">{filteredPets.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owners={getOwnersOfPet(p,clients)} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)}/>)}</div>}
+                        ?<PetsList pets={filteredPets} clients={clients} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)} onOpenRecord={p=>setRecordTarget({type:'pet',id:p.id})}/>
+                        :<div className="ds-cards-grid">{filteredPets.length===0&&<p className="emp-empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owners={getOwnersOfPet(p,clients)} onEdit={pet=>setPetModal(pet)} onDelete={confirmDeletePet} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)} onOpenRecord={pt=>setRecordTarget({type:'pet',id:pt.id})}/>)}</div>}
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 

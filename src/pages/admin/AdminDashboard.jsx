@@ -13,7 +13,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
-import { appointmentsApi, usersApi, membershipPlansApi, clinicalNotesApi } from '../../api/apiClient';
+import { appointmentsApi, usersApi, membershipPlansApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import NotificationBell from '../../components/shared/NotificationBell';
 import * as XLSX from 'xlsx';
@@ -24,7 +24,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaFileInvoiceDollar
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaFileInvoiceDollar, FaFolderOpen
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -34,7 +34,6 @@ import {
     ProductCard, ProductFormModal,
     UserCard, UserFormModal,
     MembershipPlanFormModal,
-    ClinicalNoteModal,
     SortSelect, sortList
 } from '../../components/shared/DashboardShared';
 import { useNotify } from '../../components/shared/NotifyDialog';
@@ -50,6 +49,8 @@ import AssignTimePicker from '../../components/shared/AssignTimePicker';
 import AppointmentFormModal from '../../components/shared/AppointmentFormModal';
 import { ReceiptModal } from '../../components/shared/Ticket';
 import SettingsHub from '../../components/shared/SettingsHub';
+import { PatientRecord } from '../../components/shared/Expediente';
+import '../../components/shared/Expediente.css';
 import { PendingSalesPanel, pendingSalesOf } from '../../components/shared/PendingSales';
 import '../../components/shared/PendingSales.css';
 import '../../components/shared/AssignTimePicker.css';
@@ -127,7 +128,7 @@ const Modal = ({title,onClose,children,wide,fullscreen}) => (
 );
 
 // ─── Appt Detail Popup ────────────────────────────────────────────────────────
-const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onFinalize,onDelete,onClose,services=[],onAddExtra,onRemoveExtra,allAppointments=[],employees=[],onAssignTime}) => {
+const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onFinalize,onDelete,onClose,services=[],onAddExtra,onRemoveExtra,allAppointments=[],employees=[],onAssignTime,onOpenRecord}) => {
     const ref=useRef(null);
     const [pos,setPos]=useState({top:0,left:0});
     const petId = getApptPetId(appt);
@@ -211,6 +212,7 @@ const ApptDetailPopup = ({appt,anchor,pets,clients,users,role,onStatusChange,onF
                     {actionDef.icon} {actionDef.label} {actionDef.style==='finish'?`$${appt.finalPrice}`:''}
                 </button>}
                 <div className="adp-footer-row">
+                    {onOpenRecord&&(getApptPetId(appt)||getApptClientId(appt))&&<button type="button" className="adp-gcal-btn" onClick={()=>{onOpenRecord(appt);onClose();}}><FaFolderOpen/> Expediente</button>}
                     <a href={buildGCalLink(appt)} target="_blank" rel="noopener noreferrer" className="adp-gcal-btn"><FaExternalLinkAlt/> Google Calendar</a>
                     {onDelete&&<button className="adp-del-btn" onClick={()=>{onDelete(appt.id);onClose();}}><FaTimes/></button>}
                 </div>
@@ -359,7 +361,7 @@ const AnalyticsSection = ({ sales, expenses, appointments, clients, services }) 
 };
 
 // ─── Calendar Modal ───────────────────────────────────────────────────────────
-const CalendarModal = ({appointments,pets,clients,services,users,branches=[],role,settings,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra}) => {
+const CalendarModal = ({appointments,pets,clients,services,users,branches=[],role,settings,onClose,onRefresh,onAddAppointment,onStatusChange,onAssignTime,onFinalize,onDeleteAppt,onAddExtra,onRemoveExtra,onOpenRecord}) => {
     // Giros sin mascotas (uñas, spa, clínica, gimnasio...) no tienen nada
     // que elegir en "pets" — el formulario de abajo debe elegir un CLIENTE
     // directo en vez de una mascota. Bug real: antes el selector "Paciente"
@@ -515,6 +517,7 @@ const CalendarModal = ({appointments,pets,clients,services,users,branches=[],rol
             onDelete={(id)=>{onDeleteAppt(id);closePopup();}}
             onAddExtra={onAddExtra} onRemoveExtra={onRemoveExtra}
             allAppointments={appointments} employees={empleados} onAssignTime={onAssignTime}
+            onOpenRecord={onOpenRecord}
             onClose={closePopup}/>}
     </>;
 };
@@ -675,7 +678,16 @@ const AdminDashboard = () => {
     const [membershipPlanModal,setMembershipPlanModal]=useState(null);
     const [assignMembershipClientId,setAssignMembershipClientId]=useState('');
     const [assignMembershipPlanId,setAssignMembershipPlanId]=useState('');
-    const [clinicalNoteTarget,setClinicalNoteTarget]=useState(null); // {clientId, clientName, appointmentId}
+    // Expediente abierto: {type:'pet'|'client', id, autoNew?} — autoNew abre de
+    // una vez el formulario de la visita (al terminar un servicio).
+    const [recordTarget,setRecordTarget]=useState(null);
+    const [repeatAppt,setRepeatAppt]=useState(null); // "Repetir servicio" / "Agendar seguimiento"
+    const openRecordForAppt=(appt,autoNew)=>{
+        const petId=getApptPetId(appt), clientId=getApptClientId(appt);
+        const prefill=autoNew?{serviceId:appt.serviceId||appt.service?.id||'',serviceName:getApptServiceName(appt),appointmentId:appt.id}:undefined;
+        if(petId)setRecordTarget({type:'pet',id:petId,autoNew:prefill});
+        else if(clientId)setRecordTarget({type:'client',id:clientId,autoNew:prefill});
+    };
     const [userModal,setUserModal]=useState(null);
 
     const [appointments,setAppointments]=useState([]);
@@ -998,7 +1010,8 @@ const AdminDashboard = () => {
                     paymentMethod:'efectivo',
                     status:'pagado',
                 });
-                if(pet)await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:todayStr_,detail:`${getApptServiceName(appt)} finalizado — $${appt.finalPrice}`,author:user?.name||'Admin'}]});
+                // Al terminar: llenar el expediente de lo que se hizo (opcional).
+                openRecordForAppt(appt,true);
             }
             addToast(`Estado → ${newStatus}`,'success');
             notifyClientByWhatsApp(appt,newStatus);
@@ -1034,17 +1047,12 @@ const AdminDashboard = () => {
                 paymentMethod:'efectivo',
                 status:'pagado',
             });
-            if(pet)await updatePet(pet.id,{...pet,history:[...(Array.isArray(pet.history)?pet.history:[]),{date:todayStr_,detail:`${getApptServiceName(appo)} finalizado — $${appo.finalPrice}`}]});
             const upd=await appointmentsApi.update(appo.id,{status:'Completada'});
             setAppointments(p=>p.map(a=>a.id===appo.id?{...a,...upd}:a));
             addToast('Servicio finalizado y cobrado','success');
-            // Giro clínica: ofrece dejar la nota de esta consulta — opcional,
-            // la cita ya se cobró antes de llegar aquí.
-            const clientId=getApptClientId(appo)||pet?.ownerId;
-            if(settings?.enableClientNotes&&clientId){
-                const cl=clients.find(c=>String(c.id)===String(clientId));
-                setClinicalNoteTarget({clientId,clientName:cl?.name||getApptClientName(appo)||'Cliente',appointmentId:appo.id});
-            }
+            // Expediente: registrar qué se hizo y subir fotos (opcional — la
+            // cita ya se cobró antes de llegar aquí).
+            openRecordForAppt(appo,true);
         }catch(err){addToast(`Error: ${err.message}`,'error');}
     },[notify,pets,addSale,updatePet,todayStr_,addToast,settings?.enableClientNotes,clients]);
 
@@ -1098,16 +1106,33 @@ const AdminDashboard = () => {
                 onAddAppointment={handleAddAppointment} onStatusChange={handleStatusChange}
                 onAssignTime={handleAssignTime}
                 onFinalize={handleFinalize} onDeleteAppt={handleDeleteAppt}
-                onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}/>}
+                onAddExtra={addAppointmentExtra} onRemoveExtra={removeAppointmentExtra}
+                onOpenRecord={(appt)=>openRecordForAppt(appt,false)}/>}
 
             {clientModal!==null&&<div style={linkNewClientToPos?{position:'relative',zIndex:2000}:undefined}><ClientFormModal initial={clientModal||undefined} onSave={handleSaveClient} onClose={()=>{setClientModal(null);setLinkNewClientToPos(false);}} extraFields={settings?.clientExtraFields||[]} onGrantAccess={aegisMode?handleGrantAccess:undefined}/></div>}
             {petModal!==null&&<PetFormModal initial={petModal||undefined} clients={clients} onSave={handleSavePet} onClose={()=>setPetModal(null)}/>}
             {serviceModal!==null&&<ServiceFormModal initial={serviceModal||undefined} onSave={handleSaveService} onClose={()=>setServiceModal(null)} settings={settings}/>}
             {productModal!==null&&<ProductFormModal initial={productModal||undefined} onSave={handleSaveProduct} onClose={()=>setProductModal(null)}/>}
             {membershipPlanModal!==null&&<MembershipPlanFormModal initial={membershipPlanModal||undefined} onSave={handleSaveMembershipPlan} onClose={()=>setMembershipPlanModal(null)}/>}
-            {clinicalNoteTarget&&<ClinicalNoteModal clientName={clinicalNoteTarget.clientName}
-                onSave={(note)=>clinicalNotesApi.add(clinicalNoteTarget.clientId,note,clinicalNoteTarget.appointmentId).then(()=>addToast('Nota guardada','success')).catch(err=>addToast(`Error: ${err.message}`,'error'))}
-                onClose={()=>setClinicalNoteTarget(null)}/>}
+            {recordTarget&&(()=>{
+                const isPet=recordTarget.type==='pet';
+                const pet=isPet?pets.find(p=>String(p.id)===String(recordTarget.id)):null;
+                const cl=!isPet?clients.find(c=>String(c.id)===String(recordTarget.id)):null;
+                if(!pet&&!cl)return null;
+                const owners=pet?getOwnersOfPet(pet,clients):[];
+                const subject=pet
+                    ?{type:'pet',id:pet.id,name:pet.petName,profile:pet.medicalProfile||{},owners,
+                      meta:[pet.species&&pet.species[0].toUpperCase()+pet.species.slice(1),pet.breed,pet.weight&&`~${pet.weight} kg`].filter(Boolean).join(' · ')}
+                    :{type:'client',id:cl.id,name:cl.name,profile:cl.medicalProfile||{},meta:[cl.phone,cl.email].filter(Boolean).join(' · ')};
+                return <PatientRecord key={`${recordTarget.type}-${recordTarget.id}`} subject={subject} settings={settings} services={services}
+                    canDelete currentUser={user} autoNew={recordTarget.autoNew}
+                    onClose={()=>setRecordTarget(null)}
+                    onSaveProfile={async(profile)=>{ if(pet)await updatePet(pet.id,{...pet,medicalProfile:profile}); else await updateClient(cl.id,{...cl,medicalProfile:profile}); addToast('Antecedentes guardados','success'); }}
+                    onRepeat={(entry)=>setRepeatAppt({petId:pet?.id,clientId:pet?(owners[0]?.id):cl.id,serviceId:entry.serviceId})}/>;
+            })()}
+            {repeatAppt&&<AppointmentFormModal appointments={appointments} pets={pets} clients={clients} services={services}
+                employees={empleados} branches={branches} petsEnabled={petsEnabled} initial={repeatAppt}
+                onSubmit={handleAddAppointment} onClose={()=>setRepeatAppt(null)}/>}
             {userModal!==null&&<UserFormModal initial={userModal||undefined} onSave={handleSaveUser} onClose={()=>setUserModal(null)} onGrantAccess={aegisMode?handleGrantAccess:undefined}/>}
 
             {posVariantPicker&&<Modal title={`Elige una opción — ${posVariantPicker.name}`} onClose={()=>setPosVariantPicker(null)}>
@@ -1276,16 +1301,16 @@ const AdminDashboard = () => {
                 {tab==='clientes'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Clientes</h2><p>{clients.length} registrados</p></div><div className="ds-page-header-actions"><ViewToggle value={clientView} onChange={setClientView}/><SortSelect value={clientSort} onChange={setClientSort}/></div></div>
                     {clientView==='list'
-                        ?<ClientsList clients={filteredClients} pets={pets} showPets={petsEnabled} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)} onOpenPet={p=>setPetModal(p)} onAddPet={petsEnabled?(c=>setPetModal({ownerIds:[c.id]})):undefined}/>
-                        :<div className="ds-cards-grid">{filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} pets={petsEnabled?getPetsOfClient(pets,c.id):null} petsCount={getPetsOfClient(pets,c.id).length} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)} onOpenPet={p=>setPetModal(p)} onAddPet={petsEnabled?(cl=>setPetModal({ownerIds:[cl.id]})):undefined}/>)}</div>}
+                        ?<ClientsList clients={filteredClients} pets={pets} showPets={petsEnabled} onOpenRecord={!petsEnabled?(c=>setRecordTarget({type:'client',id:c.id})):undefined} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)} onOpenPet={p=>setPetModal(p)} onAddPet={petsEnabled?(c=>setPetModal({ownerIds:[c.id]})):undefined}/>
+                        :<div className="ds-cards-grid">{filteredClients.length===0&&<p className="empty-td">Sin resultados</p>}{filteredClients.map(c=><ClientCard key={c.id} client={c} pets={petsEnabled?getPetsOfClient(pets,c.id):null} petsCount={getPetsOfClient(pets,c.id).length} onEdit={cl=>setClientModal(cl)} onDelete={(id,name)=>handleDelete('client',id,name)} onOpenPet={p=>setPetModal(p)} onAddPet={petsEnabled?(cl=>setPetModal({ownerIds:[cl.id]})):undefined} onOpenRecord={!petsEnabled?(cl=>setRecordTarget({type:'client',id:cl.id})):undefined}/>)}</div>}
                     <FAB onClick={()=>setClientModal({})} title="Nuevo cliente"/>
                 </div>}
 
                 {tab==='pacientes'&&<div className="fade-in">
                     <div className="ds-page-header"><div className="ds-page-header-left"><h2>Pacientes</h2><p>{pets.length} mascotas</p></div><div className="ds-page-header-actions"><ViewToggle value={petView} onChange={setPetView}/><SortSelect value={petSort} onChange={setPetSort}/><button className="btn-agenda-open" onClick={()=>setShowCalendar(true)}><FaCalendarAlt/> Agenda</button></div></div>
                     {petView==='list'
-                        ?<PetsList pets={filteredPets} clients={clients} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)}/>
-                        :<div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owners={getOwnersOfPet(p,clients)} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)}/>)}</div>}
+                        ?<PetsList pets={filteredPets} clients={clients} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)} onOpenRecord={p=>setRecordTarget({type:'pet',id:p.id})}/>
+                        :<div className="ds-cards-grid">{filteredPets.length===0&&<p className="empty-td">Sin resultados</p>}{filteredPets.map(p=><PetCard key={p.id} pet={p} owners={getOwnersOfPet(p,clients)} onEdit={pet=>setPetModal(pet)} onDelete={(id,name)=>handleDelete('pet',id,name)} onToggleStatus={handleTogglePetStatus} onOpenClient={c=>setClientModal(c)} onOpenRecord={pt=>setRecordTarget({type:'pet',id:pt.id})}/>)}</div>}
                     <FAB onClick={()=>setPetModal({})} title="Nueva mascota"/>
                 </div>}
 

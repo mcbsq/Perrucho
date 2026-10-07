@@ -272,6 +272,25 @@ export const expensesApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EXPEDIENTE (una entrada por visita/consulta) y subida de fotos/videos
+// ─────────────────────────────────────────────────────────────────────────────
+export const recordsApi = {
+  forPet:    (petId)    => api.get(`/records?petId=${encodeURIComponent(petId)}`),
+  forClient: (clientId) => api.get(`/records?clientId=${encodeURIComponent(clientId)}`),
+  create:    (data)     => api.post('/records', data),
+  update:    (id, data) => api.put(`/records/${encodeURIComponent(id)}`, data),
+  delete:    (id)       => api.delete(`/records/${encodeURIComponent(id)}`),
+};
+
+export const uploadsApi = {
+  // ¿Está activado Vercel Blob? Sin él, fotos comprimidas en línea y sin videos.
+  status: () => api.get('/uploads/status'),
+  // La subida directa a Vercel Blob pide permiso a esta ruta con la sesión.
+  handleUploadUrl: () => `${BASE_URL}/uploads/media`,
+  headers: () => { const { 'Content-Type': _ct, ...rest } = authHeaders(); return rest; },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // BRANCHES (sucursales) — la lista de activas es pública
 // ─────────────────────────────────────────────────────────────────────────────
 export const branchesApi = {
