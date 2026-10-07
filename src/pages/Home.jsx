@@ -10,6 +10,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Home.css';
+import ReviewsSection from '../components/Reviews/Reviews';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
@@ -590,6 +591,9 @@ const Home = () => {
                     </div>
                 </section>
             )}
+
+            {/* ── RESEÑAS (moderadas por el admin, como Pastrana Events) ── */}
+            <ReviewsSection businessName={settings?.businessName} defaultName={isLoggedIn ? user?.name : ''} services={homeServices} />
 
             {/* ── CTA FINAL ── */}
             <CTASection

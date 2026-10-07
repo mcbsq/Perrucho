@@ -13,7 +13,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useData }   from '../../contexts/DataContext';
 import { useAuth }   from '../../contexts/AuthContext';
-import { appointmentsApi, usersApi, membershipPlansApi } from '../../api/apiClient';
+import { appointmentsApi, usersApi, membershipPlansApi, reviewsApi } from '../../api/apiClient';
 import { OnboardingTour, OnboardingHelpButton, useOnboarding } from '../../components/shared/OnboardingTour';
 import NotificationBell from '../../components/shared/NotificationBell';
 import * as XLSX from 'xlsx';
@@ -24,7 +24,7 @@ import {
     FaTachometerAlt, FaUserCog, FaTimes, FaChartBar,
     FaDollarSign, FaSync,
     FaNotesMedical, FaChevronLeft, FaChevronRight,
-    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaFileInvoiceDollar, FaFolderOpen
+    FaUserTie, FaExternalLinkAlt, FaPlus, FaPalette, FaFileInvoiceDollar, FaFolderOpen, FaStar
 } from 'react-icons/fa';
 import {
     FAB, DSModal, StatusBadge, StatusSelector,
@@ -50,6 +50,7 @@ import AppointmentFormModal from '../../components/shared/AppointmentFormModal';
 import { ReceiptModal } from '../../components/shared/Ticket';
 import SettingsHub from '../../components/shared/SettingsHub';
 import { PatientRecord } from '../../components/shared/Expediente';
+import ReviewsAdmin from '../../components/Reviews/ReviewsAdmin';
 import '../../components/shared/Expediente.css';
 import { PendingSalesPanel, pendingSalesOf } from '../../components/shared/PendingSales';
 import '../../components/shared/PendingSales.css';
@@ -698,6 +699,17 @@ const AdminDashboard = () => {
     // El panel ve también las sucursales desactivadas (la carga pública no).
     useEffect(()=>{reloadBranches().catch(()=>{});},[reloadBranches]);
 
+    // Reseñas (moderación). Se cargan al entrar para el contador del menú.
+    const [reviews,setReviews]=useState([]);
+    const [reviewsLoading,setReviewsLoading]=useState(true);
+    useEffect(()=>{reviewsApi.getAll().then(setReviews).catch(()=>{}).finally(()=>setReviewsLoading(false));},[]);
+    const handleUpdateReview=async(id,patch)=>{try{const saved=await reviewsApi.update(id,patch);setReviews(rs=>rs.map(r=>r.id===id?saved:r));addToast(patch.status==='APPROVED'?'Reseña publicada':patch.status==='REJECTED'?'Reseña oculta':'Reseña actualizada','success');}catch(err){addToast(`Error: ${err.message}`,'error');throw err;}};
+    const handleDeleteReview=async(review)=>{
+        const ok=await notify({type:'confirm',icon:'🗑️',accent:'red',title:`¿Eliminar la reseña de ${review.name}?`,message:'Se borra por completo, con sus fotos. Si solo quieres quitarla de la página, mejor usa Ocultar.',confirmLabel:'Sí, eliminar',cancelLabel:'Cancelar'});
+        if(!ok)return;
+        try{await reviewsApi.delete(review.id);setReviews(rs=>rs.filter(r=>r.id!==review.id));addToast('Reseña eliminada','info');}catch(err){addToast(`Error: ${err.message}`,'error');}
+    };
+
     const [users,setUsers]=useState([]);
     useEffect(()=>{usersApi.getAll().then(setUsers).catch(()=>addToast('Error usuarios','error'));},[]);
     const empleados=users.filter(u=>u.role==='empleado');
@@ -1082,6 +1094,7 @@ const AdminDashboard = () => {
         {id:'clientes',icon:<FaUsers/>,label:'Clientes'},
         ...(settings?.enablePets!==false ? [{id:'pacientes',icon:<FaPaw/>,label:'Pacientes'}] : []),
         ...(settings?.enableMemberships ? [{id:'membresias',icon:<FaIdCard/>,label:'Membresías'}] : []),
+        {id:'resenas',icon:<FaStar/>,label:'Reseñas',badge:reviews.filter(r=>r.status==='PENDING').length},
         {id:'servicios',icon:<FaCut/>,label:'Servicios'},
         {id:'productos',icon:<FaBoxOpen/>,label:'Inventario'},
         {id:'usuarios',icon:<FaUserCog/>,label:'Usuarios'},
@@ -1290,6 +1303,11 @@ const AdminDashboard = () => {
                             </div>
                         </aside>
                     </div>
+                </div>}
+
+                {tab==='resenas'&&<div className="fade-in">
+                    <div className="ds-page-header"><div className="ds-page-header-left"><h2>Reseñas</h2><p>Lo que tus clientes escriben en tu página. Tú decides cuáles se publican.</p></div></div>
+                    <ReviewsAdmin reviews={reviews} loading={reviewsLoading} onUpdate={handleUpdateReview} onDelete={handleDeleteReview}/>
                 </div>}
 
                 {tab==='porcobrar'&&<div className="fade-in">

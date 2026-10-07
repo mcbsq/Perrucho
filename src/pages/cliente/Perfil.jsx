@@ -29,6 +29,8 @@ import { clientToShopOnCancelRequest, clientToShopOnCancelDone, openWhatsApp } f
 import { todayLocalDateStr } from '../../utils/dateLocal';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import './Perfil.css';
+import { ClientVisits } from '../../components/shared/Expediente';
+import '../../components/shared/Expediente.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const speciesEmoji = (sp) => {
@@ -492,7 +494,7 @@ const Perfil = () => {
                             {[
                                 { id: 'citas',     icon: <FaCalendarCheck />, label: 'Mis citas'        },
                                 { id: 'compras',   icon: <FaShoppingBag />,   label: 'Compras'          },
-                                ...(petsEnabled ? [{ id: 'historial', icon: <FaHistory />, label: 'Historial clínico' }] : []),
+                                { id: 'historial', icon: <FaHistory />, label: 'Mis visitas' },
                             ].map(t => (
                                 <button key={t.id}
                                     className={`tab-btn ${activeTab === t.id ? 'active' : ''}`}
@@ -571,45 +573,15 @@ const Perfil = () => {
                             </div>
                         )}
 
-                        {/* Historial clínico */}
+                        {/* Mis visitas: lo que se le hizo en cada visita, con fotos y
+                            videos en formato historias (del expediente del negocio). */}
                         {activeTab === 'historial' && (
                             <div className="tab-content">
-                                {myPets.length === 0 ? (
-                                    <p className="empty-tab">Registra una mascota para ver su historial</p>
-                                ) : myPets.map(pet => {
-                                    const h       = hueFromId(pet.id);
-                                    const history = Array.isArray(pet.history) ? pet.history : [];
-                                    return (
-                                        <div key={pet.id} className="vet-history-block">
-                                            <div className="vet-history-header">
-                                                <div className="vet-history-avatar" style={{ background: `hsl(${h},65%,60%)` }}>
-                                                    {pet.petName?.[0]?.toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <strong>{pet.petName}</strong>
-                                                    <span>{speciesEmoji(pet.species)} {pet.breed || '—'} · ~{pet.weight} kg</span>
-                                                    {pet.notes && <span className="vet-notes">📌 {pet.notes}</span>}
-                                                </div>
-                                            </div>
-                                            {history.length === 0 ? (
-                                                <p className="empty-history">Sin visitas registradas aún</p>
-                                            ) : (
-                                                <div className="vet-timeline">
-                                                    {[...history].reverse().map((entry, i) => (
-                                                        <div key={i} className="vet-entry">
-                                                            <div className="vet-entry-dot" />
-                                                            <div className="vet-entry-content">
-                                                                <span className="vet-entry-date">{entry.date}</span>
-                                                                {entry.author && <span className="vet-entry-author">por {entry.author}</span>}
-                                                                <p>{entry.detail}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                {petsEnabled && myPets.length === 0
+                                    ? <p className="empty-tab">Registra una mascota para ver sus visitas</p>
+                                    : <ClientVisits subjects={petsEnabled
+                                        ? myPets.map(p => ({ type: 'pet', id: p.id, name: p.petName }))
+                                        : [{ type: 'client', id: user.id, name: user.name }]} />}
                             </div>
                         )}
                     </section>

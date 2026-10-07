@@ -282,6 +282,14 @@ export const recordsApi = {
   delete:    (id)       => api.delete(`/records/${encodeURIComponent(id)}`),
 };
 
+export const reviewsApi = {
+  approved: ()         => api.get('/reviews/approved'),
+  create:   (data)     => api.post('/reviews', data),
+  getAll:   ()         => api.get('/reviews'),
+  update:   (id, data) => api.patch(`/reviews/${encodeURIComponent(id)}`, data),
+  delete:   (id)       => api.delete(`/reviews/${encodeURIComponent(id)}`),
+};
+
 export const uploadsApi = {
   // ¿Está activado Vercel Blob? Sin él, fotos comprimidas en línea y sin videos.
   status: () => api.get('/uploads/status'),

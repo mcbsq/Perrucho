@@ -216,3 +216,18 @@
 .exp-peek strong { font: 800 0.95rem 'Montserrat', sans-serif; color: #1e272e; }
 .exp-peek p { margin: 0; font-size: 0.84rem; line-height: 1.45; color: #334155; }
 .exp-peek--loading { min-height: 72px; background: linear-gradient(90deg, #f1f5f9 25%, #e9eef4 50%, #f1f5f9 75%) 0 0 / 200% 100%; animation: expShimmer 1.4s infinite; }
+
+/* Mi perfil → Mis visitas (cliente, solo lectura) */
+.exp-client { display: flex; flex-direction: column; gap: 18px; font-family: 'Quicksand', sans-serif; }
+.exp-client-block { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 18px; background: #fff; border: 1px solid #e8edf3; }
+.exp-client-head { display: flex; align-items: center; gap: 10px; }
+.exp-client-head .exp-avatar { width: 36px; height: 36px; font-size: 0.9rem; }
+.exp-client-head strong { font: 800 1rem 'Montserrat', sans-serif; color: #1e293b; }
+.exp-client-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.exp-client-list li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding-top: 10px; border-top: 1px solid #eef1f5; }
+.exp-client-list li:first-child { border-top: none; padding-top: 0; }
+.exp-client-date { font-size: 0.78rem; font-weight: 700; color: #64748b; }
+.exp-client-list strong { font: 700 0.9rem 'Montserrat', sans-serif; color: #1e293b; }
+.exp-client-list p { margin: 4px 0 0; font-size: 0.86rem; line-height: 1.5; color: #334155; }
+.exp-link { margin-top: 4px; padding: 0; border: none; background: none; cursor: pointer; font: 700 0.82rem 'Quicksand', sans-serif; color: #185FA5; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 520px) { .exp-client-list li { grid-template-columns: 1fr; gap: 2px; } }

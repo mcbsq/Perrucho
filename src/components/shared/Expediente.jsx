@@ -705,3 +705,72 @@ export const LastVisitPeek = ({ type, id }) => {
         </div>
     );
 };
+
+// ─── Para el cliente (Mi perfil): sus visitas y fotos, solo lectura ─────────
+// subjects: [{ type: 'pet' | 'client', id, name }]
+const SubjectVisits = ({ subject }) => {
+    const [entries, setEntries] = useState(null);
+    const [story, setStory] = useState(null);
+    useEffect(() => {
+        const call = subject.type === 'pet' ? recordsApi.forPet(subject.id) : recordsApi.forClient(subject.id);
+        call.then(setEntries).catch(() => setEntries([]));
+    }, [subject.type, subject.id]);
+    const stories = useMemo(() => (entries || []).slice().reverse().flatMap(e =>
+        (e.media || []).map(m => ({ ...m, date: e.date, serviceName: e.serviceName, summary: e.summary, entryId: e.id }))), [entries]);
+    const withMedia = (entries || []).filter(e => (e.media || []).length);
+    const openAt = (id) => { const i = stories.findIndex(s => s.entryId === id); if (i >= 0) setStory(i); };
+
+    return (
+        <div className="exp-client-block">
+            <div className="exp-client-head">
+                <span className="exp-avatar" aria-hidden="true">{(subject.name || '?')[0].toUpperCase()}</span>
+                <strong>{subject.name}</strong>
+                {entries && <span className="exp-muted">{entries.length} visita{entries.length === 1 ? '' : 's'}</span>}
+            </div>
+            {entries === null ? <div className="exp-peek exp-peek--loading" />
+                : entries.length === 0 ? <p className="exp-muted">Todavía no hay visitas registradas.</p>
+                : <>
+                    {withMedia.length > 0 && (
+                        <div className="exp-stories" aria-label={`Fotos de ${subject.name}`}>
+                            {withMedia.map(e => (
+                                <button key={e.id} type="button" className="exp-story-ring" onClick={() => openAt(e.id)}>
+                                    <span className="exp-story-ring-img">
+                                        {e.media[0].type === 'video' ? <video src={e.media[0].url} muted playsInline preload="metadata" /> : <img src={e.media[0].url} alt="" />}
+                                    </span>
+                                    <span>{fmtShort(e.date)}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <ol className="exp-client-list">
+                        {entries.map(e => (
+                            <li key={e.id}>
+                                <span className="exp-client-date">{fmtDate(e.date)}</span>
+                                <div>
+                                    <strong>{e.serviceName || (e.kind === 'medico' ? 'Consulta' : 'Visita')}</strong>
+                                    {e.kind === 'medico'
+                                        ? <>
+                                            {e.details?.diagnostico && <p><b>Diagnóstico:</b> {e.details.diagnostico}</p>}
+                                            {e.details?.indicaciones && <p><b>Indicaciones:</b> {e.details.indicaciones}</p>}
+                                            {Array.isArray(e.details?.receta) && e.details.receta.length > 0 && (
+                                                <p><b>Receta:</b> {e.details.receta.map(r => [r.medicamento, r.dosis, r.frecuencia && `cada ${r.frecuencia}`, r.duracion && `por ${r.duracion}`].filter(Boolean).join(' ')).join('; ')}</p>
+                                            )}
+                                            {e.details?.proximaCita && <p><b>Próxima revisión:</b> {fmtDate(e.details.proximaCita + 'T12:00:00')}</p>}
+                                        </>
+                                        : e.summary && <p>{e.summary}</p>}
+                                    {(e.media || []).length > 0 && <button type="button" className="exp-link" onClick={() => openAt(e.id)}>Ver {e.media.length} foto{e.media.length === 1 ? '' : 's'}</button>}
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+                </>}
+            {story !== null && <StoryViewer stories={stories} startIndex={story} subjectName={subject.name} onClose={() => setStory(null)} />}
+        </div>
+    );
+};
+
+export const ClientVisits = ({ subjects }) => (
+    <div className="exp-client">
+        {subjects.map(s => <SubjectVisits key={`${s.type}-${s.id}`} subject={s} />)}
+    </div>
+);

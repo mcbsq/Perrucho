@@ -2296,31 +2296,138 @@ app.get('/api/uploads/status', (req, res) => {
   res.json({ blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
 });
 
-app.post('/api/uploads/media', async (req, res) => {
+app.post('/api/uploads/media', publicWriteLimiter, async (req, res) => {
   try {
     const { handleUpload } = require('@vercel/blob/client');
-    // La llamada de "subida terminada" viene de Vercel (sin sesión); la de
-    // pedir permiso viene del panel y exige personal autenticado.
-    const isCompletion = req.body?.type === 'blob.upload-completed';
-    if (!isCompletion && !(req.user && ['administrador', 'empleado'].includes(req.user.role)))
-      return res.status(401).json({ error: 'Sesión requerida' });
     if (!process.env.BLOB_READ_WRITE_TOKEN)
       return res.status(503).json({ error: 'El almacenamiento de fotos y videos no está activado' });
+    const isStaff = Boolean(req.user && ['administrador', 'empleado'].includes(req.user.role));
     const result = await handleUpload({
       request: req,
       body: req.body,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'video/mp4', 'video/quicktime', 'video/webm'],
-        maximumSizeInBytes: 150 * 1024 * 1024,
-        addRandomSuffix: true,
-        tokenPayload: JSON.stringify({ businessId: req.businessId, userId: req.user?.id }),
-      }),
+      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+        // Personal: fotos y videos del expediente. Público: solo fotos de
+        // reseñas (clientPayload "review"), más chicas y sin video.
+        if (isStaff) {
+          return {
+            allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'video/mp4', 'video/quicktime', 'video/webm'],
+            maximumSizeInBytes: 150 * 1024 * 1024,
+            addRandomSuffix: true,
+            tokenPayload: JSON.stringify({ businessId: req.businessId, userId: req.user.id }),
+          };
+        }
+        if (clientPayload !== 'review') throw new Error('Sesión requerida');
+        return {
+          allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp'],
+          maximumSizeInBytes: 10 * 1024 * 1024,
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({ businessId: req.businessId, review: true }),
+        };
+      },
       onUploadCompleted: async () => {},
     });
     res.json(result);
   } catch (err) {
     console.error('POST /api/uploads/media', err);
     res.status(400).json({ error: err.message || 'No se pudo autorizar la subida' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESEÑAS (como Pastrana Events: entran pendientes, el admin las modera)
+// ─────────────────────────────────────────────────────────────────────────────
+const REVIEW_STATUSES = new Set(['PENDING', 'APPROVED', 'REJECTED']);
+const MAX_REVIEW_PHOTOS = 4;
+const cleanReviewPhotos = (photos) => (Array.isArray(photos) ? photos : [])
+  .filter((p) => p && typeof p.url === 'string' && (
+    /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i.test(p.url)
+    || (/^data:image\/(jpeg|png|webp);base64,/i.test(p.url) && p.url.length < 900 * 1024)
+  ))
+  .slice(0, MAX_REVIEW_PHOTOS)
+  .map((p) => ({ url: p.url, w: Number(p.w) || null, h: Number(p.h) || null }));
+
+// Pública: deja una reseña (queda pendiente de aprobación).
+app.post('/api/reviews', publicWriteLimiter, async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim().slice(0, 80);
+    const message = String(req.body.message || '').trim().slice(0, 2000);
+    const rating = Math.min(Math.max(parseInt(req.body.rating) || 0, 1), 5);
+    if (!name || !message || !req.body.rating)
+      return res.status(400).json({ error: 'Escribe tu nombre, tu calificación y tu comentario' });
+    const review = await prisma.review.create({
+      data: {
+        name, message, rating,
+        serviceName: req.body.serviceName ? String(req.body.serviceName).slice(0, 120) : null,
+        photos: cleanReviewPhotos(req.body.photos),
+        status: 'PENDING',
+        clientId: req.user && req.user.role === 'cliente' ? req.user.id : null,
+      },
+    });
+    res.status(201).json({ id: review.id, status: review.status });
+  } catch (err) {
+    console.error('POST /api/reviews', err);
+    res.status(500).json({ error: 'No se pudo guardar tu reseña' });
+  }
+});
+
+// Pública: reseñas aprobadas + resumen (promedio y total) para la página.
+app.get('/api/reviews/approved', async (req, res) => {
+  try {
+    const reviews = await prisma.review.findMany({
+      where: { status: 'APPROVED' },
+      orderBy: { createdAt: 'desc' },
+      take: 60,
+      select: { id: true, name: true, rating: true, message: true, serviceName: true, photos: true, createdAt: true },
+    });
+    const count = reviews.length;
+    const average = count ? Math.round((reviews.reduce((a, r) => a + r.rating, 0) / count) * 10) / 10 : 0;
+    res.json({ reviews, count, average });
+  } catch (err) {
+    console.error('GET /api/reviews/approved', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.get('/api/reviews', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    res.json(await prisma.review.findMany({ orderBy: { createdAt: 'desc' } }));
+  } catch (err) {
+    console.error('GET /api/reviews', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.patch('/api/reviews/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.review.findFirst({ where: { id }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: 'Reseña no encontrada' });
+    const data = {};
+    if (req.body.status !== undefined) {
+      if (!REVIEW_STATUSES.has(req.body.status)) return res.status(400).json({ error: 'Estado inválido' });
+      data.status = req.body.status;
+    }
+    if (req.body.name !== undefined) data.name = String(req.body.name).trim().slice(0, 80);
+    if (req.body.message !== undefined) data.message = String(req.body.message).trim().slice(0, 2000);
+    if (req.body.rating !== undefined) data.rating = Math.min(Math.max(parseInt(req.body.rating) || 1, 1), 5);
+    if (req.body.photos !== undefined) data.photos = cleanReviewPhotos(req.body.photos);
+    res.json(await prisma.review.update({ where: { id }, data }));
+  } catch (err) {
+    console.error('PATCH /api/reviews/:id', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.delete('/api/reviews/:id', verifyToken, requireRole('administrador'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.review.findFirst({ where: { id }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: 'Reseña no encontrada' });
+    await prisma.review.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /api/reviews/:id', err);
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 

@@ -92,6 +92,7 @@ model Business {
   membershipPlans MembershipPlan[]
   branches        Branch[]
   records         RecordEntry[]
+  reviews         Review[]
 }
 
 // ─────────────────────────────────────────────
@@ -152,6 +153,7 @@ model User {
   // medicamentos, cirugías, antecedentes familiares, tipo de sangre…).
   medicalProfile       Json          @default("{}")
   records              RecordEntry[] @relation("RecordClient")
+  reviews              Review[]
   authoredRecords      RecordEntry[] @relation("RecordAuthor")
   appointments         Appointment[] // citas donde este user es el cliente
   assignedAppointments Appointment[] @relation("AssignedEmployee")
@@ -576,4 +578,31 @@ model Settings {
   // mostrar, encabezado/pie libres, datos fiscales. Vacío = valores por
   // default definidos en el frontend (src/utils/ticketPdf.js).
   ticketConfig Json @default("{}")
+}
+
+// ─────────────────────────────────────────────
+// REVIEW (reseñas públicas en la página del negocio)
+// ─────────────────────────────────────────────
+// Igual que Pastrana Events: cualquiera deja su reseña, entra PENDING y el
+// administrador la aprueba / rechaza / edita / elimina. En la página solo se
+// muestran las APPROVED. Las fotos guardan su tamaño original (w, h) para que
+// la página las muestre en un formato fijo y, al abrirlas, completas.
+model Review {
+  id          Int      @id @default(autoincrement())
+  name        String
+  rating      Int      @default(5)
+  message     String   @db.Text
+  serviceName String?
+  // [{ url, w, h }]
+  photos      Json     @default("[]")
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  clientId    Int?
+  businessId  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client   User?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  business Business? @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, status])
 }
