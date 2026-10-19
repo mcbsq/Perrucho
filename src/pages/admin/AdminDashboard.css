@@ -2301,3 +2301,29 @@ h1,h2,h3,h4,h5,h6,strong { font-family: 'Montserrat', sans-serif; }
     font: 800 0.62rem 'Montserrat', sans-serif; line-height: 1;
     box-shadow: 0 0 0 2px var(--sidebar-solid, #1e272e);
 }
+
+/* ── Cobro (POS): estado del pago, forma de pago y filtros ─────────────────
+   Antes eran estilos inline sin hover ni foco; ahora una sola pieza que
+   comparten admin y empleado (EmployeeDashboard importa este archivo). */
+.checkout-segment { display: flex; gap: 8px; margin: 12px 0; }
+.checkout-payment-row { margin: 0 0 12px; }
+.checkout-pay-btn {
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 40px; padding: 8px 10px;
+    border-radius: 10px; border: 1.5px solid #e2e8f0; background: white;
+    color: #5b6573; font-family: inherit; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.checkout-pay-btn svg { font-size: 0.95rem; flex-shrink: 0; }
+.checkout-pay-btn:hover { border-color: #74b9ff; color: #185FA5; background: #f5faff; }
+.checkout-pay-btn.active { border-color: #74b9ff; background: #e0f2fe; color: #185FA5; }
+.checkout-pay-btn--status:hover { border-color: #55efc4; color: #065f46; background: #f0fdf8; }
+.checkout-pay-btn--status.active { border-color: #55efc4; background: #d1fae5; color: #065f46; }
+.checkout-pay-btn--chip { flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; min-height: 36px; }
+.checkout-pay-btn:focus-visible { outline: 2px solid #185FA5; outline-offset: 2px; }
+@media (max-width: 480px) {
+    .checkout-payment-row { flex-wrap: wrap; }
+    .checkout-payment-row .checkout-pay-btn { flex: 1 1 40%; }
+}

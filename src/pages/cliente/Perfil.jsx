@@ -15,20 +15,21 @@ import {
     FaPaw, FaCalendarCheck, FaShoppingBag, FaSignOutAlt,
     FaTimes, FaEdit, FaPlus, FaSave, FaKey, FaCog,
     FaBell, FaHistory, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt,
-    FaWhatsapp, FaInfoCircle, FaBan, FaShieldAlt
+    FaWhatsapp, FaInfoCircle, FaBan, FaShieldAlt, FaRegCalendarAlt, FaRegClock
 } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { appointmentsApi, petsApi, salesApi, usersApi } from '../../api/apiClient';
 import { useNotify } from '../../components/shared/NotifyDialog';
 import '../../components/shared/NotifyDialog.css';
-import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
+import { STATUS_COLORS } from '../../utils/apptStatus';
 import { formatMexPhone, whatsAppValidationError, isValidWhatsApp } from '../../utils/formatPhone';
 import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 import { canClientCancel, MIN_CANCEL_HOURS } from '../../utils/bookingRules';
 import { clientToShopOnCancelRequest, clientToShopOnCancelDone, clientToShopAskStatus, openWhatsApp } from '../../utils/whatsappNotify';
 import { todayLocalDateStr } from '../../utils/dateLocal';
 import { useBusinessPath } from '../../utils/businessPath';
+import { formatTime12 } from '../../components/BookingCalendar/BookingCalendar';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import './Perfil.css';
 import { ClientVisits } from '../../components/shared/Expediente';
@@ -381,7 +382,7 @@ const Perfil = () => {
         const sc = STATUS_COLORS[a.status] || STATUS_COLORS['Pendiente'];
         const dayLabel = upcoming ? relativeDayLabel(a.date, today) : '';
         return (
-            <div key={a.id} className={`appt-row ${upcoming ? '' : 'appt-row--past'}`} style={{ borderLeft: `4px solid ${sc.border}` }}>
+            <div key={a.id} className={`appt-row ${upcoming ? '' : 'appt-row--past'}`}>
                 <div className="appt-row-main">
                     <div className="appt-row-info">
                         <strong>
@@ -390,9 +391,10 @@ const Perfil = () => {
                         </strong>
                         <span>{getApptServiceName(a)}</span>
                         <span className="appt-datetime">
-                            📅 {formatDate(a.date)} · 🕐 {a.time
-                                ? a.time
-                                : <em className="appt-time-pending">{upcoming ? 'Horario por asignar' : 'Sin horario'}</em>}
+                            <span><FaRegCalendarAlt aria-hidden="true" /> {formatDate(a.date)}</span>
+                            <span><FaRegClock aria-hidden="true" /> {a.time
+                                ? formatTime12(a.time)
+                                : <em className="appt-time-pending">{upcoming ? 'Horario por asignar' : 'Sin horario'}</em>}</span>
                         </span>
                         {upcoming && STATUS_HINT[a.status] && (
                             <span className="appt-hint">{STATUS_HINT[a.status]}</span>
@@ -402,7 +404,7 @@ const Perfil = () => {
                         <span className="appt-status-badge" style={{
                             background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`,
                         }}>
-                            {STATUS_EMOJI[a.status]} {a.status}
+                            <i className="appt-status-dot" style={{ background: sc.dot }} aria-hidden="true" /> {a.status}
                         </span>
                         {a.finalPrice > 0 && (
                             <span className="appt-price">~${a.finalPrice}</span>
@@ -475,15 +477,15 @@ const Perfil = () => {
                         {nextAppt ? (
                             <div className="next-appointment-box">
                                 <p className="appt-service">{getApptServiceName(nextAppt)}</p>
-                                <p>📅 {formatDate(nextAppt.date)}</p>
-                                <p>🕐 {nextAppt.time || 'Horario por asignar'}</p>
-                                <p>🐾 {getApptPetName(nextAppt)}</p>
+                                <p><FaRegCalendarAlt aria-hidden="true" /> {formatDate(nextAppt.date)}</p>
+                                <p><FaRegClock aria-hidden="true" /> {nextAppt.time ? formatTime12(nextAppt.time) : 'Horario por asignar'}</p>
+                                <p><FaPaw aria-hidden="true" /> {getApptPetName(nextAppt)}</p>
                                 <div className="appt-status-pill" style={{
                                     background: STATUS_COLORS[nextAppt.status]?.bg,
                                     color:      STATUS_COLORS[nextAppt.status]?.text,
                                     border:     `1px solid ${STATUS_COLORS[nextAppt.status]?.border}`,
                                 }}>
-                                    {STATUS_EMOJI[nextAppt.status]} {nextAppt.status}
+                                    <i className="appt-status-dot" style={{ background: STATUS_COLORS[nextAppt.status]?.dot }} aria-hidden="true" /> {nextAppt.status}
                                 </div>
                             </div>
                         ) : (
@@ -539,7 +541,7 @@ const Perfil = () => {
                                     <div>
                                         <strong>{getApptPetName(a)}</strong> — {getApptServiceName(a)}
                                         <span className="notif-date">
-                                            {formatDate(a.date)} · {STATUS_EMOJI[a.status]} {a.status}
+                                            {formatDate(a.date)} · {a.status}
                                         </span>
                                     </div>
                                 </div>

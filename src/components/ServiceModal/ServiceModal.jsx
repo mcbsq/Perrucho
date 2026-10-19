@@ -9,8 +9,12 @@
 //   Perfil.jsx — users y clients son la misma tabla, user.id ES el clientId.
 //
 // CAMBIOS según feedback del cliente (correo de revisión):
-// - Se quita la selección de horario exacto. El cliente solo elige el DÍA;
-//   el groomer fija la hora desde su calendario (interfaz empleado).
+// - (Revertido, ver abajo) Antes el cliente solo elegía el DÍA y el groomer
+//   fijaba la hora.
+// - QA (oct 2026): "no me dio un horario". El cliente ahora elige día Y
+//   hora en un calendario tipo agenda (BookingCalendar, misma estructura que
+//   la del empleado/admin). La cita sigue "Pendiente" hasta que el negocio
+//   la acepte — el horario es una solicitud, no una reserva en firme.
 // - Se omite el precio/método de pago como dato definitivo en la confirmación;
 //   ahora se muestra únicamente como referencia informativa, sin presentarlo
 //   como un paso de "pago" — se reduce a una sola línea aclaratoria.
@@ -19,94 +23,21 @@
 // - Selector de mascota muestra el rango de peso correcto (6 rangos)
 // - Precio referencial con calcServicePrice()
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    FaCalendarAlt, FaCheckCircle, FaTimes, FaPaw,
-    FaChevronLeft, FaChevronRight, FaWhatsapp, FaInfoCircle
-} from 'react-icons/fa';
+import { FaCheckCircle, FaTimes, FaPaw, FaWhatsapp, FaInfoCircle, FaCalendarCheck } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { appointmentsApi, staffApi } from '../../api/apiClient';
 import { clientToShopOnBooking, openWhatsApp } from '../../utils/whatsappNotify';
 import { calcServicePrice, weightRangeLabel } from '../../utils/pricingRules';
+import BookingCalendar, { formatTime12 } from '../BookingCalendar/BookingCalendar';
 import '../../pages/Services.css';
-
-const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const DAY_NAMES   = ['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
-
-// ─── Mini Calendario ──────────────────────────────────────────────────────────
-const MiniCalendar = ({ selectedDate, onSelect }) => {
-    const today = new Date();
-    const [viewYear,  setViewYear]  = useState(today.getFullYear());
-    const [viewMonth, setViewMonth] = useState(today.getMonth());
-
-    const firstDow    = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-    const prevMonth = () => {
-        if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
-        else setViewMonth(m => m - 1);
-    };
-    const nextMonth = () => {
-        if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
-        else setViewMonth(m => m + 1);
-    };
-
-    const cells = [];
-    for (let i = 0; i < firstDow; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-    const isToday    = (d) => d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
-    const isPast     = (d) => new Date(viewYear, viewMonth, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const isSelected = (d) => {
-        if (!selectedDate || !d) return false;
-        const iso = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        return iso === selectedDate;
-    };
-
-    const handleClick = (d) => {
-        if (!d || isPast(d)) return;
-        const iso = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        onSelect(iso);
-    };
-
-    return (
-        <div className="sm-calendar">
-            <div className="sm-cal-header">
-                <button className="sm-cal-nav" type="button" onClick={prevMonth}><FaChevronLeft /></button>
-                <span className="sm-cal-title">{MONTH_NAMES[viewMonth]} {viewYear}</span>
-                <button className="sm-cal-nav" type="button" onClick={nextMonth}><FaChevronRight /></button>
-            </div>
-            <div className="sm-cal-grid">
-                {DAY_NAMES.map(d => <div key={d} className="sm-cal-dow">{d}</div>)}
-                {cells.map((d, i) => (
-                    <button
-                        key={i}
-                        className={[
-                            'sm-cal-cell',
-                            !d              ? 'empty'    : '',
-                            d && isPast(d)  ? 'past'     : '',
-                            d && isToday(d) ? 'today'    : '',
-                            d && isSelected(d) ? 'selected' : '',
-                        ].filter(Boolean).join(' ')}
-                        onClick={() => handleClick(d)}
-                        disabled={!d || isPast(d)}
-                        type="button"
-                    >
-                        {d || ''}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-};
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 const ServiceModal = ({ service, onClose }) => {
     const { user }      = useAuth();
-    const { addSale, settings } = useData();
+    const { settings } = useData();
     const navigate      = useNavigate();
 
     const [step,        setStep]        = useState(1);
@@ -114,7 +45,7 @@ const ServiceModal = ({ service, onClose }) => {
     const [error,       setError]       = useState('');
     const [myPets,      setMyPets]      = useState([]);
     const [petsLoading, setPetsLoading] = useState(true);
-    const [bookingData, setBookingData] = useState({ petId: '', date: '', employeeId: '' });
+    const [bookingData, setBookingData] = useState({ petId: '', date: '', time: '', employeeId: '' });
     const [savedBooking, setSavedBooking] = useState(null);
     const [staff, setStaff] = useState([]);
 
@@ -149,8 +80,8 @@ const ServiceModal = ({ service, onClose }) => {
         setError('');
         try {
             const petName = selectedPet?.petName || 'Sin mascota';
-            // FIX: el cliente solo sugiere el día — sin hora exacta.
-            // El groomer fija la hora desde su calendario (EmployeeDashboard).
+            // El cliente solicita día + hora; queda Pendiente hasta que el
+            // negocio la acepte (el backend revalida el horario).
             // FIX: petName/serviceName/paymentMethod/assignedTo NO son columnas
             // del modelo Appointment en Prisma (ver prisma/schema.prisma) — al
             // enviarlas, prisma.appointment.create() lanzaba
@@ -166,7 +97,7 @@ const ServiceModal = ({ service, onClose }) => {
                 clientId:    user?.id || null,
                 employeeId:  bookingData.employeeId ? Number(bookingData.employeeId) : null,
                 date:        bookingData.date,
-                time:        '', // el groomer la asigna al confirmar
+                time:        bookingData.time,
                 status:      'Pendiente',
                 finalPrice,
             });
@@ -175,6 +106,7 @@ const ServiceModal = ({ service, onClose }) => {
                 petName,
                 serviceName: service.title,
                 date:        bookingData.date,
+                time:        bookingData.time,
                 shopName:    settings?.businessName,
                 shopWhatsApp: settings?.whatsappNumber,
             });
@@ -197,6 +129,8 @@ const ServiceModal = ({ service, onClose }) => {
 
     const progressPct = { 1: '33%', 2: '66%', 3: '100%' };
 
+    const formatDateShort = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+
     const formatDateDisplay = (iso) => {
         if (!iso) return '';
         return new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', {
@@ -206,9 +140,9 @@ const ServiceModal = ({ service, onClose }) => {
 
     return (
         <div className="sm-overlay" onClick={onClose}>
-            <div className="sm-capsule" onClick={e => e.stopPropagation()}>
+            <div className={`sm-capsule ${step === 2 ? 'sm-capsule--wide' : ''}`} onClick={e => e.stopPropagation()}>
 
-                <button className="sm-close" type="button" onClick={onClose}><FaTimes /></button>
+                <button className="sm-close" type="button" onClick={onClose} aria-label="Cerrar"><FaTimes /></button>
 
                 {step <= 3 && (
                     <>
@@ -272,49 +206,49 @@ const ServiceModal = ({ service, onClose }) => {
                             onClick={next}
                             disabled={myPets.length > 0 && !bookingData.petId}
                         >
-                            Elegir fecha →
+                            Elegir día y hora
                         </button>
                     </div>
                 )}
 
-                {/* ── PASO 2: Solo selección de DÍA — sin hora exacta ── */}
+                {/* ── PASO 2: Día y hora en calendario tipo agenda ── */}
                 {step === 2 && (
                     <div className="sm-step fade-in">
-                        <h2 className="sm-title">¿Qué día te conviene?</h2>
+                        <h2 className="sm-title">Elige día y hora</h2>
                         <p className="sm-desc">
-                            Elige el día que prefieras. Nuestro equipo confirmará el
-                            horario disponible ese día y te avisará por WhatsApp.
+                            Toca un horario disponible. Tu cita quedará pendiente hasta
+                            que {settings?.businessName || 'el negocio'} la confirme.
                         </p>
 
-                        <MiniCalendar
-                            selectedDate={bookingData.date}
-                            onSelect={date => setBookingData({ ...bookingData, date })}
-                        />
-                        {bookingData.date && (
-                            <div className="sm-selected-date-label">
-                                📅 {formatDateDisplay(bookingData.date)}
-                            </div>
-                        )}
                         {staff.length > 0 && (
-                            <div className="sm-selected-date-label" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-                                <label style={{ fontWeight: 700 }}>¿Quién te gustaría que te atienda?</label>
-                                <select value={bookingData.employeeId}
-                                    onChange={e => setBookingData({ ...bookingData, employeeId: e.target.value })}>
+                            <div className="sm-field">
+                                <label htmlFor="sm-staff">¿Quién te gustaría que te atienda?</label>
+                                <select id="sm-staff" value={bookingData.employeeId}
+                                    onChange={e => setBookingData({ ...bookingData, employeeId: e.target.value, time: '' })}>
                                     <option value="">Sin preferencia</option>
                                     {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
                         )}
 
+                        <BookingCalendar
+                            serviceId={service.id}
+                            employeeId={bookingData.employeeId || null}
+                            value={{ date: bookingData.date, time: bookingData.time }}
+                            onChange={({ date, time }) => setBookingData({ ...bookingData, date, time })}
+                        />
+
                         <div className="sm-actions-dual">
-                            <button className="sm-btn-secondary" type="button" onClick={prev}>← Atrás</button>
+                            <button className="sm-btn-secondary" type="button" onClick={prev}>Atrás</button>
                             <button
                                 className="sm-btn-primary"
                                 type="button"
                                 onClick={next}
-                                disabled={!bookingData.date}
+                                disabled={!bookingData.date || !bookingData.time}
                             >
-                                Continuar →
+                                {bookingData.time
+                                    ? `Continuar · ${formatDateShort(bookingData.date)}, ${formatTime12(bookingData.time)}`
+                                    : 'Elige un horario'}
                             </button>
                         </div>
                     </div>
@@ -323,11 +257,7 @@ const ServiceModal = ({ service, onClose }) => {
                 {/* ── PASO 3: Confirmación ── */}
                 {step === 3 && (
                     <div className="sm-step fade-in">
-                        <h2 className="sm-title">Revisar reserva</h2>
-                        <p className="sm-desc">
-                            Confirma los datos. Nuestro equipo te asignará un horario
-                            disponible ese día y te avisará por WhatsApp.
-                        </p>
+                        <h2 className="sm-title">Revisa tu reserva</h2>
 
                         <div className="sm-summary">
                             <div className="sm-summary-row">
@@ -345,31 +275,34 @@ const ServiceModal = ({ service, onClose }) => {
                                 </div>
                             )}
                             <div className="sm-summary-row">
-                                <span>Día sugerido</span>
+                                <span>Día</span>
                                 <strong>{formatDateDisplay(bookingData.date)}</strong>
+                            </div>
+                            <div className="sm-summary-row">
+                                <span>Hora solicitada</span>
+                                <strong>{formatTime12(bookingData.time)}</strong>
                             </div>
                         </div>
 
                         <div className="sm-info-box">
                             <FaInfoCircle />
                             <p>
-                                El horario y el costo final se confirman en sucursal según
-                                la evaluación de tu mascota. Te avisaremos por WhatsApp
-                                en cuanto se asigne tu horario.
+                                El negocio confirmará tu horario y te avisará por WhatsApp.
+                                El costo final se define en sucursal.
                             </p>
                         </div>
 
-                        {error && <p className="sm-error">{error}</p>}
+                        {error && <p className="sm-error" role="alert">{error}</p>}
 
                         <div className="sm-actions-dual">
-                            <button className="sm-btn-secondary" type="button" onClick={prev}>← Atrás</button>
+                            <button className="sm-btn-secondary" type="button" onClick={prev}>Cambiar horario</button>
                             <button
                                 className="sm-btn-confirm"
                                 type="button"
                                 onClick={handleConfirm}
                                 disabled={loading}
                             >
-                                {loading ? 'Reservando...' : '¡Reservar ahora!'}
+                                {loading ? 'Reservando…' : 'Reservar'}
                             </button>
                         </div>
                     </div>
@@ -381,11 +314,11 @@ const ServiceModal = ({ service, onClose }) => {
                         <div className="sm-success-icon">
                             <FaCheckCircle />
                         </div>
-                        <h2 className="sm-title">¡Reserva enviada!</h2>
+                        <h2 className="sm-title">¡Solicitud enviada!</h2>
                         <p className="sm-desc">
-                            Tu cita quedó registrada como <strong>Pendiente</strong> para el{' '}
-                            <strong>{formatDateDisplay(savedBooking.date)}</strong>.<br />
-                            Te avisaremos por WhatsApp en cuanto se confirme el horario.
+                            Pediste el <strong>{formatDateDisplay(savedBooking.date)}</strong> a las{' '}
+                            <strong>{formatTime12(savedBooking.time)}</strong>. Tu cita está
+                            <strong> pendiente</strong> hasta que el negocio la confirme.
                         </p>
 
                         <div className="sm-summary">
@@ -397,16 +330,19 @@ const ServiceModal = ({ service, onClose }) => {
                             </div>
                         </div>
 
-                        <button className="sm-btn-whatsapp" type="button" onClick={handleNotifyShop}>
-                            <FaWhatsapp /> Avisar por WhatsApp a la estética
-                        </button>
-
-                        <button className="sm-btn-secondary" type="button" onClick={() => { onClose(); navigate('/perfil?tab=citas'); }} style={{ marginTop: 8 }}>
-                            Ver mis citas
-                        </button>
-                        <button className="sm-btn-secondary" type="button" onClick={onClose} style={{ marginTop: 8 }}>
-                            Cerrar
-                        </button>
+                        <div className="sm-success-actions">
+                            <button className="sm-btn-primary" type="button" onClick={() => { onClose(); navigate('/perfil?tab=citas'); }}>
+                                <FaCalendarCheck /> Ver mis citas
+                            </button>
+                            {settings?.whatsappNumber && (
+                                <button className="sm-btn-whatsapp" type="button" onClick={handleNotifyShop}>
+                                    <FaWhatsapp /> Avisar por WhatsApp
+                                </button>
+                            )}
+                            <button className="sm-btn-ghost" type="button" onClick={onClose}>
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
                 )}
 

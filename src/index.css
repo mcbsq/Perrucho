@@ -11,3 +11,22 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Pantalla de carga de rutas protegidas (antes texto plano sin estilo) */
+.loading-screen {
+  min-height: 70vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  font-family: 'Quicksand', sans-serif; font-weight: 600; color: #5b6573;
+}
+.loading-screen p { margin: 0; }
+.loading-screen-spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid #e8edf3; border-top-color: var(--color-accent-dark, #185FA5);
+  animation: loadingScreenSpin 0.8s linear infinite;
+}
+@keyframes loadingScreenSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-screen-spinner { animation-duration: 2.4s; } }
+
+/* Superficies del navegador con el color de marca (selección y caret) */
+::selection { background: color-mix(in srgb, var(--brand-primary, #74b9ff) 28%, white); }
+input, textarea { caret-color: var(--brand-primary-dark, #185FA5); }

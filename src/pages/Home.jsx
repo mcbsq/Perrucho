@@ -15,12 +15,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import ServiceCard from '../components/ServiceCard/ServiceCard';
 import { formatMexPhone, whatsAppValidationError } from '../utils/formatPhone';
-import { appointmentsApi, staffApi } from '../api/apiClient';
+import { staffApi } from '../api/apiClient';
+import BookingCalendar, { formatTime12 } from '../components/BookingCalendar/BookingCalendar';
 import { getServiceIcon } from '../utils/serviceIcons';
 import { OnboardingTour, useOnboarding } from '../components/shared/OnboardingTour';
 import { useBusinessPath } from '../utils/businessPath';
 import { getGiroMarketing } from '../config/giroMarketing';
-import { todayLocalDateStr } from '../utils/dateLocal';
 import perruchoMark from '../assets/perrucho-mark.svg';
 
 // ─── Hook de navegación con auth ─────────────────────────────────────────────
@@ -81,9 +81,6 @@ const BookingExpressModal = ({ onClose, settings }) => {
         ownerName: '', ownerPhone: '', petName: '', breed: '', age: '', weight: '',
         date: '', time: '', employeeId: '',
     });
-    const [availableTimes, setAvailableTimes] = useState([]);
-    const [fullSlots, setFullSlots] = useState([]);
-    const [slotsLoading, setSlotsLoading] = useState(false);
     // "¿Quién te atiende?" — solo aplica si el negocio lo tiene prendido
     // (Settings.enableStaffSelection). Antes el admin asignaba empleado
     // después; ahora el cliente puede elegir desde la reserva, como en
@@ -95,19 +92,8 @@ const BookingExpressModal = ({ onClose, settings }) => {
         staffApi.getPublic().then(setStaff).catch(() => setStaff([]));
     }, [settings?.enableStaffSelection]);
 
-    // El horario del día (y cuáles ya están llenos) ahora lo calcula el
-    // servidor a partir de Settings.businessHours del negocio — antes era
-    // un arreglo fijo hardcodeado aquí mismo, igual para todos los negocios
-    // y sin noción de días cerrados (bug reportado por clientes reales de
-    // Taylor's, y por el propio dueño al pedir horarios configurables).
-    useEffect(() => {
-        if (!form.date) { setAvailableTimes([]); setFullSlots([]); return; }
-        setSlotsLoading(true);
-        appointmentsApi.getAvailability(form.date, null, form.employeeId || null)
-            .then(res => { setAvailableTimes(res.slots || []); setFullSlots(res.fullSlots || []); })
-            .catch(() => { setAvailableTimes([]); setFullSlots([]); })
-            .finally(() => setSlotsLoading(false));
-    }, [form.date, form.employeeId]);
+    // El horario (y cuáles ya están llenos) lo calcula el servidor a partir
+    // de Settings.businessHours — ahora lo consulta BookingCalendar por día.
 
     const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -152,11 +138,10 @@ const BookingExpressModal = ({ onClose, settings }) => {
         }
     };
 
-    const minDate = todayLocalDateStr();
 
     return (
         <div className="bx-overlay" onClick={onClose}>
-            <div className="bx-modal" onClick={e => e.stopPropagation()}>
+            <div className={`bx-modal ${step === 2 ? 'bx-modal--wide' : ''}`} onClick={e => e.stopPropagation()}>
                 <button className="bx-close" onClick={onClose}>✕</button>
 
                 {step < 3 && (
@@ -209,7 +194,7 @@ const BookingExpressModal = ({ onClose, settings }) => {
                     <form onSubmit={handleSubmit}>
                         <div className="bx-icon">📅</div>
                         <h2 className="bx-title">¿Cuándo los vemos?</h2>
-                        <p className="bx-subtitle">Elige el día y horario que más te convenga.</p>
+                        <p className="bx-subtitle">Toca un horario disponible. Te confirmaremos por WhatsApp.</p>
                         {staff.length > 0 && (
                             <div className="bx-field">
                                 <label>¿Quién te gustaría que te atienda?</label>
@@ -220,32 +205,11 @@ const BookingExpressModal = ({ onClose, settings }) => {
                                 </select>
                             </div>
                         )}
-                        <div className="bx-field">
-                            <label>Fecha *</label>
-                            <input name="date" type="date" value={form.date} min={minDate}
-                                onChange={handleChange} required />
-                        </div>
-                        <div className="bx-field">
-                            <label>Horario *</label>
-                            {slotsLoading && <small className="field-hint">Consultando disponibilidad...</small>}
-                            {!slotsLoading && form.date && availableTimes.length === 0 && (
-                                <small className="field-hint">No atendemos ese día — elige otra fecha.</small>
-                            )}
-                            <div className="bx-time-grid">
-                                {availableTimes.map(t => {
-                                    const isFull = fullSlots.includes(t);
-                                    return (
-                                        <button key={t} type="button"
-                                            className={`bx-time-slot ${form.time === t ? 'active' : ''} ${isFull ? 'bx-time-slot--full' : ''}`}
-                                            disabled={isFull}
-                                            title={isFull ? 'Sin disponibilidad' : t}
-                                            onClick={() => setForm(prev => ({ ...prev, time: t }))}>
-                                            {t}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        <BookingCalendar
+                            employeeId={form.employeeId || null}
+                            value={{ date: form.date, time: form.time }}
+                            onChange={({ date, time }) => setForm(prev => ({ ...prev, date, time }))}
+                        />
                         {error && <p className="bx-error">{error}</p>}
                         <div className="bx-actions">
                             <button type="button" className="bx-btn-secondary" onClick={() => setStep(1)}>← Atrás</button>
@@ -261,7 +225,9 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         <div className="bx-success-icon">✅</div>
                         <h2 className="bx-title">¡Cita registrada!</h2>
                         <p className="bx-subtitle">
-                            Hemos recibido tu solicitud para <strong>{form.petName}</strong> el <strong>{form.date}</strong> a las <strong>{form.time}</strong>.
+                            Recibimos tu solicitud para <strong>{form.petName}</strong> el{' '}
+                            <strong>{new Date(`${form.date}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>{' '}
+                            a las <strong>{formatTime12(form.time)}</strong>.
                         </p>
                         <p className="bx-subtitle" style={{ marginTop: 8 }}>
                             Te confirmaremos por WhatsApp al número que nos compartiste.

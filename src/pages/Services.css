@@ -205,7 +205,7 @@
     box-shadow: 0 40px 80px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255,255,255,0.06);
     max-height: 92vh;
     overflow-y: auto;
-    animation: smFadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: smFadeIn 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     scrollbar-width: thin;
     scrollbar-color: #e2e8f0 transparent;
 }
@@ -662,7 +662,7 @@
 .summary-row:last-child,
 .sm-summary-row:last-child { border-bottom: none; }
 .summary-row span,
-.sm-summary-row span  { color: #94a3b8; font-weight: 600; }
+.sm-summary-row span  { color: #5b6573; font-weight: 600; } /* antes #94a3b8: 2.6:1 */
 .summary-row strong,
 .sm-summary-row strong { color: #2d3446; font-weight: 700; }
 
@@ -745,11 +745,13 @@
     font-family: inherit;
 }
 .btn-modal-primary:hover,
-.sm-btn-primary:hover {
-    background: #74b9ff;
-    box-shadow: 0 10px 24px rgba(116,185,255,0.3);
+.sm-btn-primary:hover:not(:disabled) {
+    /* Antes #74b9ff con texto blanco: 2.1:1, no pasaba contraste. */
+    background: var(--color-accent-dark, #185FA5);
+    box-shadow: 0 10px 24px rgba(24,95,165,0.25);
     transform: translateY(-2px);
 }
+.sm-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-modal-primary:disabled,
 .sm-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
@@ -820,6 +822,54 @@
 .icon-success-final,
 .sm-success-icon svg { font-size: 5rem; color: #00b894; }
 
+/* ── Piezas del modal de reserva que no tenían estilo ───────────────────── */
+.sm-capsule--wide { max-width: 920px; }
+
+.sm-info-note {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-top: 10px; padding: 10px 12px;
+    border-radius: 12px; background: #f1f6fd;
+    color: #33475b; font-size: 0.8rem; font-weight: 600; line-height: 1.45; text-align: left;
+}
+.sm-info-note svg { flex-shrink: 0; margin-top: 2px; color: var(--color-accent-dark, #185FA5); }
+
+.sm-info-box {
+    display: flex; align-items: flex-start; gap: 12px;
+    width: 100%; padding: 14px 16px;
+    border-radius: 16px; background: #f1f6fd; border: 1px solid #d9e7f7;
+    text-align: left;
+}
+.sm-info-box svg { flex-shrink: 0; margin-top: 3px; font-size: 1rem; color: var(--color-accent-dark, #185FA5); }
+.sm-info-box p { margin: 0; color: #33475b; font-size: 0.86rem; font-weight: 600; line-height: 1.5; }
+
+.sm-success { align-items: center; text-align: center; }
+.sm-success-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 4px; }
+.sm-success-actions .sm-btn-primary { margin-top: 0; }
+
+.sm-btn-whatsapp {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 15px; border-radius: 22px;
+    border: 1.5px solid #25d366; background: white; color: #0b6b3a;
+    font-family: inherit; font-weight: 800; font-size: 0.95rem;
+    cursor: pointer; transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.sm-btn-whatsapp svg { font-size: 1.15rem; color: #25d366; transition: color 0.2s; }
+.sm-btn-whatsapp:hover { background: #25d366; color: #05391e; box-shadow: 0 10px 22px rgba(37,211,102,0.25); transform: translateY(-1px); }
+.sm-btn-whatsapp:hover svg { color: #05391e; }
+
+.sm-btn-ghost {
+    border: none; background: none; padding: 10px; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 0.9rem; color: #5b6573;
+    border-radius: 12px;
+}
+.sm-btn-ghost:hover { color: #2d3446; background: #f1f5f9; }
+
+.sm-btn-primary:focus-visible, .sm-btn-secondary:focus-visible, .sm-btn-confirm:focus-visible,
+.sm-btn-whatsapp:focus-visible, .sm-btn-ghost:focus-visible, .sm-close:focus-visible {
+    outline: 2px solid var(--color-accent-dark, #185FA5); outline-offset: 3px;
+}
+.sm-no-pets .sm-btn-secondary { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; }
+
 .sm-success-icon {
     width: 88px; height: 88px;
     background: linear-gradient(135deg, #d1fae5, #a7f3d0);
@@ -876,7 +926,7 @@
    ========================================================================== */
 .fade-in,
 .success-animation {
-    animation: smFadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: smFadeIn 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* ==========================================================================

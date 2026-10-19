@@ -416,8 +416,9 @@
     position: relative;
     max-height: 90vh; overflow-y: auto;
     box-shadow: 0 40px 80px rgba(0,0,0,0.3);
-    animation: bxSlideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: bxSlideUp 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
+.bx-modal--wide { max-width: 880px; }
 @keyframes bxSlideUp { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 .bx-close {

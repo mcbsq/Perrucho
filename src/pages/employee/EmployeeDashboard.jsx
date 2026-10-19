@@ -16,7 +16,8 @@ import {
     FaNotesMedical, FaClock, FaTimes,
     FaBoxOpen, FaExclamationTriangle, FaClipboardList,
     FaChevronLeft, FaChevronRight, FaSync, FaPlus, FaEdit, FaWhatsapp,
-    FaCashRegister, FaCartPlus, FaReceipt, FaTrashAlt, FaSearch, FaCut, FaFileInvoiceDollar
+    FaCashRegister, FaCartPlus, FaReceipt, FaTrashAlt, FaSearch, FaCut, FaFileInvoiceDollar,
+    FaCheckCircle, FaRegClock, FaMoneyBillWave, FaCreditCard, FaUniversity,
 } from 'react-icons/fa';
 import {
     FAB, StatusBadge, StatusSelector,
@@ -757,21 +758,21 @@ const EmployeeDashboard = () => {
                 {activeBranches.length>1&&<select value={effectivePosBranchId} onChange={e=>setPosBranchId(e.target.value)} className="checkout-client-select" style={{marginTop:8}} aria-label="Sucursal">
                     {activeBranches.map(b=><option key={b.id} value={b.id}>Sucursal: {b.name}</option>)}
                 </select>}
-                <div style={{display:'flex',gap:8,margin:'12px 0'}}>
+                <div className="checkout-segment" role="group" aria-label="Estado del pago">
                     {['pagado','pendiente'].map(s=>(
-                        <button key={s} className={`checkout-pay-btn ${posSaleStatus===s?'active':''}`}
-                            onClick={()=>setPosSaleStatus(s)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posSaleStatus===s?'#55efc4':'#e2e8f0',background:posSaleStatus===s?'#d1fae5':'white',color:posSaleStatus===s?'#065f46':'#64748b'}}>
-                            {s==='pagado'?'✅ Pagado':'⏳ Pendiente'}
+                        <button key={s} className={`checkout-pay-btn checkout-pay-btn--status ${posSaleStatus===s?'active':''}`} aria-pressed={posSaleStatus===s}
+                            onClick={()=>setPosSaleStatus(s)}>
+                            {s==='pagado'?<><FaCheckCircle aria-hidden="true"/> Pagado</>:<><FaRegClock aria-hidden="true"/> Pendiente</>}
                         </button>
                     ))}
                 </div>
                 {posSaleStatus==='pendiente'
                     ?<p className="checkout-modal-note" style={{margin:'0 0 12px'}}>La forma de pago se registra cuando el cliente pague, desde <strong>Por cobrar</strong>.{!posClientId&&<><br/><strong style={{color:'#b45309'}}>Elige al cliente para poder darle seguimiento.</strong></>}</p>
-                    :<div className="checkout-payment-row" style={{display:'flex',gap:8,margin:'0 0 12px'}}>
+                    :<div className="checkout-segment checkout-payment-row" role="group" aria-label="Forma de pago">
                     {['efectivo','tarjeta','transferencia'].map(m=>(
-                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`}
-                            onClick={()=>setPosPaymentMethod(m)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posPaymentMethod===m?'#74b9ff':'#e2e8f0',background:posPaymentMethod===m?'#e0f2fe':'white',color:posPaymentMethod===m?'#185FA5':'#64748b'}}>
-                            {m==='efectivo'?'💵 Efectivo':m==='tarjeta'?'💳 Tarjeta':'🏦 Transferencia'}
+                        <button key={m} className={`checkout-pay-btn ${posPaymentMethod===m?'active':''}`} aria-pressed={posPaymentMethod===m}
+                            onClick={()=>setPosPaymentMethod(m)}>
+                            {m==='efectivo'?<><FaMoneyBillWave aria-hidden="true"/> Efectivo</>:m==='tarjeta'?<><FaCreditCard aria-hidden="true"/> Tarjeta</>:<><FaUniversity aria-hidden="true"/> Transferencia</>}
                         </button>
                     ))}
                 </div>}
@@ -910,8 +911,7 @@ const EmployeeDashboard = () => {
                             </div>
                             <div style={{display:'flex',gap:8,marginBottom:16}}>
                                 {['Todos','Productos','Servicios'].map(c=>(
-                                    <button key={c} className={`checkout-pay-btn ${posCategory===c?'active':''}`} onClick={()=>setPosCategory(c)}
-                                        style={{padding:'8px 16px',borderRadius:999,border:'1.5px solid',cursor:'pointer',fontWeight:700,borderColor:posCategory===c?'#74b9ff':'#e2e8f0',background:posCategory===c?'#e0f2fe':'white',color:posCategory===c?'#185FA5':'#64748b'}}>
+                                    <button key={c} className={`checkout-pay-btn checkout-pay-btn--chip ${posCategory===c?'active':''}`} aria-pressed={posCategory===c} onClick={()=>setPosCategory(c)}>
                                         {c}
                                     </button>
                                 ))}

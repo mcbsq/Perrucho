@@ -144,3 +144,28 @@ straight, no irony or smuggled quirk, per the standing-exit protocol.
 - `src/utils/ticketPdf.js` (jsPDF): PDF exactly 58/80 mm wide, height
   fitted to content, grayscale logo. The HTML preview (`Ticket.jsx`) uses
   Helvetica on purpose — it is the PDF's face, so screen == paper.
+
+## Reserva del cliente y pulido de controles (2026-10-19)
+
+- **Calendario de reserva** (`src/components/BookingCalendar/`): misma
+  gramática que la agenda interna (‹ Hoy ›, Semana/Día, gutter de horas,
+  columnas por día) pero muestra *horarios disponibles*, nunca citas de otros
+  clientes. Horarios tintados desde `--brand-primary` con `color-mix()` para
+  que cada negocio vea su color; texto del horario al 60 % con negro (≥4.5:1
+  incluso con marcas claras). Días cerrados con rayado tenue (el lienzo es un
+  calendario, así que el patrón se justifica). En celular solo vista Día con
+  tira de semana; si hoy ya no queda horario, salta solo al día siguiente.
+  Lo usan la reserva con cuenta (ServiceModal) y la reserva rápida (Home).
+- **Clases sin estilo** encontradas con un barrido JSX→CSS: el modal de
+  reserva (`sm-btn-whatsapp`, `sm-info-box`, `sm-info-note`, `sm-success`)
+  vivía en `ServiceModal.css`, que nadie importa; los estilos ahora están en
+  `Services.css`. Pantalla "Cargando tu cuenta…" (`index.css`), cobro del POS
+  (`.checkout-segment` / `.checkout-pay-btn` en `AdminDashboard.css`, antes
+  estilos inline sin hover/foco), días cerrados en Horario de atención.
+- **Perfil del cliente:** sin franja lateral de color ni emojis como íconos
+  en las citas (react-icons + punto de estado); "Próxima cita" ahora es la
+  más cercana; las pestañas no quedan bajo el navbar al llegar desde
+  "Mis citas" (`scroll-margin-top`).
+- Contraste corregido: hover de `.sm-btn-primary` (azul claro + texto blanco,
+  2.1:1 → `--color-accent-dark`) y etiquetas del resumen (#94a3b8 → #5b6573).
+- Selección de texto y caret con el color de marca (`index.css`).

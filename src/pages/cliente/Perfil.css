@@ -122,7 +122,7 @@ hr { border: none; border-top: 1px solid var(--perfil-border, #f1f2f6); margin: 
 .next-appointment-box p { font-size: 0.82rem; color: var(--perfil-muted); display: flex; align-items: center; gap: 6px; }
 .appt-service { font-family: 'Montserrat', sans-serif; font-weight: 700 !important; color: var(--perfil-dark) !important; font-size: 0.95rem !important; margin-bottom: 6px; }
 .next-appointment-box--empty p { text-align: center; padding: 12px 0; font-style: italic; }
-.appt-status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-top: 4px; }
+.appt-status-pill { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-top: 4px; }
 
 /* ═════════════════════════════════════════════════════════════════════════
    ✨ NOTIFICACIONES — DISEÑO VISTOSO Y ANIMADO ✨
@@ -298,7 +298,7 @@ hr { border: none; border-top: 1px solid var(--perfil-border, #f1f2f6); margin: 
 .pet-card:hover .pet-edit-hint { opacity: 1; }
 
 /* ── Tabs ────────────────────────────────────────────────────────────────── */
-.history-section { margin-top: 0; }
+.history-section { margin-top: 0; scroll-margin-top: 110px; } /* que el navbar fijo no tape las pestañas al llegar desde "Mis citas" */
 .tabs-header { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
 .tab-btn { padding: 9px 16px; border-radius: 10px; border: 1.5px solid var(--perfil-border, #e0e4ea); background: var(--perfil-card-bg, white); font-weight: 700; font-size: 0.82rem; color: var(--perfil-muted); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-family: 'Quicksand', sans-serif; }
 .tab-btn:hover { border-color: var(--perfil-blue); color: var(--perfil-dark); }
@@ -309,13 +309,16 @@ hr { border: none; border-top: 1px solid var(--perfil-border, #f1f2f6); margin: 
 
 /* ── Citas list ──────────────────────────────────────────────────────────── */
 .appts-list { display: flex; flex-direction: column; gap: 10px; }
-.appt-row { background: #f8fafc; border-radius: 12px; padding: 14px 16px; transition: all 0.2s; }
+.appt-row { background: #f8fafc; border: 1px solid #edf1f5; border-radius: 12px; padding: 14px 16px; transition: background 0.2s, box-shadow 0.2s; }
 .appt-row:hover { background: var(--perfil-card-bg, white); box-shadow: var(--perfil-shadow); }
 .appt-row-main { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .appt-row-info { display: flex; flex-direction: column; gap: 3px; }
 .appt-row-info strong { font-size: 0.92rem; color: var(--perfil-dark); }
 .appt-row-info span { font-size: 0.8rem; color: var(--perfil-muted); }
-.appt-datetime { font-size: 0.75rem !important; }
+.appt-datetime { font-size: 0.75rem !important; display: flex !important; flex-wrap: wrap; gap: 4px 14px; }
+.appt-datetime > span { display: inline-flex; align-items: center; gap: 5px; }
+.appt-datetime svg, .next-appointment-box p svg { flex-shrink: 0; opacity: 0.75; }
+.appt-status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .appt-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 .appt-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .appt-price { font-family: 'Montserrat', sans-serif; font-size: 0.88rem; font-weight: 800; color: var(--perfil-dark); }

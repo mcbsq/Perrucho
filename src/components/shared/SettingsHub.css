@@ -323,3 +323,8 @@
 }
 .sh-segment--3 { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 560px) { .sh-segment--3 { grid-template-columns: 1fr; } }
+
+/* Día cerrado en "Horario de atención": antes se veía igual que uno abierto. */
+.sh-hours li.is-closed { background: repeating-linear-gradient(135deg, transparent 0 6px, #f6f7f9 6px 7px); }
+.sh-hours li.is-closed .sh-hours-closed,
+.sh-hours li.is-closed > span:last-child { color: #8b95a1; font-weight: 600; }

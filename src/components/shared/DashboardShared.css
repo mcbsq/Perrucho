@@ -638,3 +638,8 @@ div.adp {
 /* Botón Expediente en tarjetas y listas */
 .ds-btn-icon--record { background: #e2f6ef; color: #0f7a5f; }
 .ds-btn-icon--record:hover { background: #0f7a5f; color: white; }
+
+/* Fila de acciones secundarias del popup de cita (Expediente, Google
+   Calendar, borrar) — antes sin regla propia, quedaban en línea sin aire. */
+.adp-footer-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.adp-footer-row .adp-del-btn { margin-left: auto; }

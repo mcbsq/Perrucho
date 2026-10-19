@@ -1,0 +1,215 @@
+/* src/components/BookingCalendar/BookingCalendar.css
+   Calendario de reserva del cliente — misma gramática que la agenda interna
+   (toolbar ‹ Hoy ›, Semana/Día, gutter de horas), en los tokens públicos. */
+
+.bkc {
+    --bkc-line: #e8edf3;
+    --bkc-muted: #5b6573;             /* 5.9:1 sobre blanco */
+    --bkc-ink: var(--color-text-main, #2d3446);
+    --bkc-accent: var(--color-accent-dark, #185FA5);
+    /* Tintes derivados del color de marca de cada negocio (--brand-primary). */
+    --bkc-accent-soft: color-mix(in srgb, var(--bkc-accent) 9%, white);
+    --bkc-accent-line: color-mix(in srgb, var(--bkc-accent) 28%, white);
+    --bkc-accent-ink: color-mix(in srgb, var(--bkc-accent) 60%, black); /* ≥4.5:1 también con marcas claras */
+    --bkc-gutter: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    font-family: 'Quicksand', sans-serif;
+    color: var(--bkc-ink);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.bkc-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.bkc-nav { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bkc-period {
+    margin-left: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.bkc-icon-btn,
+.bkc-today-btn {
+    height: 36px;
+    border: 1px solid var(--bkc-line);
+    background: white;
+    color: var(--bkc-ink);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bkc-icon-btn { width: 36px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+.bkc-today-btn { padding: 0 14px; font-size: 0.85rem; }
+.bkc-icon-btn:hover:not(:disabled),
+.bkc-today-btn:hover { background: var(--bkc-accent-soft); border-color: var(--bkc-accent); color: var(--bkc-accent); }
+.bkc-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.bkc-segmented { display: inline-flex; padding: 3px; background: #f1f4f8; border-radius: 10px; }
+.bkc-segmented button {
+    border: none; background: transparent; cursor: pointer;
+    padding: 6px 14px; border-radius: 8px;
+    font-family: inherit; font-weight: 700; font-size: 0.82rem; color: var(--bkc-muted);
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.bkc-segmented button:hover { color: var(--bkc-ink); }
+.bkc-segmented button.is-active { background: white; color: var(--bkc-ink); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+
+/* ── Tira de días (vista Día) ────────────────────────────────────────────── */
+.bkc-daystrip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.bkc-daystrip-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 0; border-radius: 12px; border: 1px solid transparent;
+    background: transparent; cursor: pointer; font-family: inherit; color: var(--bkc-ink);
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+}
+.bkc-daystrip-btn span { font-size: 0.7rem; font-weight: 700; color: var(--bkc-muted); text-transform: uppercase; letter-spacing: 0.02em; }
+.bkc-daystrip-btn strong { font-family: 'Montserrat', sans-serif; font-size: 1rem; }
+.bkc-daystrip-btn:hover:not(:disabled) { background: var(--bkc-accent-soft); }
+.bkc-daystrip-btn.is-today strong { color: var(--bkc-accent); }
+.bkc-daystrip-btn.is-active { background: var(--bkc-accent); border-color: var(--bkc-accent); }
+.bkc-daystrip-btn.is-active span,
+.bkc-daystrip-btn.is-active strong { color: white; }
+.bkc-daystrip-btn.has-selection::after {
+    content: ''; position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--bkc-accent);
+}
+.bkc-daystrip-btn.is-active.has-selection::after { background: white; }
+.bkc-daystrip-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Rejilla ─────────────────────────────────────────────────────────────── */
+.bkc-grid {
+    border: 1px solid var(--bkc-line);
+    border-radius: 14px;
+    background: white;
+    overflow: hidden;
+}
+.bkc-head,
+.bkc-row {
+    display: grid;
+    grid-template-columns: var(--bkc-gutter) repeat(var(--bkc-cols), minmax(0, 1fr));
+}
+.bkc-head { border-bottom: 1px solid var(--bkc-line); background: #fbfcfe; }
+.bkc-head-day {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 0; border: none; background: transparent; cursor: pointer;
+    font-family: inherit; color: var(--bkc-ink);
+    transition: background 0.15s;
+}
+.bkc--day .bkc-head-day { cursor: default; flex-direction: row; justify-content: center; gap: 8px; }
+.bkc--week .bkc-head-day:hover:not(.is-past) { background: var(--bkc-accent-soft); }
+.bkc-head-name { font-size: 0.7rem; font-weight: 700; color: var(--bkc-muted); text-transform: uppercase; letter-spacing: 0.02em; }
+.bkc-head-num {
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 1.05rem;
+    width: 32px; height: 32px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.bkc-head-day.is-today .bkc-head-num { background: var(--bkc-accent); color: white; }
+.bkc-head-day.is-today .bkc-head-name { color: var(--bkc-accent); }
+.bkc-head-day.is-past { opacity: 0.4; cursor: default; }
+
+.bkc-body { max-height: 420px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #d6dde6 transparent; }
+.bkc-row { min-height: 52px; border-bottom: 1px solid var(--bkc-line); }
+.bkc-row:last-child { border-bottom: none; }
+.bkc-hour {
+    padding: 6px 8px 0 0; text-align: right;
+    font-size: 0.7rem; font-weight: 700; color: var(--bkc-muted);
+    font-variant-numeric: tabular-nums;
+}
+.bkc-hour small { margin-left: 2px; font-size: 0.62rem; }
+.bkc--day .bkc-head { display: none; } /* la tira de días ya dice qué día es */
+
+.bkc-cell {
+    border-left: 1px solid var(--bkc-line);
+    padding: 4px;
+    display: flex; flex-direction: column; gap: 4px;
+    min-width: 0;
+}
+.bkc-cell.is-closed {
+    background-image: repeating-linear-gradient(135deg, transparent 0 6px, #f3f5f8 6px 7px);
+}
+
+/* ── Horario ─────────────────────────────────────────────────────────────── */
+.bkc-slot {
+    width: 100%;
+    min-height: 32px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--bkc-accent-line);
+    background: var(--bkc-accent-soft);
+    color: var(--bkc-accent-ink);
+    font-family: inherit; font-weight: 700; font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+.bkc-slot:hover:not(:disabled) { background: color-mix(in srgb, var(--bkc-accent) 16%, white); border-color: var(--bkc-accent); }
+.bkc-slot:active:not(:disabled) { transform: scale(0.97); }
+.bkc-slot.is-selected {
+    background: var(--bkc-accent); border-color: var(--bkc-accent); color: white;
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--bkc-accent) 30%, transparent);
+}
+.bkc-slot.is-full {
+    background: #f5f6f8; border-color: #eceff3; color: #8b95a1;
+    text-decoration: line-through; cursor: not-allowed;
+}
+.bkc--day .bkc-cell { flex-direction: row; flex-wrap: wrap; }
+.bkc--day .bkc-slot { width: auto; min-width: 104px; min-height: 40px; font-size: 0.85rem; }
+
+.bkc-icon-btn:focus-visible,
+.bkc-today-btn:focus-visible,
+.bkc-segmented button:focus-visible,
+.bkc-daystrip-btn:focus-visible,
+.bkc-head-day:focus-visible,
+.bkc-slot:focus-visible,
+.bkc-link-btn:focus-visible { outline: 2px solid var(--bkc-accent); outline-offset: 2px; }
+
+/* ── Estados ─────────────────────────────────────────────────────────────── */
+.bkc-state {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 36px 16px; text-align: center;
+    font-size: 0.88rem; font-weight: 600; color: var(--bkc-muted);
+}
+.bkc-state--error { color: #b42318; padding: 12px 16px; }
+.bkc-link-btn {
+    border: none; background: none; padding: 4px 8px; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 0.85rem; color: var(--bkc-accent);
+    text-decoration: underline; text-underline-offset: 3px;
+}
+.bkc-spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--bkc-line); border-top-color: var(--bkc-accent);
+    animation: bkcSpin 0.8s linear infinite;
+}
+@keyframes bkcSpin { to { transform: rotate(360deg); } }
+.bkc-skeleton {
+    height: 32px; border-radius: 8px;
+    background: linear-gradient(90deg, #f1f4f8 0%, #e8edf3 50%, #f1f4f8 100%);
+    background-size: 200% 100%;
+    animation: bkcShimmer 1.2s ease-in-out infinite;
+}
+@keyframes bkcShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.bkc-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.75rem; font-weight: 600; color: var(--bkc-muted); }
+.bkc-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bkc-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.bkc-dot--free { background: var(--bkc-accent-soft); border: 1px solid var(--bkc-accent-line); }
+.bkc-dot--full { background: #f5f6f8; border: 1px solid #dfe3e8; }
+.bkc-dot--sel  { background: var(--bkc-accent); }
+
+@media (max-width: 640px) {
+    .bkc { --bkc-gutter: 44px; }
+    .bkc-period { font-size: 0.9rem; margin-left: 4px; }
+    .bkc-body { max-height: 360px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bkc-spinner, .bkc-skeleton { animation: none; }
+    .bkc-slot { transition: none; }
+}

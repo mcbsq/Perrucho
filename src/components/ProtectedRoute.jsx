@@ -9,14 +9,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     // 1. Mientras se verifica la sesión en LocalStorage
     if (loading) {
         return (
-            <div className="loading-screen" style={{
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                height: '100vh',
-                fontFamily: 'Quicksand'
-            }}>
-                <div className="loader">Cargando perfil...</div>
+            <div className="loading-screen" role="status" aria-live="polite">
+                <span className="loading-screen-spinner" aria-hidden="true" />
+                <p>Cargando tu cuenta…</p>
             </div>
         );
     }
