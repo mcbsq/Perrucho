@@ -1597,14 +1597,25 @@ function computeSlotsForDate(date, businessHours, durationMinutes) {
 // Settings.enableStaffSelection), la disponibilidad ya no es "capacidad
 // agregada de todos los empleados" — es "¿ESTE empleado tiene algo a esa
 // hora?" (capacidad 1, una persona a la vez), aunque otro empleado esté libre.
-async function getFullSlotsForDate(date, allSlots, excludeApptId = null, employeeId = null) {
+//
+// blockPending: una solicitud "Pendiente" con hora aparta su horario para
+// TODOS (sin importar capacidad ni empleado) hasta que el negocio la acepte
+// o la rechace — así dos clientes no piden la misma hora mientras nadie ha
+// respondido. Aplica a lo que ve/reserva el cliente; el personal (asignar,
+// aceptar, capturar a mano) sigue con la regla de capacidad de siempre.
+async function getFullSlotsForDate(date, allSlots, excludeApptId = null, employeeId = null, blockPending = false) {
   const [appointments, employees] = await Promise.all([
     prisma.appointment.findMany({
       where: { date, status: { notIn: ['Cancelada', 'Completada'] } },
-      select: { id: true, time: true, employeeId: true },
+      select: { id: true, time: true, employeeId: true, status: true },
     }),
     prisma.user.findMany({ where: { role: 'empleado' }, select: { capacity: true } }),
   ]);
+
+  const pendingMinutes = blockPending
+    ? appointments.filter(a => a.time && a.id !== excludeApptId && a.status === 'Pendiente').map(a => toMinutes(a.time))
+    : [];
+  const heldByPending = (slot) => pendingMinutes.some(m => Math.abs(m - toMinutes(slot)) < 60);
 
   if (employeeId) {
     const bookedMinutes = appointments
@@ -1612,7 +1623,7 @@ async function getFullSlotsForDate(date, allSlots, excludeApptId = null, employe
       .map(a => toMinutes(a.time));
     return allSlots.filter(slot => {
       const slotMin = toMinutes(slot);
-      return bookedMinutes.some(m => Math.abs(m - slotMin) < 60);
+      return heldByPending(slot) || bookedMinutes.some(m => Math.abs(m - slotMin) < 60);
     });
   }
 
@@ -1624,7 +1635,7 @@ async function getFullSlotsForDate(date, allSlots, excludeApptId = null, employe
   return allSlots.filter(slot => {
     const slotMin = toMinutes(slot);
     const conflicts = bookedMinutes.filter(m => Math.abs(m - slotMin) < 60).length;
-    return conflicts >= totalCapacity;
+    return heldByPending(slot) || conflicts >= totalCapacity;
   });
 }
 
@@ -1646,7 +1657,7 @@ app.get('/api/appointments/availability', async (req, res) => {
       if (svc) durationMinutes = svc.durationMinutes;
     }
     const slots = computeSlotsForDate(date, businessHours, durationMinutes);
-    const fullSlots = await getFullSlotsForDate(date, slots, null, employeeId ? parseInt(employeeId) : null);
+    const fullSlots = await getFullSlotsForDate(date, slots, null, employeeId ? parseInt(employeeId) : null, true);
     // Si es hoy, las horas que ya pasaron tampoco se pueden reservar.
     const now = nowInBusinessTz();
     if (date === now.date) fullSlots.push(...slots.filter(s => s <= now.time && !fullSlots.includes(s)));
@@ -1678,7 +1689,7 @@ app.get('/api/appointments/:id', verifyToken, async (req, res) => {
 // negocio, o en un día marcado como cerrado (ni desde el booking público ni
 // desde el formulario manual del admin). Se usa tanto en creación como al
 // asignar/editar la hora de una cita existente.
-async function validateAppointmentTime(date, time, serviceId, excludeApptId = null, employeeId = null) {
+async function validateAppointmentTime(date, time, serviceId, excludeApptId = null, employeeId = null, blockPending = false) {
   const settings = await prisma.settings.findFirst();
   const businessHours = settings?.businessHours || DEFAULT_BUSINESS_HOURS;
   let durationMinutes = 45;
@@ -1690,7 +1701,7 @@ async function validateAppointmentTime(date, time, serviceId, excludeApptId = nu
   if (!slots.includes(time)) {
     return { ok: false, error: slots.length === 0 ? 'El negocio no atiende ese día.' : 'Ese horario está fuera del horario de atención.' };
   }
-  const fullSlots = await getFullSlotsForDate(date, slots, excludeApptId, employeeId);
+  const fullSlots = await getFullSlotsForDate(date, slots, excludeApptId, employeeId, blockPending);
   if (fullSlots.includes(time)) {
     return { ok: false, error: employeeId ? 'Ese empleado ya no está disponible a esa hora. Elige otro horario o empleado.' : 'Ese horario ya no está disponible. Elige otro.' };
   }
@@ -1787,7 +1798,7 @@ app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
     // horario del negocio — el frontend ya filtra esto, pero esto cierra
     // la condición de carrera y cualquier intento de saltarse el frontend).
     if (data.time) {
-      const check = await validateAppointmentTime(data.date, data.time, data.serviceId, null, data.employeeId || null);
+      const check = await validateAppointmentTime(data.date, data.time, data.serviceId, null, data.employeeId || null, !isStaff);
       if (!check.ok) return res.status(409).json({ error: check.error });
     }
     const appt = await prisma.appointment.create({
