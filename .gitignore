@@ -6,3 +6,5 @@ node_modules/
 db.json
 # Configuración local de Claude Code
 .claude/
+.vercel
+.env*
