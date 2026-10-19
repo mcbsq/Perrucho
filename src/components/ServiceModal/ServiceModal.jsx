@@ -258,7 +258,11 @@ const ServiceModal = ({ service, onClose }) => {
                         ) : (
                             <div className="sm-no-pets">
                                 <FaPaw />
-                                <p>No tienes mascotas registradas aún.<br />Agrega una desde tu perfil para reservar.</p>
+                                <p>No tienes mascotas registradas aún.<br />Regístrala para poder reservar.</p>
+                                <button className="sm-btn-secondary" type="button"
+                                    onClick={() => { onClose(); navigate('/perfil?accion=nueva-mascota'); }}>
+                                    <FaPaw /> Registrar mi mascota
+                                </button>
                             </div>
                         )}
 
@@ -397,7 +401,7 @@ const ServiceModal = ({ service, onClose }) => {
                             <FaWhatsapp /> Avisar por WhatsApp a la estética
                         </button>
 
-                        <button className="sm-btn-secondary" type="button" onClick={() => { onClose(); navigate('/perfil'); }} style={{ marginTop: 8 }}>
+                        <button className="sm-btn-secondary" type="button" onClick={() => { onClose(); navigate('/perfil?tab=citas'); }} style={{ marginTop: 8 }}>
                             Ver mis citas
                         </button>
                         <button className="sm-btn-secondary" type="button" onClick={onClose} style={{ marginTop: 8 }}>

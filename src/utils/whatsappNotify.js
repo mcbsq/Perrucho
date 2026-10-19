@@ -73,6 +73,25 @@ Quedo atento(a) a la confirmación. ¡Gracias!`;
 }
 
 /**
+ * Mensaje del cliente AL NEGOCIO preguntando por una cita aún sin confirmar
+ * (Pendiente) — desde "Mis citas" en el perfil.
+ */
+export function clientToShopAskStatus({ clientName, petName, serviceName, date, time, shopName = SHOP_NAME, shopWhatsApp = SHOP_WHATSAPP }) {
+    const msg =
+`¡Hola ${shopName}! 🐾
+Quisiera saber el estado de mi cita:
+
+👤 Cliente: ${clientName}
+🐶 Mascota: ${petName}
+✂️ Servicio: ${serviceName}
+📅 Fecha: ${fmtDateLong(date)}
+🕐 Hora: ${time ? fmt12(time) : 'por asignar'}
+
+¡Gracias!`;
+    return buildWaLink(shopWhatsApp, msg);
+}
+
+/**
  * Mensaje del cliente AL NEGOCIO solicitando cancelación.
  * Se usa cuando la cita está dentro de la ventana de horas mínimas.
  */

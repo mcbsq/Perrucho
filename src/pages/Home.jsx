@@ -68,6 +68,11 @@ const useCountUp = (target, duration = 1800) => {
 // ─── Booking Express Pop-up ───────────────────────────────────────────────────
 const BookingExpressModal = ({ onClose, settings }) => {
     const { addAppointment } = useData();
+    // Con sesión de cliente, el backend liga la reserva rápida a su cuenta
+    // (aunque sea a nombre de otra persona), así que aparece en "Mis citas".
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const isClient = user?.role === 'cliente';
     const [step, setStep]   = useState(1); // 1: datos, 2: servicio/fecha, 3: éxito
     const [loading, setLoading] = useState(false);
     const [error, setError]   = useState('');
@@ -261,6 +266,11 @@ const BookingExpressModal = ({ onClose, settings }) => {
                         <p className="bx-subtitle" style={{ marginTop: 8 }}>
                             Te confirmaremos por WhatsApp al número que nos compartiste.
                         </p>
+                        {isClient && (
+                            <button className="bx-btn-primary" onClick={() => { onClose(); navigate('/perfil?tab=citas'); }} style={{ marginTop: 12, width: '100%' }}>
+                                Ver mis citas
+                            </button>
+                        )}
                         <button className="bx-btn-secondary" onClick={onClose} style={{ marginTop: 12 }}>
                             Cerrar
                         </button>

@@ -9,7 +9,8 @@
 // - Las mascotas creadas al registrarse ahora aparecen inmediatamente porque
 //   el ownerId en el seed/signup ya es user.id (no un clientId separado).
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
     FaPaw, FaCalendarCheck, FaShoppingBag, FaSignOutAlt,
     FaTimes, FaEdit, FaPlus, FaSave, FaKey, FaCog,
@@ -25,8 +26,9 @@ import { STATUS_COLORS, STATUS_EMOJI } from '../../utils/apptStatus';
 import { formatMexPhone, whatsAppValidationError, isValidWhatsApp } from '../../utils/formatPhone';
 import { SECURITY_QUESTIONS } from '../../utils/securityQuestions';
 import { canClientCancel, MIN_CANCEL_HOURS } from '../../utils/bookingRules';
-import { clientToShopOnCancelRequest, clientToShopOnCancelDone, openWhatsApp } from '../../utils/whatsappNotify';
+import { clientToShopOnCancelRequest, clientToShopOnCancelDone, clientToShopAskStatus, openWhatsApp } from '../../utils/whatsappNotify';
 import { todayLocalDateStr } from '../../utils/dateLocal';
+import { useBusinessPath } from '../../utils/businessPath';
 import ChangePasswordModal from '../../components/shared/ChangePasswordModal';
 import './Perfil.css';
 import { ClientVisits } from '../../components/shared/Expediente';
@@ -56,6 +58,23 @@ const formatDate = (str) => {
             day: 'numeric', month: 'short', year: 'numeric'
         });
     } catch { return str; }
+};
+
+// "Hoy" / "Mañana" junto a la fecha — lo primero que el cliente quiere saber.
+const relativeDayLabel = (iso, today) => {
+    if (iso === today) return 'Hoy';
+    const t = new Date(today + 'T12:00:00');
+    t.setDate(t.getDate() + 1);
+    const tomorrow = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    return iso === tomorrow ? 'Mañana' : '';
+};
+
+// Qué significa cada estado para el cliente — antes solo veía la etiqueta
+// ("Pendiente") sin saber que el negocio todavía tenía que aceptarla.
+const STATUS_HINT = {
+    Pendiente:    'Esperando que el negocio confirme tu cita y te asigne horario.',
+    Confirmada:   '¡Tu cita está confirmada! Te esperamos.',
+    'En proceso': 'Te estamos atendiendo en este momento.',
 };
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -110,6 +129,16 @@ const Perfil = () => {
     const [cancelModal,  setCancelModal]  = useState(null);
     const [activeTab,    setActiveTab]    = useState('citas');
     const [profilePhoneError, setProfilePhoneError] = useState('');
+    const [showPastAppts, setShowPastAppts] = useState(false);
+
+    // Enlaces directos a una parte del perfil (todo vive en esta misma
+    // página, no en páginas aparte): ?tab=citas desde "Mis citas" del
+    // navbar o tras reservar, ?accion=nueva-mascota desde el modal de
+    // reserva cuando el cliente aún no tiene mascotas.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabsRef = useRef(null);
+    const { withBusinessPath } = useBusinessPath();
+    const bookPath = withBusinessPath('/servicios');
 
     const addToast = useCallback((message, type = 'info') => {
         setToast({ message, type, id: Date.now() });
@@ -168,6 +197,19 @@ const Perfil = () => {
     }, [user?.id, addToast]);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    useEffect(() => {
+        if (loading) return;
+        const tab = searchParams.get('tab');
+        const action = searchParams.get('accion');
+        if (!tab && !action) return;
+        if (['citas', 'compras', 'historial'].includes(tab)) {
+            setActiveTab(tab);
+            setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }
+        if (action === 'nueva-mascota') setPetModal({});
+        setSearchParams({}, { replace: true });
+    }, [loading, searchParams, setSearchParams]);
 
     // Polling de citas cada 30s
     const refreshAppts = useCallback(async () => {
@@ -315,11 +357,71 @@ const Perfil = () => {
     const getApptServiceName = (a) => a.service?.title   || a.serviceName || 'Servicio';
     const getApptPetName     = (a) => a.pet?.petName     || a.petName     || 'Mascota';
 
-    const nextAppt = myAppts.find(a =>
-        a.date >= today && a.status !== 'Cancelada' && a.status !== 'Completada'
-    );
+    // myAppts viene ordenado de la más reciente a la más antigua — para
+    // "próximas" se invierte, así la primera es la más cercana (antes
+    // "Próxima cita" mostraba la MÁS LEJANA de las futuras).
+    const isUpcoming = (a) => a.date >= today && !['Cancelada', 'Finalizada'].includes(a.status);
+    const upcomingAppts = myAppts.filter(isUpcoming).sort((a, b) =>
+        a.date.localeCompare(b.date) || (a.time || '99').localeCompare(b.time || '99'));
+    const pastAppts = myAppts.filter(a => !isUpcoming(a));
+    const nextAppt = upcomingAppts[0];
+
+    const handleAskStatus = (a) => {
+        const url = clientToShopAskStatus({
+            clientName: displayName, petName: getApptPetName(a), serviceName: getApptServiceName(a),
+            date: a.date, time: a.time, shopName: settings?.businessName, shopWhatsApp: settings?.whatsappNumber,
+        });
+        if (url) openWhatsApp(url);
+    };
     const pendingAppts = myAppts.filter(a => a.status === 'Pendiente' || a.status === 'Confirmada');
     const isCancellable = (a) => a.status !== 'Cancelada' && a.status !== 'Completada' && a.status !== 'EnProceso';
+
+    // ── Fila de cita ──────────────────────────────────────────────────────────
+    const renderApptRow = (a, upcoming) => {
+        const sc = STATUS_COLORS[a.status] || STATUS_COLORS['Pendiente'];
+        const dayLabel = upcoming ? relativeDayLabel(a.date, today) : '';
+        return (
+            <div key={a.id} className={`appt-row ${upcoming ? '' : 'appt-row--past'}`} style={{ borderLeft: `4px solid ${sc.border}` }}>
+                <div className="appt-row-main">
+                    <div className="appt-row-info">
+                        <strong>
+                            {getApptPetName(a)}
+                            {dayLabel && <span className="appt-day-pill">{dayLabel}</span>}
+                        </strong>
+                        <span>{getApptServiceName(a)}</span>
+                        <span className="appt-datetime">
+                            📅 {formatDate(a.date)} · 🕐 {a.time
+                                ? a.time
+                                : <em className="appt-time-pending">{upcoming ? 'Horario por asignar' : 'Sin horario'}</em>}
+                        </span>
+                        {upcoming && STATUS_HINT[a.status] && (
+                            <span className="appt-hint">{STATUS_HINT[a.status]}</span>
+                        )}
+                    </div>
+                    <div className="appt-row-right">
+                        <span className="appt-status-badge" style={{
+                            background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`,
+                        }}>
+                            {STATUS_EMOJI[a.status]} {a.status}
+                        </span>
+                        {a.finalPrice > 0 && (
+                            <span className="appt-price">~${a.finalPrice}</span>
+                        )}
+                        {upcoming && a.status === 'Pendiente' && settings?.whatsappNumber && (
+                            <button className="appt-ask-btn" onClick={() => handleAskStatus(a)}>
+                                <FaWhatsapp /> Preguntar
+                            </button>
+                        )}
+                        {upcoming && isCancellable(a) && (
+                            <button className="appt-cancel-btn" onClick={() => setCancelModal(a)}>
+                                <FaBan /> Cancelar
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // ── Render de venta (nuevo formato con items[]) ───────────────────────────
     const getSaleLabel = (s) => {
@@ -374,7 +476,7 @@ const Perfil = () => {
                             <div className="next-appointment-box">
                                 <p className="appt-service">{getApptServiceName(nextAppt)}</p>
                                 <p>📅 {formatDate(nextAppt.date)}</p>
-                                {nextAppt.time && <p>🕐 {nextAppt.time}</p>}
+                                <p>🕐 {nextAppt.time || 'Horario por asignar'}</p>
                                 <p>🐾 {getApptPetName(nextAppt)}</p>
                                 <div className="appt-status-pill" style={{
                                     background: STATUS_COLORS[nextAppt.status]?.bg,
@@ -387,6 +489,7 @@ const Perfil = () => {
                         ) : (
                             <div className="next-appointment-box next-appointment-box--empty">
                                 <p>😊 Sin citas próximas</p>
+                                <Link to={bookPath} className="next-appt-book-link">Agendar una cita →</Link>
                             </div>
                         )}
                     </div>
@@ -489,10 +592,10 @@ const Perfil = () => {
                     </section>}
 
                     {/* Tabs */}
-                    <section className="profile-section history-section">
+                    <section className="profile-section history-section" ref={tabsRef}>
                         <div className="tabs-header">
                             {[
-                                { id: 'citas',     icon: <FaCalendarCheck />, label: 'Mis citas'        },
+                                { id: 'citas',     icon: <FaCalendarCheck />, label: 'Mis citas', count: upcomingAppts.length },
                                 { id: 'compras',   icon: <FaShoppingBag />,   label: 'Compras'          },
                                 { id: 'historial', icon: <FaHistory />, label: 'Mis visitas' },
                             ].map(t => (
@@ -500,48 +603,47 @@ const Perfil = () => {
                                     className={`tab-btn ${activeTab === t.id ? 'active' : ''}`}
                                     onClick={() => setActiveTab(t.id)}>
                                     {t.icon} {t.label}
+                                    {t.count > 0 && <span className="tab-count">{t.count}</span>}
                                 </button>
                             ))}
                         </div>
 
-                        {/* Citas */}
+                        {/* Citas — próximas arriba (con lo que significa su estado y
+                            qué puede hacer el cliente), anteriores plegadas abajo. */}
                         {activeTab === 'citas' && (
                             <div className="tab-content">
-                                {myAppts.length === 0 ? (
-                                    <p className="empty-tab">Sin citas registradas</p>
+                                <div className="appts-toolbar">
+                                    <p className="appts-toolbar-text">
+                                        {upcomingAppts.length === 0
+                                            ? 'No tienes citas próximas.'
+                                            : `Tienes ${upcomingAppts.length} cita${upcomingAppts.length === 1 ? '' : 's'} próxima${upcomingAppts.length === 1 ? '' : 's'}.`}
+                                    </p>
+                                    <Link to={bookPath} className="btn-add"><FaPlus /> Agendar cita</Link>
+                                </div>
+
+                                {upcomingAppts.length === 0 ? (
+                                    <div className="empty-state">
+                                        <span>📅</span>
+                                        <p>Cuando agendes una cita, aquí verás su estado y cuándo el negocio te asigne horario.</p>
+                                        <Link to={bookPath} className="btn-add-empty">Agendar mi primera cita</Link>
+                                    </div>
                                 ) : (
                                     <div className="appts-list">
-                                        {myAppts.map(a => {
-                                            const sc = STATUS_COLORS[a.status] || STATUS_COLORS['Pendiente'];
-                                            return (
-                                                <div key={a.id} className="appt-row" style={{ borderLeft: `4px solid ${sc.border}` }}>
-                                                    <div className="appt-row-main">
-                                                        <div className="appt-row-info">
-                                                            <strong>{getApptPetName(a)}</strong>
-                                                            <span>{getApptServiceName(a)}</span>
-                                                            <span className="appt-datetime">
-                                                                📅 {formatDate(a.date)}{a.time ? ` · 🕐 ${a.time}` : ''}
-                                                            </span>
-                                                        </div>
-                                                        <div className="appt-row-right">
-                                                            <span className="appt-status-badge" style={{
-                                                                background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`,
-                                                            }}>
-                                                                {STATUS_EMOJI[a.status]} {a.status}
-                                                            </span>
-                                                            {a.finalPrice > 0 && (
-                                                                <span className="appt-price">~${a.finalPrice}</span>
-                                                            )}
-                                                            {isCancellable(a) && (
-                                                                <button className="appt-cancel-btn" onClick={() => setCancelModal(a)}>
-                                                                    <FaBan /> Cancelar
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                        {upcomingAppts.map(a => renderApptRow(a, true))}
+                                    </div>
+                                )}
+
+                                {pastAppts.length > 0 && (
+                                    <div className="appts-past">
+                                        <button type="button" className="appts-past-toggle"
+                                            onClick={() => setShowPastAppts(v => !v)}>
+                                            {showPastAppts ? '▾' : '▸'} Citas anteriores y canceladas ({pastAppts.length})
+                                        </button>
+                                        {showPastAppts && (
+                                            <div className="appts-list">
+                                                {pastAppts.map(a => renderApptRow(a, false))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
