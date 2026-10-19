@@ -115,7 +115,8 @@ const Navbar = () => {
                             <span className="user-greeting">Hola, <strong>{user.name.split(' ')[0]}</strong></span>
                             {panelPath
                                 ? <NavLink to={panelPath} className="nav-access-btn nav-panel-btn"><PanelIcon /><span>Mi panel</span></NavLink>
-                                : <NavLink to="/perfil" className="nav-icon" title="Mi Perfil" data-tour="nav-perfil"><ProfileIcon /></NavLink>}
+                                // Feedback de QA: con solo el ícono el cliente no encontraba sus citas.
+                                : <NavLink to="/perfil" className="nav-access-btn nav-panel-btn" title="Mi perfil y mis citas" data-tour="nav-perfil"><ProfileIcon /><span>Mis citas</span></NavLink>}
                             <button className="nav-icon nav-icon--logout" title="Cerrar Sesión" onClick={handleLogout}><LogoutIcon /></button>
                         </>
                     ) : (
@@ -141,7 +142,7 @@ const Navbar = () => {
                     <>
                         {panelPath
                             ? <NavLink to={panelPath} className={navClass}>Ir a mi panel</NavLink>
-                            : <NavLink to="/perfil" className={navClass}>Mi Perfil</NavLink>}
+                            : <NavLink to="/perfil" className={navClass}>Mi perfil y mis citas</NavLink>}
                         <button className="nav-item nav-item--logout-mobile" onClick={handleLogout}>
                             Cerrar sesión ({user.name.split(' ')[0]})
                         </button>

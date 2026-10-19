@@ -20,6 +20,7 @@
 // - Precio referencial con calcServicePrice()
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     FaCalendarAlt, FaCheckCircle, FaTimes, FaPaw,
     FaChevronLeft, FaChevronRight, FaWhatsapp, FaInfoCircle
@@ -106,6 +107,7 @@ const MiniCalendar = ({ selectedDate, onSelect }) => {
 const ServiceModal = ({ service, onClose }) => {
     const { user }      = useAuth();
     const { addSale, settings } = useData();
+    const navigate      = useNavigate();
 
     const [step,        setStep]        = useState(1);
     const [loading,     setLoading]     = useState(false);
@@ -179,7 +181,9 @@ const ServiceModal = ({ service, onClose }) => {
             next();
         } catch (e) {
             console.error(e);
-            setError('Error al guardar la reserva. Intenta de nuevo.');
+            // 400/409: regla de negocio (duplicada, día sin horario, etc.) —
+            // el mensaje del servidor ya es legible para el cliente.
+            setError([400, 409].includes(e.status) ? e.message : 'Error al guardar la reserva. Intenta de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -393,6 +397,9 @@ const ServiceModal = ({ service, onClose }) => {
                             <FaWhatsapp /> Avisar por WhatsApp a la estética
                         </button>
 
+                        <button className="sm-btn-secondary" type="button" onClick={() => { onClose(); navigate('/perfil'); }} style={{ marginTop: 8 }}>
+                            Ver mis citas
+                        </button>
                         <button className="sm-btn-secondary" type="button" onClick={onClose} style={{ marginTop: 8 }}>
                             Cerrar
                         </button>

@@ -1647,6 +1647,9 @@ app.get('/api/appointments/availability', async (req, res) => {
     }
     const slots = computeSlotsForDate(date, businessHours, durationMinutes);
     const fullSlots = await getFullSlotsForDate(date, slots, null, employeeId ? parseInt(employeeId) : null);
+    // Si es hoy, las horas que ya pasaron tampoco se pueden reservar.
+    const now = nowInBusinessTz();
+    if (date === now.date) fullSlots.push(...slots.filter(s => s <= now.time && !fullSlots.includes(s)));
     res.json({ slots, fullSlots });
   } catch (err) {
     console.error(err);
@@ -1724,16 +1727,60 @@ const normalizeAppointmentIds = (data) => {
   return out;
 };
 
+// "Ahora" en la zona horaria del negocio — el servidor (Vercel) corre en UTC,
+// así que new Date() solo daría la fecha/hora de Londres. Las citas guardan
+// date/time como texto local del negocio ("YYYY-MM-DD" / "HH:mm").
+const BUSINESS_TZ = process.env.BUSINESS_TZ || 'America/Mexico_City';
+const nowInBusinessTz = () => {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: BUSINESS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date()).map(p => [p.type, p.value])
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+};
+
 app.post('/api/appointments', publicWriteLimiter, async (req, res) => {
   // Pública para booking express (clientes sin sesión) Y para el flujo de
   // reserva con cuenta (ServiceModal): ese flujo solo pide el DÍA a propósito
-  // — el groomer asigna la hora después desde su calendario — así que time
-  // llega como '' intencionalmente y NO debe exigirse aquí.
+  // — el negocio asigna la hora al aceptar — así que time puede llegar ''.
+  // Feedback de QA: se aceptaban citas con una hora que ya pasó, para hoy
+  // cuando ya no quedaba horario, y duplicadas (misma mascota, mismo día).
+  // Esas reglas aplican a clientes/público; admin/empleado conservan la
+  // libertad de registrar como antes (ej. capturar una visita que ya ocurrió).
   try {
     const { extras, ...rawData } = req.body;
     const data = normalizeAppointmentIds(rawData);
     if (!data.date)
       return res.status(400).json({ error: 'Fecha requerida' });
+    const isStaff = req.user && ['administrador', 'empleado'].includes(req.user.role);
+    if (!isStaff) {
+      const now = nowInBusinessTz();
+      if (data.date < now.date || (data.date === now.date && data.time && data.time <= now.time))
+        return res.status(400).json({ error: 'Ese horario ya pasó. Elige una fecha y hora futuras.' });
+      // Sin hora (el negocio la asigna): para hoy debe quedar al menos un
+      // horario de atención por delante, si no la cita nunca podría darse.
+      if (data.date === now.date && !data.time) {
+        const settings = await prisma.settings.findFirst();
+        const svc = data.serviceId ? await prisma.service.findUnique({ where: { id: data.serviceId }, select: { durationMinutes: true } }) : null;
+        const slots = computeSlotsForDate(data.date, settings?.businessHours || DEFAULT_BUSINESS_HOURS, svc?.durationMinutes || 45);
+        if (!slots.some(s => s > now.time))
+          return res.status(400).json({ error: 'Ya no quedan horarios disponibles hoy. Elige otro día.' });
+      }
+      // Un cliente con sesión solo puede reservar a su nombre.
+      if (req.user?.role === 'cliente') data.clientId = req.user.id;
+      const active = { date: data.date, status: { notIn: ['Cancelada', 'Completada'] } };
+      const duplicate = data.petId
+        ? await prisma.appointment.findFirst({ where: { ...active, petId: data.petId } })
+        : data.guestPhone
+          ? await prisma.appointment.findFirst({ where: { ...active, guestPhone: data.guestPhone, time: data.time } })
+          : null;
+      if (duplicate)
+        return res.status(409).json({ error: data.petId
+          ? 'Esta mascota ya tiene una cita ese día. Revisa "Mis citas" en tu perfil.'
+          : 'Ya registraste una cita a esa hora ese día.' });
+    }
     if (data.branchId !== undefined) data.branchId = await resolveBranchId(data.branchId);
     // Revalidar disponibilidad en el servidor (evita que dos personas
     // reserven el mismo horario a la vez, o que llegue una hora fuera del

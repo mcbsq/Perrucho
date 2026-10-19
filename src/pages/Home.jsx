@@ -140,8 +140,8 @@ const BookingExpressModal = ({ onClose, settings }) => {
                 notes:       `BOOKING EXPRESS — Mascota: ${form.petName} | Raza: ${form.breed || 'N/D'} | Edad: ${form.age || 'N/D'} | Peso aprox: ${form.weight || 'N/D'} kg`,
             });
             setStep(3);
-        } catch {
-            setError('Hubo un error al registrar tu cita. Intenta de nuevo.');
+        } catch (err) {
+            setError([400, 409].includes(err.status) ? err.message : 'Hubo un error al registrar tu cita. Intenta de nuevo.');
         } finally {
             setLoading(false);
         }
